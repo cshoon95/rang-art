@@ -32,3 +32,5 @@ export const hideHeaderTitlePath = [
   "/signup",
   "/temp-schedule",
 ];
+
+// ㅅㄷㄴㅅ
