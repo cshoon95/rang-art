@@ -20,7 +20,21 @@
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-custom);
+}
+
+/* 기본적으로 푸터가 있다고 가정할 때 */
+.footer {
+  display: block;
+}
+
+/* 태블릿(아이패드) 및 모바일 화면에서는 숨김 */
+@media (max-width: 1224px) {
+  .footer {
+    display: none !important;
+  }
+  /* 또는 특정 컴포넌트 클래스명 */
+  .MuiBox-root.dashboard-footer {
+    display: none !important;
+  }
 }
