@@ -12,7 +12,7 @@ import {
   ViewDay as ViewDayIcon,
 } from "@mui/icons-material";
 import { useUpsertSchedule } from "@/api/schedule/useScheduleQuery";
-import { weekDayList } from "@/utils/list";
+import { WEEKDAY_LIST } from "@/utils/list";
 import { replaceTimeFormat, replaceTimePattern } from "@/utils/format";
 
 interface Props {
@@ -90,7 +90,7 @@ export default function ScheduleClient({
   };
 
   const rows = initialTimeList?.map((item: any) => {
-    const obj: any = { days: weekDayList, time: item.TIME };
+    const obj: any = { days: WEEKDAY_LIST, time: item.TIME };
     const filterList =
       initialDataList?.filter((d: any) => d.TIME === item.TIME) || [];
 
@@ -100,7 +100,7 @@ export default function ScheduleClient({
       if (filterList.length > 0) {
         const data = filterList.find((d: any) => {
           return (
-            weekDayList[Math.floor(i / 2)].value === Number(d.DAY) &&
+            WEEKDAY_LIST[Math.floor(i / 2)].value === Number(d.DAY) &&
             type === d.TYPE
           );
         });
@@ -137,7 +137,7 @@ export default function ScheduleClient({
         <MobileControlBar>
           {!isAllView && (
             <TabList>
-              {weekDayList.map((day) => (
+              {WEEKDAY_LIST.map((day) => (
                 <TabButton
                   key={day.value}
                   $isActive={activeDay === day.value}
@@ -164,7 +164,7 @@ export default function ScheduleClient({
           <Thead>
             <tr>
               <ThStickyCorner>TIME</ThStickyCorner>
-              {weekDayList.map((day) => (
+              {WEEKDAY_LIST.map((day) => (
                 <ThStickyTop
                   key={day.value}
                   colSpan={2}

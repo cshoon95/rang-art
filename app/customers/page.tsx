@@ -1,19 +1,23 @@
-// import { Suspense } from "react";
-// import { getServerCustomerList } from "@/api/customers/server";
-// import CustomerClient from "./_components/CustomerClient";
-// import { cookies } from "next/headers";
-// import { Spinner } from "@/shared-components"; // 로딩 스피너
+import { Suspense } from "react";
+import { cookies } from "next/headers";
+import { getServerCustomerList } from "@/api/customers/actions";
+import { Spinner } from "@/components/Spinner";
+import CustomersClient from "./_components/CustomerClient";
 
-// export default async function CustomerPage() {
-//   const cookieStore = await cookies();
-//   const academyCode = cookieStore.get("academyCode")?.value || "2"; // 기본값 설정
+export default async function CustomersPage() {
+  const cookieStore = await cookies();
+  const academyCode = cookieStore.get("academyCode")?.value || "2";
+  const userRole = cookieStore.get("userRole")?.value || "admin";
 
-//   // 서버에서 데이터 가져오기
-//   const customers = await getServerCustomerList(academyCode);
+  const customerList = await getServerCustomerList(academyCode);
 
-//   return (
-//     <Suspense fallback={<Spinner />}>
-//       <CustomerClient initialCustomers={customers} />
-//     </Suspense>
-//   );
-// }
+  return (
+    <Suspense fallback={<Spinner />}>
+      <CustomersClient
+        initialData={customerList}
+        academyCode={academyCode}
+        userRole={userRole}
+      />
+    </Suspense>
+  );
+}

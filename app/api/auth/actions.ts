@@ -1,58 +1,90 @@
 "use server";
 
-import pool from "@/lib/db";
-import { academyList } from "@/utils/list";
+import { createClient } from "@/utils/supabase/server";
+import { ACADEMY_LIST } from "@/utils/list";
+import { cookies } from "next/headers";
 
-// ✅ 지점 등록 액션 (INSERT + UPDATE 겸용)
+// ✅ 지점 등록 액션 (Supabase 버전)
 export async function insertJoinAction(
   email: string,
   name: string,
   academyCode: string
 ) {
+  const supabase = await createClient();
+
+  // 1. 비즈니스 로직 설정
   // '2'번 지점(무료체험)은 바로 승인(Y), 나머지는 대기(N)
   const state = academyCode === "2" ? "Y" : "N";
-  // 선생님
-  const level = 3;
-  const academyInfo = academyList.find((v) => v.code === academyCode);
+  const level = 3; // 선생님
+  const academyInfo = ACADEMY_LIST.find((v) => v.code === academyCode);
   const academyName = academyInfo?.name;
+  const today = new Date().toISOString(); // Supabase Timestamptz 형식
 
-  console.log("academyNae", academyName);
-  const today = new Date();
+  // 2. 이미 존재하는 유저인지 확인
+  const { data: existingUser, error: fetchError } = await supabase
+    .from("users")
+    .select("id")
+    .eq("id", email)
+    .single();
 
-  // 🚨 [쿼리 수정] UPDATE 절에 LEVEL, academy_name, updater_date 추가
-  const query = `
-    INSERT INTO "USER" (
-      "id", "NAME", "academy_code", "state", 
-      "register_id", "LEVEL", "academy_name", "register_date"
-    )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    ON CONFLICT ("id") 
-    DO UPDATE SET 
-      "NAME" = $2,
-      "academy_code" = $3,
-      "state" = $4,
-      "LEVEL" = $6,           -- ✅ 레벨 업데이트 추가
-      "academy_name" = $7,    -- ✅ 학원명 업데이트 추가
-      "updater_id" = $1,      -- 수정자 (본인 이메일)
-      "updater_date" = $8     -- ✅ 수정일 업데이트 추가 (오늘 날짜)
-  `;
+  if (fetchError && fetchError.code !== "PGRST116") {
+    // PGRST116: 데이터 없음 (정상) -> 그 외에는 진짜 에러
+    console.error("User Check Error:", fetchError);
+    throw new Error("사용자 조회 실패");
+  }
 
-  try {
-    // 파라미터 순서 ($1 ~ $8)
-    await pool.query(query, [
-      email, // $1: id
-      name, // $2: NAME
-      academyCode, // $3: academy_code
-      state, // $4: state
-      email, // $5: register_id (최초 등록자)
-      level, // $6: LEVEL
-      academyName, // $7: academy_name
-      today, // $8: register_date / updater_date
-    ]);
+  let actionError;
 
-    return { success: true };
-  } catch (error) {
-    console.error("Register Branch Error:", error);
+  // 3. 분기 처리 (SQL의 ON CONFLICT DO UPDATE 로직 구현)
+  if (existingUser) {
+    // ✅ 이미 존재함 -> UPDATE 실행
+    // (level, academy_name, updater_date 업데이트)
+    const { error } = await supabase
+      .from("users")
+      .update({
+        name: name,
+        academy_code: academyCode,
+        state: state,
+        level: level,
+        academy_name: academyName,
+        updater_id: email, // 수정자 (본인)
+        updater_date: today, // 수정일 업데이트
+      })
+      .eq("id", email);
+
+    actionError = error;
+  } else {
+    // ✅ 없음 -> INSERT 실행
+    // (register_id, register_date 입력)
+    const { error } = await supabase.from("users").insert({
+      id: email,
+      name: name,
+      academy_code: academyCode,
+      state: state,
+      register_id: email, // 최초 등록자
+      level: level,
+      academy_name: academyName,
+      register_date: today, // 등록일
+    });
+
+    actionError = error;
+  }
+
+  if (actionError) {
+    console.error("Register Branch Error:", actionError);
     throw new Error("지점 등록 실패");
   }
+
+  return { success: true };
+}
+
+// ✅ 세션(쿠키) 초기화 함수
+export async function clearAcademySession() {
+  const cookieStore = await cookies();
+
+  // 학원 관련 쿠키 삭제
+  cookieStore.delete("academyCode");
+  cookieStore.delete("academyName");
+
+  // 필요 시 Next-Auth 관련 쿠키 외의 커스텀 쿠키 삭제 로직 추가
 }

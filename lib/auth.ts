@@ -1,6 +1,9 @@
+// app/api/auth/[...nextauth]/route.ts
+
 import NextAuth, { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import pool from "@/lib/db";
+import { createClient } from "@/utils/supabase/server"; // Supabase 사용 시
+// 또는 mysql pool을 import 하세요.
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -9,78 +12,53 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
   ],
-  session: {
-    strategy: "jwt",
-  },
   callbacks: {
-    async signIn({ user }) {
-      debugger;
-      if (!user.email) return false;
-      try {
-        const query = `SELECT * FROM "USER" WHERE "id" = $1`;
-        const { rows } = await pool.query(query, [user.email]);
-        // 레벨 설정 (예: 3 = 선생님/관리자 후보)
-        const level = 3;
+    // 1️⃣ JWT 콜백: 로그인 성공 직후 실행됨. 여기서 DB를 조회합니다.
+    async jwt({ token, user }) {
+      // user 객체가 있다는 것은 방금 막 로그인했다는 뜻입니다.
+      if (user && user.email) {
+        try {
+          // [DB 조회 로직] 구글 이메일로 우리 DB 유저 조회
+          // Supabase 예시 (MySQL이면 db.query 사용)
+          const supabase = await createClient();
+          const { data: dbUser } = await supabase
+            .from("users") // 테이블명 (기존 USER)
+            .select("state, academy_code, name, level")
+            .eq("id", user.email) // ID 컬럼이 이메일이라고 가정
+            .single();
 
-        if (rows.length === 0) {
-          const insertQuery = `
-            INSERT INTO "USER" ("id", "NAME", "state", "register_id", "LEVEL")
-            VALUES ($1, $2, 'N', $3, $4)
-          `;
-          await pool.query(insertQuery, [
-            user.email,
-            user.name,
-            user.name,
-            level,
-          ]);
+          if (dbUser) {
+            // DB에 유저가 존재하면 토큰에 정보 저장
+            token.state = dbUser.state;
+            token.academyCode = dbUser.academy_code;
+            token.level = dbUser.level;
+          } else {
+            // DB에 유저가 없으면 (신규 가입 대상)
+            token.state = "N"; // 미승인 상태로 간주
+            token.academyCode = null;
+          }
+        } catch (error) {
+          console.error("DB User Fetch Error", error);
         }
-        return true;
-      } catch (error) {
-        console.error("SignIn Error:", error);
-        return false;
-      }
-    },
-
-    async jwt({ token, trigger, session }) {
-      if (trigger === "update" && session) {
-        return { ...token, ...session };
       }
       return token;
     },
 
-    // 🚨 여기가 문제입니다! 여기를 이렇게 바꿔주세요.
-    async session({ session }) {
-      if (session.user?.email) {
-        try {
-          // 1. DB에서 유저 정보 최신화
-          // (컬럼명은 소문자로 쿼리하는게 정신건강에 좋습니다)
-          const query = `SELECT * FROM "USER" WHERE "id" = $1`;
-          const { rows } = await pool.query(query, [session.user.email]);
-
-          if (rows.length > 0) {
-            const dbUser = rows[0];
-
-            // 🔍 디버깅: 터미널에 DB가 뭐라고 반환하는지 찍어봅니다.
-            console.log("DB User Info:", dbUser);
-
-            // 2. 대소문자 모두 체크하여 값 할당 (Postgres는 소문자 반환이 기본)
-            // academy_code(소문자)가 있을 확률이 99%입니다.
-            (session.user as any).academyCode =
-              dbUser.academy_code || dbUser.ACADEMY_CODE;
-            (session.user as any).state = dbUser.state || dbUser.STATE;
-
-            // 이름도 확실하게 DB 정보로 덮어씌우기
-            session.user.name = dbUser.name || dbUser.NAME;
-          }
-        } catch (error) {
-          console.error("Session Error:", error);
-        }
+    // 2️⃣ Session 콜백: 클라이언트(AuthCheck)에서 useSession()으로 접근할 때 실행됨
+    async session({ session, token }) {
+      // JWT 토큰에 저장해둔 DB 정보를 세션으로 옮김
+      if (session.user) {
+        (session.user as any).state = token.state;
+        (session.user as any).academyCode = token.academyCode;
+        (session.user as any).level = token.level;
       }
       return session;
     },
   },
   pages: {
-    signIn: "/login",
+    signIn: "/login", // 커스텀 로그인 페이지 경로
   },
-  secret: process.env.NEXTAUTH_SECRET,
 };
+
+const handler = NextAuth(authOptions);
+export { handler as GET, handler as POST };

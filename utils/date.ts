@@ -331,3 +331,24 @@ export const formatToKoreanDateTime = (isoString: string): string => {
 
   return `${year}년 ${month}월 ${day}일 ${hour}시 ${minute}분`;
 };
+
+// 날짜 포맷 헬퍼 (YYYYMMDD -> YYYY-MM-DD)
+export const formatDateToInput = (dateStr: string) => {
+  if (!dateStr || dateStr.length !== 8) return "";
+  return dateStr.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
+};
+
+/**
+ * DDay 가져오기
+ */
+export const getDDay = (dateString: string) => {
+  if (!dateString) return "";
+  const year = parseInt(dateString.substring(0, 4));
+  const month = parseInt(dateString.substring(4, 6)) - 1;
+  const day = parseInt(dateString.substring(6, 8));
+  const startDate = new Date(year, month, day);
+  const today = new Date();
+  const diffTime = Math.abs(today.getTime() - startDate.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return `D+${diffDays}`;
+};

@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, CircularProgress, styled } from "@mui/material";
 
 export const Spinner = () => {

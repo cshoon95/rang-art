@@ -9,7 +9,7 @@ import { useInsertJoin } from "../api/auth/useAuth";
 import { useModalStore } from "@/store/modalStore";
 import ModalLoginWaiting from "@/components/modals/ModalLoginWaiting";
 import { useShallow } from "zustand/react/shallow";
-import { academyList } from "@/utils/list";
+import { ACADEMY_LIST } from "@/utils/list";
 
 // 선택 가능한 지점 목록
 const ACADEMIES = [
@@ -27,20 +27,26 @@ export default function SignupPage() {
 
   const { mutate: joinMutate, isPending: isLoadingJoinMutate } = useInsertJoin({
     onSuccess: async (data, variables) => {
-      // 1. DB 저장 성공 후 -> 세션 업데이트 실행 (비동기)
-      // 여기서 update를 실행하면 이미 모달이 뜨는 시점이라 깜빡임이 덜 느껴집니다.
-      await update({ academyCode: variables.academyCode });
+      // 1. 세션 강제 갱신 (서버 DB 다시 조회 트리거)
+      // 인자 없이 호출하면 jwt 콜백에서 trigger: "update"가 됨
+      await update();
 
-      // 2. 모달 오픈 및 이동 로직
+      // 2. 이동할 경로 결정
       const nextPath = variables.academyCode === "2" ? "/" : "/waiting";
 
+      // 3. 모달 띄우기 (만약 모달 확인 후 이동이라면 여기서 router 호출 X)
       openModal({
-        type: "SIMPLE", // 혹은 'FULL'
+        type: "SIMPLE",
         title: "가입 대기",
-        // ⭐ 컴포넌트를 prop으로 전달!
-        content: <ModalLoginWaiting academyCode={selectedCode} />,
-        // 버튼은 ModalLoginWaiting 안에서 직접 구현하거나, 여기서 onConfirm으로 제어 가능
+        content: <ModalLoginWaiting academyCode={variables.academyCode} />, // variables 사용 권장
+        onConfirm: () => {
+          // 4. [수정] 모달 확인 버튼 누르면 이동 (명시적 이동)
+          // router.replace(nextPath);
+        },
       });
+
+      // 만약 모달 없이 바로 이동하고 싶다면:
+      router.replace(nextPath);
     },
     onError: (error) => {
       console.error(error);
@@ -48,15 +54,17 @@ export default function SignupPage() {
     },
   });
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // 여기있던 update() 제거! (onSuccess로 이동)
 
     if (!selectedCode || !session?.user?.email) return;
 
     const userName = session.user.name || "이름없음";
 
+    await update({ academyCode: "2" });
+
     // Mutation 실행
-    joinMutate({
+    await joinMutate({
       email: session.user.email,
       name: userName,
       academyCode: selectedCode,
@@ -72,7 +80,7 @@ export default function SignupPage() {
         </HeaderSection>
 
         <BranchList>
-          {academyList.map((academy) => (
+          {ACADEMY_LIST.map((academy) => (
             <BranchItem
               key={academy.code}
               $isSelected={selectedCode === academy.code}

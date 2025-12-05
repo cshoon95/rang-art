@@ -12,9 +12,9 @@ import {
   ViewDay as ViewDayIcon,
 } from "@mui/icons-material";
 import { useUpsertSchedule } from "@/api/schedule/useScheduleQuery";
-import { weekDayList } from "@/utils/list";
 import { replaceTimeFormat, replaceTimePattern } from "@/utils/format";
 import { useUpsertTempSchedule } from "@/api/temp-schedule/useTempScheduleQuery";
+import { WEEKDAY_LIST } from "@/utils/list";
 
 interface Props {
   initialTimeList: any[];
@@ -91,7 +91,7 @@ export default function TempScheduleClient({
   };
 
   const rows = initialTimeList?.map((item: any) => {
-    const obj: any = { days: weekDayList, time: item.TIME };
+    const obj: any = { days: WEEKDAY_LIST, time: item.TIME };
     const filterList =
       initialDataList?.filter((d: any) => d.TIME === item.TIME) || [];
 
@@ -101,7 +101,7 @@ export default function TempScheduleClient({
       if (filterList.length > 0) {
         const data = filterList.find((d: any) => {
           return (
-            weekDayList[Math.floor(i / 2)].value === Number(d.DAY) &&
+            WEEKDAY_LIST[Math.floor(i / 2)].value === Number(d.DAY) &&
             type === d.TYPE
           );
         });
@@ -138,7 +138,7 @@ export default function TempScheduleClient({
         <MobileControlBar>
           {!isAllView && (
             <TabList>
-              {weekDayList.map((day) => (
+              {WEEKDAY_LIST.map((day) => (
                 <TabButton
                   key={day.value}
                   $isActive={activeDay === day.value}
@@ -165,7 +165,7 @@ export default function TempScheduleClient({
           <Thead>
             <tr>
               <ThStickyCorner>TIME</ThStickyCorner>
-              {weekDayList.map((day) => (
+              {WEEKDAY_LIST.map((day) => (
                 <ThStickyTop
                   key={day.value}
                   colSpan={2}

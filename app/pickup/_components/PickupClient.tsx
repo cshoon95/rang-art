@@ -13,15 +13,7 @@ import {
 } from "@mui/icons-material";
 import { replaceTimeFormat, replaceTimePattern } from "@/utils/format";
 import { useUpsertPickup } from "@/api/pickup/usePickupQuery";
-
-// 요일 리스트 정의
-export const weekDayList = [
-  { value: 0, label: "월" },
-  { value: 1, label: "화" },
-  { value: 2, label: "수" },
-  { value: 3, label: "목" },
-  { value: 4, label: "금" },
-];
+import { WEEKDAY_LIST } from "@/utils/list";
 
 interface Props {
   initialTimeList: any[];
@@ -97,7 +89,7 @@ export default function PickupClient({
 
   // 데이터 가공 (5일 * 1컬럼)
   const rows = initialTimeList?.map((item: any) => {
-    const obj: any = { days: weekDayList, time: item.TIME };
+    const obj: any = { days: WEEKDAY_LIST, time: item.TIME };
     const filterList =
       initialDataList?.filter((d: any) => d.TIME === item.TIME) || [];
 
@@ -105,7 +97,7 @@ export default function PickupClient({
       let contents = "";
       if (filterList.length > 0) {
         const data = filterList.find((d: any) => {
-          return weekDayList[i].value === Number(d.DAY);
+          return WEEKDAY_LIST[i].value === Number(d.DAY);
         });
         contents = data?.CONTENT || "";
       }
@@ -139,7 +131,7 @@ export default function PickupClient({
         <MobileControlBar>
           {!isAllView && (
             <TabList>
-              {weekDayList.map((day) => (
+              {WEEKDAY_LIST.map((day) => (
                 <TabButton
                   key={day.value}
                   $isActive={activeDay === day.value}
@@ -166,7 +158,7 @@ export default function PickupClient({
           <Thead>
             <tr>
               <ThStickyCorner>TIME</ThStickyCorner>
-              {weekDayList.map((day) => (
+              {WEEKDAY_LIST.map((day) => (
                 <ThStickyTop
                   key={day.value}
                   colSpan={1} // 픽업은 하루에 1열

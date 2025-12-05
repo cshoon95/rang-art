@@ -16,6 +16,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { isHiddenHeaderPage, isHiddenHeaderTitlePage } from "@/utils/common";
+import { clearAcademySession } from "../api/auth/actions";
 
 // 🌟 1. 메뉴 데이터 정의 (여기서 링크/모달 여부를 설정하세요!)
 const MENU_STRUCTURE = [
@@ -28,14 +29,14 @@ const MENU_STRUCTURE = [
     ],
   },
   {
-    title: "월간 관리",
+    title: "관리",
     items: [
-      { label: "급여 내역", path: "/salary", type: "link" },
-      { label: "투자 내역", path: "/Investment-amount", type: "link" },
-      { label: "지출 내역", path: "/expenditure", type: "link" },
-      // 👇 모달로 띄울 메뉴 예시
-      { label: "일정 관리", id: "schedule", type: "modal" },
-      { label: "고정 지출", id: "fixed", type: "modal" },
+      { label: "회원 관리", path: "/customers", type: "link" },
+      { label: "직원 관리", path: "/employee", type: "link" },
+      { label: "지점 관리", path: "/spot", type: "link" },
+      // // 👇 모달로 띄울 메뉴 예시
+      // { label: "일정 관리", id: "schedule", type: "modal" },
+      // { label: "고정 지출", id: "fixed", type: "modal" },
     ],
   },
   {
@@ -91,6 +92,11 @@ export const Header = () => {
       router.push(item.path); // 페이지 이동
       setIsMenuOpen(false); // 드로어 닫기
     }
+  };
+
+  const handleLogout = async () => {
+    await clearAcademySession();
+    await signOut({ callbackUrl: "/login" });
   };
 
   return (
@@ -231,9 +237,7 @@ export const Header = () => {
               <CancelButton onClick={() => setIsLogoutModalOpen(false)}>
                 취소
               </CancelButton>
-              <ConfirmButton onClick={() => signOut({ callbackUrl: "/login" })}>
-                확인
-              </ConfirmButton>
+              <ConfirmButton onClick={handleLogout}>확인</ConfirmButton>
             </ModalActions>
           </ConfirmModalContent>
         </ModalOverlay>
@@ -476,7 +480,10 @@ const ModalOverlay = styled.div`
   right: 0;
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.6);
-  z-index: 3000;
+
+  /* 🔥 [수정] 드로어(10000)보다 더 높은 값으로 설정 */
+  z-index: 11000;
+
   display: flex;
   align-items: center;
   justify-content: center;

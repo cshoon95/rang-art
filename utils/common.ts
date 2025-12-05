@@ -109,3 +109,44 @@ export const isHiddenHeaderPage = (path: string) => {
 export const isHiddenHeaderTitlePage = (path: string) => {
   return hideHeaderTitlePath.includes(path);
 };
+
+/**
+ * 재원여부 상태 한글값 가져오기
+ */
+export const getStateLabel = (state: string) => {
+  switch (state) {
+    case "0":
+      return "재원";
+    case "1":
+      return "휴원";
+    case "2":
+      return "퇴원";
+    case "3":
+      return "대기";
+    default:
+      return "미정";
+  }
+};
+
+/**
+ * 재직여부 상태 한글명 가져오기
+ */
+export const getEmployeeTenure = (state: string) => {
+  let result = "";
+
+  switch (state) {
+    case "0":
+      result = "재직";
+      break;
+    case "1":
+      result = "퇴직";
+      break;
+    case "2":
+      result = "휴직";
+      break;
+    default:
+      break;
+  }
+
+  return result;
+};

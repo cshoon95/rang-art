@@ -1,278 +1,916 @@
-// "use client";
+"use client";
 
-// import React, { useState, useEffect, useTransition } from "react";
-// import {
-//   DataGrid,
-//   GridRowSelectionModel,
-//   GridRowsProp,
-//   GridRowModel,
-// } from "@mui/x-data-grid";
-// import { styled } from "@mui/material/styles";
-// import { useDataStore } from "@/shared-store";
-// import { useShallow } from "zustand/react/shallow";
-// import { useAlert, useChip, useModal } from "@/shared-hooks";
-// import { Box, TextField, InputAdornment, IconButton } from "@mui/material";
-// import SearchIcon from "@mui/icons-material/Search";
-// import ClearIcon from "@mui/icons-material/Clear";
-// import { updateCustomerAction } from "@/api/customers/actions"; // Server Action
-// import {
-//   classCount,
-//   customersColumns,
-//   customersHideColumn,
-//   extractInitialConsonants,
-//   getColumnVisibilityModel,
-//   getTodayFormattedDate,
-//   isEmptyArr,
-//   replaceOnlyNum,
-//   replaceHypenFormat,
-//   daysBetween,
-//   getAge,
-//   getLabel,
-//   gender,
-//   getCustomerState,
-// } from "@/shared-utils";
+import React, { useState, useMemo, useRef, useEffect } from "react";
+import styled from "styled-components";
+import {
+  Search as SearchIcon,
+  Add as AddIcon,
+  PhoneIphone as PhoneIcon,
+  MoreVert as MoreVertIcon,
+  ChevronLeft,
+  ChevronRight,
+} from "@mui/icons-material";
+import { useModalStore } from "@/store/modalStore";
+import { extractInitialConsonants, getStateLabel } from "@/utils/common";
+import { replaceHyphenFormat } from "@/utils/format";
+import ModalCustomerManager from "@/components/modals/ModalCustomerManager";
+import {
+  STATE_FILTER_OPTIONS,
+  COUNT_FILTER_OPTIONS,
+  STATE_ORDER,
+} from "@/utils/list";
+import { getDDay } from "@/utils/date";
+import { ModalCustomerDelete } from "@/components/modals/ModalCustomerDelete";
 
-// interface Props {
-//   initialCustomers: any[];
-// }
+interface Props {
+  initialData: any[];
+  academyCode: string;
+  userRole: string;
+}
 
-// export default function CustomerClient({ initialCustomers }: Props) {
-//   const { showAlert } = useAlert();
-//   const { showChip } = useChip();
-//   const { hideModal } = useModal();
-//   const [searchText, setSearchText] = useState("");
-//   const [rows, setRows] = useState<GridRowsProp>([]);
-//   const [isPending, startTransition] = useTransition();
+// --- [신규] 필터용 커스텀 셀렉트 컴포넌트 ---
+function FilterSelect({ value, options, onChange }: any) {
+  const [isOpen, setIsOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
-//   const {
-//     loginInfo: { academyCode, id },
-//     setSelectedGridInfo,
-//   } = useDataStore(useShallow((state) => state));
+  const selectedOption = options.find((opt: any) => opt.value === value);
 
-//   // 데이터 가공 및 필터링
-//   useEffect(() => {
-//     if (initialCustomers) {
-//       // 데이터 포맷팅 (기존 select 로직 적용)
-//       const formattedData = initialCustomers.map((item: any) => ({
-//         ...item,
-//         ID: item.ID || 0,
-//         TEL: (item.TEL && replaceHypenFormat(item.TEL, "phone")) || "",
-//         DDAY: "D+" + (item.DATE && daysBetween(item.DATE)) || "",
-//         DATE: (item.DATE && replaceHypenFormat(item.DATE, "date")) || "",
-//         DISCHARGE:
-//           (item.DISCHARGE && replaceHypenFormat(item.DISCHARGE, "date")) || "",
-//         FEE: item.FEE, // 필요한 경우 포맷팅
-//         PARENTPHONE:
-//           (item.PARENTPHONE &&
-//             item.PARENTPHONE !== "010 " &&
-//             replaceHypenFormat(item.PARENTPHONE, "phone")) ||
-//           "",
-//         BIRTH: (item.BIRTH && replaceHypenFormat(item.BIRTH, "date")) || "",
-//         AGE: getAge(item.BIRTH),
-//         SEX: getLabel(gender, item.SEX),
-//         STATE: getCustomerState(item.STATE),
-//         COUNT: getLabel(classCount, item.COUNT),
-//       }));
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-//       // 검색 필터링
-//       let filteredData = formattedData;
-//       if (searchText) {
-//         filteredData = formattedData.filter((item: any) => {
-//           return (
-//             extractInitialConsonants(item.NAME).includes(searchText) ||
-//             item.NAME.includes(searchText)
-//           );
-//         });
-//       }
+  const handleSelect = (val: string) => {
+    onChange(val);
+    setIsOpen(false);
+  };
 
-//       setRows(filteredData);
-//     }
-//   }, [initialCustomers, searchText]);
+  return (
+    <SelectWrapper ref={wrapperRef}>
+      <SelectTrigger $isOpen={isOpen} onClick={() => setIsOpen(!isOpen)}>
+        <SelectedText>
+          {selectedOption ? selectedOption.label : "선택"}
+        </SelectedText>
+        <ArrowIcon $isOpen={isOpen}>
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 12 12"
+            fill="none"
+            style={{ width: "100%", height: "100%" }}
+          >
+            <path
+              d="M2.5 4.5L6 8L9.5 4.5"
+              stroke={isOpen ? "#3182f6" : "#8B95A1"}
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </ArrowIcon>
+      </SelectTrigger>
 
-//   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-//     setSearchText(event.target.value);
-//   };
+      {isOpen && (
+        <DropdownList>
+          {options.map((opt: any) => (
+            <DropdownItem
+              key={opt.value}
+              $isSelected={opt.value === value}
+              onClick={() => handleSelect(opt.value)}
+            >
+              {opt.label}
+            </DropdownItem>
+          ))}
+        </DropdownList>
+      )}
+    </SelectWrapper>
+  );
+}
 
-//   const handleOnSelectionModelChange = (ids: GridRowSelectionModel) => {
-//     const selectedIDs = new Set(ids);
-//     const selectedRows = rows.filter((row) => selectedIDs.has(row.ID));
-//     setSelectedGridInfo([...selectedRows]);
-//   };
+export default function CustomersClient({
+  initialData,
+  academyCode,
+  userRole,
+}: Props) {
+  const [searchText, setSearchText] = useState("");
+  const [filterState, setFilterState] = useState("all");
+  const [filterCount, setFilterCount] = useState("all");
 
-//   // 셀 수정 핸들러 (Server Action 호출)
-//   const processRowUpdate = async (
-//     newRow: GridRowModel,
-//     oldRow: GridRowModel
-//   ) => {
-//     const { ID: idx, ...updatedFields } = newRow;
-//     let updateField = "";
+  // [페이지네이션 1] 상태 추가
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8; // 페이지당 보여줄 개수
 
-//     // 변경된 필드 찾기
-//     for (let key in updatedFields) {
-//       if (updatedFields[key] !== oldRow[key]) {
-//         updateField = key;
-//         break;
-//       }
-//     }
+  const { openModal, closeModal } = useModalStore();
 
-//     if (!updateField) return oldRow;
+  const filteredAndSortedData = useMemo(() => {
+    const filtered = initialData.filter((item) => {
+      const name = item.name || "";
+      const matchesSearch =
+        !searchText ||
+        name.includes(searchText) ||
+        extractInitialConsonants(name).includes(searchText);
 
-//     let value = newRow[updateField];
+      const matchesState = filterState === "all" || item.state === filterState;
+      const matchesCount =
+        filterCount === "all" || String(item.count) === filterCount;
 
-//     // 유효성 검사 및 값 변환 (기존 로직 유지)
-//     if (
-//       ["TEL", "PARENTPHONE"].includes(updateField) &&
-//       replaceOnlyNum(value).length !== 11
-//     ) {
-//       showAlert("휴대폰 번호를 정확히 입력해 주세요.");
-//       return oldRow;
-//     }
+      return matchesSearch && matchesState && matchesCount;
+    });
 
-//     if (updateField === "DISCHARGE" && newRow.STATE !== "퇴원") {
-//       showAlert("퇴원인 학생만 수정이 가능해요.");
-//       return oldRow;
-//     }
+    return filtered.sort((a, b) => {
+      const orderA = STATE_ORDER[a.state] || 99;
+      const orderB = STATE_ORDER[b.state] || 99;
 
-//     if (
-//       [
-//         "BIRTH",
-//         "COUNT",
-//         "TEL",
-//         "PARENTPHONE",
-//         "DATE",
-//         "DISCHARGE",
-//         "CASH_NUMBER",
-//       ].includes(updateField)
-//     ) {
-//       value = replaceOnlyNum(value);
-//     }
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      return (a.name || "").localeCompare(b.name || "");
+    });
+  }, [initialData, searchText, filterState, filterCount]);
 
-//     if (updateField === "STATE") {
-//       switch (value) {
-//         case "재원":
-//           value = "0";
-//           break;
-//         case "휴원":
-//           value = "1";
-//           break;
-//         case "퇴원":
-//           value = "2";
-//           break;
-//         case "대기":
-//           value = "3";
-//           break;
-//       }
-//     }
+  // [페이지네이션 2] 필터가 바뀌면 1페이지로 초기화
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchText, filterState, filterCount]);
 
-//     if (updateField === "SEX") {
-//       value = value === "여자" ? "F" : "M";
-//     }
+  // [페이지네이션 3] 현재 페이지 데이터 계산
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredAndSortedData.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  );
+  const totalPages = Math.ceil(filteredAndSortedData.length / itemsPerPage);
 
-//     // Server Action 호출 (비동기 처리)
-//     startTransition(async () => {
-//       await updateCustomerAction({
-//         id: idx,
-//         key: updateField,
-//         value: value,
-//         updaterID: id,
-//         academyCode: academyCode,
-//       });
+  // [페이지네이션 4] 페이지 변경 핸들러
+  const handlePageChange = (pageNumber: number) => {
+    setCurrentPage(pageNumber);
+    // 스크롤을 맨 위로 (선택사항)
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
-//       // 추가 로직: 수강 횟수 변경 시 회비 자동 수정
-//       if (updateField === "COUNT") {
-//         const amountValue = classCount.filter((v) => v.value === value);
-//         if (!isEmptyArr(amountValue)) {
-//           await updateCustomerAction({
-//             id: idx,
-//             key: "FEE",
-//             value: String(amountValue[0].amount),
-//             updaterID: id,
-//             academyCode,
-//           });
-//         }
-//       }
+  const handleAdd = () => {
+    openModal({
+      title: "원생 등록",
+      content: <ModalCustomerManager mode="add" academyCode={academyCode} />,
+      type: "SIMPLE",
+    });
+  };
 
-//       // 추가 로직: 퇴원 처리 시 퇴원일 자동 입력
-//       if (updateField === "STATE" && value === "2") {
-//         await updateCustomerAction({
-//           id: idx,
-//           key: "DISCHARGE",
-//           value: getTodayFormattedDate(),
-//           updaterID: id,
-//           academyCode,
-//         });
-//       }
+  const handleDetail = (customer: any) => {
+    openModal({
+      title: "원생 정보 수정",
+      content: (
+        <ModalCustomerManager
+          mode="edit"
+          academyCode={academyCode}
+          initialData={customer}
+          userRole={userRole}
+        />
+      ),
+      type: "SIMPLE",
+    });
+  };
 
-//       showChip("수정이 완료되었어요.");
-//     });
+  const handleDeleteCheck = (e: React.MouseEvent, item: any) => {
+    e.stopPropagation();
+    openModal({
+      title: "회원 삭제",
+      content: (
+        <ModalCustomerDelete
+          id={item.id}
+          name={item.name}
+          academyCode={academyCode}
+          onClose={closeModal}
+        />
+      ),
+      type: "SIMPLE",
+    });
+  };
 
-//     return { ...newRow, [updateField]: value };
-//   };
+  const formatPhoneNumber = (phone: string) => {
+    if (!phone || phone === "010") return "-";
+    return replaceHyphenFormat(phone, "phone");
+  };
 
-//   return (
-//     <Box sx={{ p: 2 }}>
-//       <SearchContainer>
-//         <TextField
-//           size="small"
-//           label="검색"
-//           value={searchText}
-//           onChange={handleSearchChange}
-//           variant="outlined"
-//           sx={{ width: "200px" }}
-//           InputProps={{
-//             endAdornment: (
-//               <InputAdornment position="end">
-//                 {searchText ? (
-//                   <IconButton size="small" onClick={() => setSearchText("")}>
-//                     <ClearIcon />
-//                   </IconButton>
-//                 ) : (
-//                   <IconButton size="small">
-//                     <SearchIcon />
-//                   </IconButton>
-//                 )}
-//               </InputAdornment>
-//             ),
-//           }}
-//         />
-//       </SearchContainer>
+  return (
+    <Container>
+      <Header>
+        <Title>
+          <Highlight>MEMBER</Highlight> LIST
+        </Title>
+        <Controls>
+          <FilterGroup>
+            <FilterSelect
+              value={filterState}
+              options={STATE_FILTER_OPTIONS}
+              onChange={setFilterState}
+            />
+            <FilterSelect
+              value={filterCount}
+              options={COUNT_FILTER_OPTIONS}
+              onChange={setFilterCount}
+            />
+          </FilterGroup>
 
-//       <StyledDataGrid
-//         rows={rows}
-//         columns={customersColumns}
-//         getRowId={(row) => row.ID}
-//         processRowUpdate={processRowUpdate}
-//         onRowSelectionModelChange={handleOnSelectionModelChange}
-//         columnVisibilityModel={getColumnVisibilityModel(customersHideColumn)}
-//         checkboxSelection
-//         autoPageSize
-//         sx={{ height: "calc(100vh - 100px)", backgroundColor: "#fff" }}
-//       />
-//     </Box>
-//   );
-// }
+          <SearchWrapper>
+            <SearchIcon style={{ color: "#94a3b8" }} />
+            <SearchInput
+              placeholder="이름 검색..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+            />
+          </SearchWrapper>
+          <AddButton onClick={handleAdd}>
+            <AddIcon />
+          </AddButton>
+        </Controls>
+      </Header>
 
-// // --- Styles ---
+      <ListContainer>
+        {/* === Desktop Table View === */}
+        <TableScrollWrapper>
+          <TableView>
+            <thead>
+              <tr>
+                <th
+                  style={{
+                    minWidth: "50px",
+                    position: "sticky",
+                    left: 0,
+                    zIndex: 10,
+                  }}
+                >
+                  No
+                </th>
+                <th
+                  style={{
+                    minWidth: "80px",
+                    position: "sticky",
+                    left: "50px",
+                    zIndex: 10,
+                  }}
+                >
+                  이름
+                </th>
+                <th style={{ minWidth: "60px" }}>성별</th>
+                <th style={{ minWidth: "100px" }}>생년월일</th>
+                <th style={{ minWidth: "80px" }}>수강횟수</th>
+                <th style={{ minWidth: "100px" }}>회비</th>
+                <th style={{ minWidth: "120px" }}>학생 휴대폰</th>
+                <th style={{ minWidth: "100px" }}>학교</th>
+                <th style={{ minWidth: "200px" }}>비고</th>
+                <th style={{ minWidth: "100px" }}>부모님 성함</th>
+                <th style={{ minWidth: "120px" }}>부모님 휴대폰</th>
+                <th style={{ minWidth: "150px" }}>현금영수증 번호</th>
+                <th style={{ minWidth: "100px" }}>등록일</th>
+                <th style={{ minWidth: "80px" }}>D+DAY</th>
+                <th style={{ minWidth: "80px" }}>상태</th>
+                <th style={{ minWidth: "100px" }}>퇴원일</th>
+                <th style={{ minWidth: "50px" }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* [수정] filteredAndSortedData -> currentItems 로 변경 */}
+              {currentItems.map((item, index) => (
+                <tr key={item.id} onClick={() => handleDetail(item)}>
+                  <td
+                    style={{
+                      position: "sticky",
+                      left: 0,
+                      zIndex: 5,
+                      backgroundColor: "#fff",
+                    }}
+                  >
+                    {/* 번호 계산: (현재페이지-1)*10 + 인덱스 + 1 */}
+                    {(currentPage - 1) * itemsPerPage + index + 1}
+                  </td>
+                  <td
+                    style={{
+                      fontWeight: 700,
+                      position: "sticky",
+                      left: "50px",
+                      zIndex: 5,
+                      backgroundColor: "#fff",
+                    }}
+                  >
+                    {item.name}
+                  </td>
+                  <td>{item.sex === "M" ? "남자" : "여자"}</td>
+                  <td>{replaceHyphenFormat(item.birth || "", "date")}</td>
+                  <td>
+                    {item.count ? (
+                      <CountBadge count={item.count}>{item.count}회</CountBadge>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+                  <td>
+                    {item.fee ? `${Number(item.fee).toLocaleString()}원` : "-"}
+                  </td>
+                  <td>{formatPhoneNumber(item.tel)}</td>
+                  <td>{item.school || "-"}</td>
+                  <td style={{ color: "#8b95a1", fontSize: "13px" }}>
+                    {item.note || "-"}
+                  </td>
 
-// const StyledDataGrid = styled(DataGrid)(({ theme }) => ({
-//   border: "none",
-//   "& .MuiDataGrid-columnHeaders": {
-//     backgroundColor: "#f8fafc",
-//     color: "#1e293b",
-//     fontSize: "0.9rem",
-//     fontWeight: 700,
-//   },
-//   "& .MuiDataGrid-row:hover": {
-//     backgroundColor: "#f1f5f9",
-//   },
-//   "& .MuiDataGrid-cell": {
-//     borderBottom: "1px solid #f1f5f9",
-//   },
-// }));
+                  <td>{item.parentname || "-"}</td>
+                  <td>{item.cash_number || "-"}</td>
+                  <td>{formatPhoneNumber(item.parentphone)}</td>
+                  <td>{replaceHyphenFormat(item.date || "", "date")}</td>
+                  <td style={{ color: "#3182f6", fontWeight: 600 }}>
+                    {getDDay(item.date)}
+                  </td>
+                  <td>
+                    <StateBadge $state={item.state}>
+                      {getStateLabel(item.state)}
+                    </StateBadge>
+                  </td>
+                  <td>{replaceHyphenFormat(item.discharge || "", "date")}</td>
+                  <td
+                    onClick={(e) => handleDeleteCheck(e, item)}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <MoreBtnWrapper>
+                      <MoreIcon />
+                    </MoreBtnWrapper>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </TableView>
+        </TableScrollWrapper>
 
-// const SearchContainer = styled(Box)(() => ({
-//   display: "flex",
-//   alignItems: "center",
-//   justifyContent: "flex-end",
-//   marginBottom: "16px",
-// }));
+        {/* === Mobile Card View === */}
+        <CardView>
+          {/* [수정] filteredAndSortedData -> currentItems 로 변경 */}
+          {currentItems.map((item) => (
+            <Card key={item.id} onClick={() => handleDetail(item)}>
+              <CardHeader>
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "12px" }}
+                >
+                  <Avatar>{(item.name || "").charAt(0)}</Avatar>
+                  <NameArea>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <Name>{item.name}</Name>
+                      <StateBadge $state={item.state}>
+                        {getStateLabel(item.state)}
+                      </StateBadge>
+                    </div>
+                    <SubText>
+                      {item.school ? `${item.school} | ` : ""}
+                      {item.sex === "M" ? "남" : "여"}
+                    </SubText>
+                  </NameArea>
+                </div>
+                <MoreBtnWrapper
+                  onClick={(e) => handleDeleteCheck(e, item)}
+                  style={{ marginRight: "-8px" }}
+                >
+                  <MoreIcon />
+                </MoreBtnWrapper>
+              </CardHeader>
+              <CardBody>
+                <InfoRow>
+                  <PhoneIcon fontSize="small" />
+                  <span>
+                    {formatPhoneNumber(item.tel) === "-"
+                      ? "연락처 없음"
+                      : formatPhoneNumber(item.tel)}
+                  </span>
+                </InfoRow>
+                {item.note && <NoteRow>📢 {item.note}</NoteRow>}
+              </CardBody>
+            </Card>
+          ))}
+        </CardView>
+      </ListContainer>
+
+      {/* [페이지네이션 5] 페이지네이션 UI 추가 */}
+      {totalPages > 0 && (
+        <PaginationContainer>
+          <PageButton
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft fontSize="small" />
+          </PageButton>
+
+          {/* 페이지 번호 (간단하게 모든 페이지 표시 or 10개 제한 가능) */}
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            // 페이지가 너무 많으면 로직 추가 필요하지만, 일단 전체 렌더링
+            <PageButton
+              key={page}
+              $active={currentPage === page}
+              onClick={() => handlePageChange(page)}
+            >
+              {page}
+            </PageButton>
+          ))}
+
+          <PageButton
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            <ChevronRight fontSize="small" />
+          </PageButton>
+        </PaginationContainer>
+      )}
+    </Container>
+  );
+}
+
+// --- Styles ---
+
+const Container = styled.div`
+  padding: 24px;
+  background-color: #f2f4f6;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  @media (max-width: 768px) {
+    padding: 16px;
+    padding-bottom: 80px;
+  }
+`;
+
+const Header = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+`;
+
+const Title = styled.h1`
+  font-size: 24px;
+  font-weight: 800;
+  color: #191f28;
+`;
+
+const Highlight = styled.span`
+  color: #3182f6;
+`;
+
+const Controls = styled.div`
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+`;
+
+const FilterGroup = styled.div`
+  display: flex;
+  gap: 8px;
+  @media (max-width: 768px) {
+    flex: 1;
+    gap: 8px;
+    > div {
+      flex: 1;
+    }
+  }
+`;
+
+const SearchWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  background: #fff;
+  padding: 0 12px;
+  border-radius: 12px;
+  width: 200px;
+  height: 42px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e5e8eb;
+  transition: all 0.2s;
+
+  &:focus-within {
+    border-color: #3182f6;
+    box-shadow: 0 0 0 3px rgba(49, 130, 246, 0.1);
+  }
+
+  @media (max-width: 768px) {
+    flex: 1;
+    min-width: 150px;
+  }
+`;
+
+const SearchInput = styled.input`
+  border: none;
+  outline: none;
+  width: 100%;
+  margin-left: 8px;
+  font-size: 15px;
+  font-family: "Pretendard", sans-serif;
+  &::placeholder {
+    color: #b0b8c1;
+  }
+`;
+
+const AddButton = styled.button`
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #3182f6;
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(49, 130, 246, 0.3);
+  transition: background 0.2s;
+  &:hover {
+    background: #1b64da;
+  }
+  @media (max-width: 768px) {
+    position: fixed;
+    bottom: 200px;
+    right: 24px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    box-shadow: 0 4px 16px rgba(49, 130, 246, 0.5);
+    z-index: 100;
+  }
+`;
+
+const ListContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+`;
+
+const TableScrollWrapper = styled.div`
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 16px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  background: #fff;
+  border: 1px solid #f2f4f6;
+
+  @media (max-width: 768px) {
+    display: none;
+  }
+`;
+
+const TableView = styled.table`
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  white-space: nowrap;
+
+  th {
+    background: #f9fafb;
+    padding: 16px;
+    font-size: 14px;
+    color: #8b95a1;
+    text-align: center;
+    font-weight: 600;
+    border-bottom: 1px solid #f2f4f6;
+  }
+
+  td {
+    padding: 16px;
+    border-bottom: 1px solid #f2f4f6;
+    font-size: 15px;
+    color: #333d4b;
+    text-align: center;
+    cursor: pointer;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+  tr:hover td {
+    background: #f9fafb !important;
+  }
+`;
+
+const CardView = styled.div`
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+  @media (max-width: 768px) {
+    display: flex;
+  }
+`;
+
+const Card = styled.div`
+  background: #fff;
+  padding: 20px;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  border: 1px solid #f2f4f6;
+  &:active {
+    transform: scale(0.98);
+    transition: 0.1s;
+  }
+`;
+
+const CardHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+`;
+
+const Avatar = styled.div`
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #e8f3ff;
+  color: #3182f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 18px;
+`;
+
+const NameArea = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`;
+
+const Name = styled.span`
+  font-size: 17px;
+  font-weight: 700;
+  color: #191f28;
+`;
+
+const SubText = styled.span`
+  font-size: 13px;
+  color: #8b95a1;
+`;
+
+const CardBody = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid #f2f4f6;
+`;
+
+const InfoRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #4e5968;
+  font-size: 14px;
+  font-weight: 500;
+  svg {
+    color: #b0b8c1;
+    font-size: 18px;
+  }
+`;
+
+const NoteRow = styled.div`
+  margin-top: 4px;
+  padding: 8px 12px;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  color: #6b7684;
+  font-size: 13px;
+`;
+
+const StateBadge = styled.span<{ $state: string }>`
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+
+  ${({ $state }) => {
+    switch ($state) {
+      case "0":
+        return "background: #e8f3ff; color: #3182f6;";
+      case "1":
+        return "background: #fff3e0; color: #f97316;";
+      case "2":
+        return "background: #ffebee; color: #ef4444;";
+      case "3":
+        return "background: #f2f4f6; color: #4e5968;";
+      default:
+        return "background: #f2f4f6; color: #4e5968;";
+    }
+  }}
+`;
+
+const CountBadge = styled.span<{ count: string }>`
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+
+  ${({ count }) => {
+    switch (count) {
+      case "1":
+        return `background: #f3e8ff; color: #7e22ce;`;
+      case "2":
+        return `background: #dbeafe; color: #1d4ed8;`;
+      case "3":
+        return `background: #dcfce7; color: #15803d;`;
+      case "4":
+        return `background: #fee2e2; color: #b91c1c;`;
+      default:
+        return `background: #e5e7eb; color: #374151;`;
+    }
+  }}
+`;
+
+const MoreBtnWrapper = styled.div`
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  transition: background 0.2s;
+
+  &:hover {
+    background-color: #f2f4f6;
+  }
+`;
+
+const MoreIcon = styled(MoreVertIcon)`
+  color: #d1d6db;
+  font-size: 20px;
+`;
+
+// [신규] 페이지네이션 스타일
+const PaginationContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  flex-wrap: wrap; /* 모바일에서 많아지면 줄바꿈 */
+`;
+
+const PageButton = styled.button<{ $active?: boolean }>`
+  min-width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid ${({ $active }) => ($active ? "#3182f6" : "#e5e8eb")};
+  background-color: ${({ $active }) => ($active ? "#3182f6" : "#fff")};
+  color: ${({ $active }) => ($active ? "#fff" : "#4e5968")};
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    background-color: ${({ $active }) => ($active ? "#1b64da" : "#f2f4f6")};
+    border-color: ${({ $active }) => ($active ? "#1b64da" : "#d1d6db")};
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #f9fafb;
+  }
+`;
+
+// --- Custom Select Styles ---
+const SelectWrapper = styled.div`
+  position: relative;
+  width: 130px;
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+`;
+
+const SelectTrigger = styled.div<{ $isOpen: boolean }>`
+  height: 42px;
+  padding: 0 12px;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid ${({ $isOpen }) => ($isOpen ? "#3182f6" : "#e5e8eb")};
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: ${({ $isOpen }) =>
+    $isOpen
+      ? "0 0 0 3px rgba(49, 130, 246, 0.1)"
+      : "0 1px 2px rgba(0, 0, 0, 0.04)"};
+
+  &:hover {
+    background-color: #f9fafb;
+    border-color: ${({ $isOpen }) => ($isOpen ? "#3182f6" : "#d1d6db")};
+  }
+
+  @media (max-width: 768px) {
+    height: 38px;
+    padding: 0 10px;
+    border-radius: 10px;
+  }
+`;
+
+const SelectedText = styled.span`
+  font-size: 14px;
+  font-weight: 600;
+  color: #4e5968;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  @media (max-width: 768px) {
+    font-size: 13px;
+  }
+`;
+
+const ArrowIcon = styled.div<{ $isOpen: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  transform: ${({ $isOpen }) => ($isOpen ? "rotate(180deg)" : "rotate(0deg)")};
+  transition: transform 0.2s ease;
+  margin-left: 8px;
+  flex-shrink: 0;
+
+  @media (max-width: 768px) {
+    width: 10px;
+    height: 10px;
+    margin-left: 6px;
+  }
+`;
+
+const DropdownList = styled.ul`
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 100%;
+  padding: 6px;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e5e8eb;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  z-index: 100;
+  max-height: 240px;
+  overflow-y: auto;
+  list-style: none;
+  box-sizing: border-box;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: #ddd;
+    border-radius: 4px;
+  }
+`;
+
+const DropdownItem = styled.li<{ $isSelected: boolean }>`
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: ${({ $isSelected }) => ($isSelected ? "#3182f6" : "#333d4b")};
+  font-weight: ${({ $isSelected }) => ($isSelected ? "700" : "500")};
+  background-color: ${({ $isSelected }) =>
+    $isSelected ? "#e8f3ff" : "transparent"};
+  cursor: pointer;
+  transition: background-color 0.1s;
+
+  &:hover {
+    background-color: ${({ $isSelected }) =>
+      $isSelected ? "#e8f3ff" : "#f2f4f6"};
+  }
+
+  @media (max-width: 768px) {
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+`;

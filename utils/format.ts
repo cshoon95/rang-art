@@ -164,22 +164,6 @@ export const replaceTimeFormat = (str: any): string => {
   return str.replace(/(\d{2})(\d{2})/, "$1:$2");
 };
 
-/** 휴대폰, 날짜 포맷. */
-export const replaceHyphenFormat = (str: string, type: string): string => {
-  let result = str;
-
-  switch (type) {
-    case "phone":
-      result = str?.replace(/(\d{3})(\d{4})(\d{2})/, "$1-$2-$3");
-      break;
-    case "date":
-      result = str?.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
-      break;
-  }
-
-  return result;
-};
-
 /**
  * 시간 형식으로
  * 1800 -> 18:00
@@ -205,4 +189,22 @@ export const removeTimePattern = (time: string) => {
 
   // ":" 가 있으면 제거하여 반환 (예: "18:00" -> "1800")
   return time.replace(":", "");
+};
+
+/**
+ * 휴대폰, 날짜 포맷
+ */
+export const replaceHyphenFormat = (str: string, type: string): string => {
+  let result = str;
+
+  switch (type) {
+    case "phone":
+      result = str?.replace(/(\d{3})(\d{4})(\d{2})/, "$1-$2-$3");
+      break;
+    case "date":
+      result = str?.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
+      break;
+  }
+
+  return result;
 };

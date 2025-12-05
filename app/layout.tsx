@@ -1,7 +1,6 @@
 import "./globals.css";
 
 import { Providers } from "./providers";
-import AuthCheck from "@/components/auth/AuthCheck";
 import GlobalModal from "@/components/GlobalModal";
 import StyledComponentsRegistry from "@/lib/registry";
 import ClientLayout from "./ClientLayout";
@@ -9,6 +8,7 @@ import ClientLayout from "./ClientLayout";
 import localFont from "next/font/local";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v14-appRouter";
 import ToastSystem from "@/components/ToastSystem";
+import AuthCheck from "@/components/auth/AuthCheck";
 
 // ❗ 폰트는 반드시 여기(컴포넌트 밖)에 선언해야 한다!!
 const sugarGothic = localFont({
