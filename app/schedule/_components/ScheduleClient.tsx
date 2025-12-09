@@ -14,6 +14,7 @@ import {
 import { useUpsertSchedule } from "@/api/schedule/useScheduleQuery";
 import { WEEKDAY_LIST } from "@/utils/list";
 import { replaceTimeFormat, replaceTimePattern } from "@/utils/format";
+import PageTitleWithStar from "@/components/PageTitleWithStar";
 
 interface Props {
   initialTimeList: any[];
@@ -116,9 +117,13 @@ export default function ScheduleClient({
     <Container>
       <Header>
         <HeaderTop>
-          <Title>
-            <Highlight>CLASS</Highlight> SCHEDULE
-          </Title>
+          <PageTitleWithStar
+            title={
+              <Title>
+                <Highlight>CLASS</Highlight> SCHEDULE
+              </Title>
+            }
+          />
           <Controls>
             <SearchWrapper>
               <SearchIcon style={{ fontSize: "20px", color: "#8b95a1" }} />

@@ -13,6 +13,7 @@ import { extractInitialConsonants } from "@/utils/common";
 import ModalEmployeeManager from "@/components/modals/ModalEmployeeManager";
 import { deleteEmployeeAction } from "@/api/employee/actions";
 import { ModalEmployeeDelete } from "@/components/modals/ModalEmployeeDelete";
+import PageTitleWithStar from "@/components/PageTitleWithStar";
 
 interface Props {
   initialData: any[]; // getEmployeeList로 가져온 데이터
@@ -183,9 +184,13 @@ export default function EmployeesClient({ initialData, academyCode }: Props) {
   return (
     <Container>
       <Header>
-        <Title>
-          <Highlight>EMPLOYEE</Highlight> LIST
-        </Title>
+        <PageTitleWithStar
+          title={
+            <Title>
+              <Highlight>EMPLOYEE</Highlight> LIST
+            </Title>
+          }
+        />
         <Controls>
           <FilterGroup>
             <FilterSelect

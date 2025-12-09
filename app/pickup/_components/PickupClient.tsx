@@ -14,6 +14,7 @@ import {
 import { replaceTimeFormat, replaceTimePattern } from "@/utils/format";
 import { useUpsertPickup } from "@/api/pickup/usePickupQuery";
 import { WEEKDAY_LIST } from "@/utils/list";
+import PageTitleWithStar from "@/components/PageTitleWithStar";
 
 interface Props {
   initialTimeList: any[];
@@ -110,9 +111,13 @@ export default function PickupClient({
     <Container>
       <Header>
         <HeaderTop>
-          <Title>
-            <Highlight>PICKUP</Highlight> SCHEDULE
-          </Title>
+          <PageTitleWithStar
+            title={
+              <Title>
+                <Highlight>PICKUP</Highlight> SCHEDULE
+              </Title>
+            }
+          />
           <Controls>
             <SearchWrapper>
               <SearchIcon style={{ fontSize: "20px", color: "#8b95a1" }} />

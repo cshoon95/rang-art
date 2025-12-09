@@ -1,3 +1,5 @@
+import Hangul from "hangul-js";
+
 /** 한화로 */
 export function replaceMoneyKr(
   money: string | number | undefined,
@@ -207,4 +209,17 @@ export const replaceHyphenFormat = (str: string, type: string): string => {
   }
 
   return result;
+};
+
+// 초성검색 (검색어, 비교할 단어)
+export const extractInitialConsonants = (search: string): string => {
+  // 2번째 인자로 true를 전달하면 글자마다 독립된 배열을 만들어준다
+  const disassemble = Hangul.disassemble(search, true);
+  let cho = "";
+
+  for (let i = 0; i < disassemble.length; i++) {
+    cho += disassemble[i][0];
+  }
+
+  return cho;
 };

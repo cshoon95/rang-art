@@ -14,6 +14,7 @@ export default function GlobalModal() {
     content,
     okText,
     cancelText,
+    hideFooter,
     onConfirm,
     closeModal,
   } = useModalStore(
@@ -24,11 +25,14 @@ export default function GlobalModal() {
       content: state.content,
       okText: state.okText,
       cancelText: state.cancelText,
+      hideFooter: state.hideFooter,
       onConfirm: state.onConfirm,
       closeModal: state.closeModal,
     }))
   );
   if (!isOpen) return null;
+
+  console.log("hideFooter", hideFooter);
 
   // 확인 버튼 핸들러
   const handleConfirm = () => {
@@ -60,20 +64,22 @@ export default function GlobalModal() {
         </ModalBody>
 
         {/* 3. 푸터 (버튼 영역) */}
-        <ModalFooter>
-          {(type === "CONFIRM" || type === "FULL") && (
-            <CancelButton onClick={closeModal}>{cancelText}</CancelButton>
-          )}
-          {/* ALERT, CONFIRM은 항상 확인 버튼 있음. SIMPLE, FULL은 선택 사항 */}
-          {(type === "ALERT" || type === "CONFIRM" || onConfirm) && (
-            <ConfirmButton
-              onClick={handleConfirm}
-              $fullWidth={type === "ALERT"}
-            >
-              {okText}
-            </ConfirmButton>
-          )}
-        </ModalFooter>
+        {!hideFooter && (
+          <ModalFooter>
+            {(type === "CONFIRM" || type === "FULL") && (
+              <CancelButton onClick={closeModal}>{cancelText}</CancelButton>
+            )}
+            {/* ALERT, CONFIRM은 항상 확인 버튼 있음. SIMPLE, FULL은 선택 사항 */}
+            {(type === "ALERT" || type === "CONFIRM" || onConfirm) && (
+              <ConfirmButton
+                onClick={handleConfirm}
+                $fullWidth={type === "ALERT"}
+              >
+                {okText}
+              </ConfirmButton>
+            )}
+          </ModalFooter>
+        )}
       </ModalContainer>
     </Overlay>
   );

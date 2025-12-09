@@ -1,115 +1,109 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { revalidatePath } from "next/cache";
 
+// Supabase 테이블명 (기존 레거시의 CALENDAR 테이블)
 const TABLE_NAME = "calendar";
 
-/**
- * 캘린더 리스트 조회 (전체 or 기간별)
- * Legacy: /api/calendar/select, /api/calendar/select_data
- */
-export const getCalendarListAction = async (
-  academyCode: string,
-  startDate?: string,
-  endDate?: string
-) => {
-  const supabase = await createClient();
-
-  let query = supabase
-    .from(TABLE_NAME)
-    .select("*")
-    .eq("academy_code", academyCode);
-
-  // 기간 조회 조건이 있다면 추가 (Legacy select_data 대응)
-  if (startDate && endDate) {
-    query = query.gte("startdate", startDate).lte("enddate", endDate);
-  }
-
-  const { data, error } = await query.order("startdate", { ascending: true });
-
-  if (error) {
-    console.error("Calendar Fetch Error:", error);
-    throw new Error(error.message);
-  }
-
-  // Legacy 코드와의 호환성을 위해 대문자 키로 리턴하거나,
-  // 프론트에서 소문자로 받도록 수정해야 합니다.
-  // 여기서는 Supabase 표준인 소문자 컬럼명을 그대로 반환합니다.
-  return data;
-};
-
-/**
- * 캘린더 일정 추가
- * Legacy: /api/calendar/insert
- */
-export interface ICreateCalendarParams {
-  content: string;
-  startDate: string;
-  startTime: string;
-  endDate: string;
-  endTime: string;
-  registerId: string;
-  academyCode: string;
+interface ActionResponse {
+  success: boolean;
+  message: string;
 }
 
-export const createCalendarAction = async (params: ICreateCalendarParams) => {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase.from(TABLE_NAME).insert({
-    content: params.content,
-    startdate: params.startDate,
-    starttime: params.startTime,
-    enddate: params.endDate,
-    endtime: params.endTime,
-    register_id: params.registerId,
-    academy_code: params.academyCode,
-  });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return data;
-};
-
 /**
- * 캘린더 일정 수정
- * Legacy: /api/calendar/update
+ * ✅ 캘린더 리스트 조회
+ * @param academyCode 학원 코드
  */
-export interface IUpdateCalendarParams extends ICreateCalendarParams {
-  id: number;
-  updaterId: string;
-}
-
-export const updateCalendarAction = async (params: IUpdateCalendarParams) => {
+export async function getCalendarListAction(academyCode: string) {
   const supabase = await createClient();
 
   const { data, error } = await supabase
     .from(TABLE_NAME)
-    .update({
-      content: params.content,
-      startdate: params.startDate,
-      starttime: params.startTime,
-      enddate: params.endDate,
-      endtime: params.endTime,
-      updater_id: params.updaterId,
-      // updated_at: new Date().toISOString(), // 필요 시 추가
-    })
-    .eq("id", params.id)
-    .eq("academy_code", params.academyCode);
+    .select("*")
+    .eq("academy_code", academyCode)
+    .order("start_date", { ascending: true }) // 날짜순 정렬 추가
+    .order("start_time", { ascending: true });
 
   if (error) {
-    throw new Error(error.message);
+    console.error("Get Calendar List Error:", error);
+    return [];
   }
 
+  // DB의 snake_case 컬럼을 기존 로직과 호환되도록 매핑하여 리턴하거나,
+  // 클라이언트에서 snake_case를 사용하도록 변경해야 합니다.
+  // 여기서는 Supabase Raw Data를 그대로 내리고 클라이언트에서 처리하도록 합니다.
   return data;
-};
+}
 
 /**
- * 캘린더 일정 삭제
- * Legacy: /api/calendar/delete
+ * ✅ 캘린더 일정 추가
  */
-export const deleteCalendarAction = async (id: number, academyCode: string) => {
+export async function createCalendarAction(
+  formData: any
+): Promise<ActionResponse> {
+  const supabase = await createClient();
+
+  const { error } = await supabase.from(TABLE_NAME).insert({
+    content: formData.content,
+    start_date: formData.startDate,
+    start_time: formData.startTime,
+    end_date: formData.endDate,
+    end_time: formData.endTime,
+    academy_code: formData.academy_code, // 클라이언트에서 academy_code로 넘기거나 여기서 매핑
+    register_id: formData.register_id, // 등록자 ID
+    type: formData.type || "event",
+    // register_date: new Date().toISOString(), // DB에 default value가 있다면 생략 가능
+  });
+
+  if (error) {
+    console.error("Create Calendar Error:", error);
+    return { success: false, message: "일정 등록에 실패했습니다." };
+  }
+
+  revalidatePath("/schedule");
+  return { success: true, message: "일정이 등록되었습니다." };
+}
+
+/**
+ * ✅ 캘린더 일정 수정
+ */
+export async function updateCalendarAction(
+  formData: any
+): Promise<ActionResponse> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from(TABLE_NAME)
+    .update({
+      content: formData.content,
+      start_date: formData.startDate,
+      start_time: formData.startTime,
+      end_date: formData.endDate,
+      end_time: formData.endTime,
+      updater_id: formData.updater_id, // 수정자 ID
+      type: formData.type || "event",
+      // update_date: new Date().toISOString(), // 수정일 (필요시)
+    })
+    .eq("id", formData.id)
+    .eq("academy_code", formData.academy_code); // 보안상 academy_code도 같이 체크
+
+  if (error) {
+    console.error("Update Calendar Error:", error);
+    return { success: false, message: "일정 수정에 실패했습니다." };
+  }
+
+  revalidatePath("/schedule");
+  return { success: true, message: "일정이 수정되었습니다." };
+}
+
+/**
+ * ✅ 캘린더 일정 삭제
+ */
+export async function deleteCalendarAction(
+  id: number,
+  academyCode: string
+): Promise<ActionResponse> {
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -119,8 +113,10 @@ export const deleteCalendarAction = async (id: number, academyCode: string) => {
     .eq("academy_code", academyCode);
 
   if (error) {
-    throw new Error(error.message);
+    console.error("Delete Calendar Error:", error);
+    return { success: false, message: "일정 삭제에 실패했습니다." };
   }
 
-  return true;
-};
+  revalidatePath("/schedule");
+  return { success: true, message: "일정이 삭제되었습니다." };
+}

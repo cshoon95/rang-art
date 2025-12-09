@@ -21,6 +21,7 @@ import {
 } from "@/utils/list";
 import { getDDay } from "@/utils/date";
 import { ModalCustomerDelete } from "@/components/modals/ModalCustomerDelete";
+import PageTitleWithStar from "@/components/PageTitleWithStar";
 
 interface Props {
   initialData: any[];
@@ -204,9 +205,13 @@ export default function CustomersClient({
   return (
     <Container>
       <Header>
-        <Title>
-          <Highlight>MEMBER</Highlight> LIST
-        </Title>
+        <PageTitleWithStar
+          title={
+            <Title>
+              <Highlight>MEMBER</Highlight> LIST
+            </Title>
+          }
+        />
         <Controls>
           <FilterGroup>
             <FilterSelect

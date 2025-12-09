@@ -12,7 +12,6 @@ export default function LoginPage() {
 
   return (
     <Container>
-      <BackgroundDecoration />
       <Card>
         <LogoWrapper>
           <IconCircle>
@@ -94,23 +93,6 @@ const Container = styled.div`
   font-family: "Pretendard", sans-serif;
   position: relative;
   overflow: hidden;
-`;
-
-// 배경 장식 (은은한 원형 그라데이션)
-const BackgroundDecoration = styled.div`
-  position: absolute;
-  top: -20%;
-  left: -10%;
-  width: 60%;
-  height: 60%;
-  background: radial-gradient(
-    circle,
-    rgba(59, 130, 246, 0.1) 0%,
-    rgba(255, 255, 255, 0) 70%
-  );
-  border-radius: 50%;
-  z-index: 0;
-  animation: ${float} 6s ease-in-out infinite;
 `;
 
 const Card = styled.div`

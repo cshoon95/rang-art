@@ -88,3 +88,30 @@ export async function clearAcademySession() {
 
   // 필요 시 Next-Auth 관련 쿠키 외의 커스텀 쿠키 삭제 로직 추가
 }
+
+/**
+ * ✅ 무료체험 전환 액션
+ * - academy_code를 '2'로, state를 'Y'로 즉시 변경합니다.
+ */
+export async function startFreeTrialAction(email: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("users")
+    .update({
+      academy_code: "2",
+      academy_name: "무료체험",
+      state: "Y", // 즉시 승인
+      level: 3, // 기본 강사 레벨
+      updater_id: email,
+      updater_date: new Date().toISOString(),
+    })
+    .eq("id", email);
+
+  if (error) {
+    console.error("Free Trial Error:", error);
+    return { success: false, message: "무료체험 전환 실패" };
+  }
+
+  return { success: true };
+}

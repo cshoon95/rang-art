@@ -15,6 +15,7 @@ import { useUpsertSchedule } from "@/api/schedule/useScheduleQuery";
 import { replaceTimeFormat, replaceTimePattern } from "@/utils/format";
 import { useUpsertTempSchedule } from "@/api/temp-schedule/useTempScheduleQuery";
 import { WEEKDAY_LIST } from "@/utils/list";
+import PageTitleWithStar from "@/components/PageTitleWithStar";
 
 interface Props {
   initialTimeList: any[];
@@ -117,9 +118,13 @@ export default function TempScheduleClient({
     <Container>
       <Header>
         <HeaderTop>
-          <Title>
-            <Highlight>TEMP</Highlight> SCHEDULE
-          </Title>
+          <PageTitleWithStar
+            title={
+              <Title>
+                <Highlight>TEMP</Highlight> SCHEDULE
+              </Title>
+            }
+          />
           <Controls>
             <SearchWrapper>
               <SearchIcon style={{ fontSize: "20px", color: "#8b95a1" }} />

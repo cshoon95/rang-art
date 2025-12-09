@@ -1,91 +1,101 @@
+"use client";
+
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getCalendarListAction,
   createCalendarAction,
   updateCalendarAction,
   deleteCalendarAction,
-  ICreateCalendarParams,
-  IUpdateCalendarParams,
 } from "./actions";
+import { CalendarFormData } from "./type";
+import { useToastStore } from "@/store/toastStore";
 
-// Query Keys
-const QUERY_KEY = {
-  list: (academyCode: string) => ["calendar", "list", academyCode],
-};
-
-/**
- * 캘린더 리스트 조회 훅
- */
-export const useGetCalendarList = (
-  academyCode: string = "2", // 기본값 혹은 전역 상태
-  startDate?: string,
-  endDate?: string
-) => {
+// 1. 캘린더 리스트 조회
+export const useGetCalendarList = (academyCode: string) => {
   return useQuery({
-    queryKey: QUERY_KEY.list(academyCode),
-    queryFn: () => getCalendarListAction(academyCode, startDate, endDate),
-    staleTime: 1000 * 60 * 5, // 5분 캐시
+    queryKey: ["calendar", academyCode],
+    queryFn: () => getCalendarListAction(academyCode),
+    enabled: !!academyCode, // academyCode가 있을 때만 실행
   });
 };
 
-/**
- * 캘린더 등록 훅
- */
-export const useCreateCalendar = () => {
+// 2. 일정 추가
+export const useInsertCalendar = (
+  academyCode: string,
+  onSuccessCallback?: () => void
+) => {
   const queryClient = useQueryClient();
+  const { addToast } = useToastStore();
 
   return useMutation({
-    mutationFn: (params: ICreateCalendarParams) => createCalendarAction(params),
-    onSuccess: (_, variables) => {
-      // 리스트 갱신
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEY.list(variables.academyCode),
-      });
+    mutationFn: (data: CalendarFormData & { register_id: string }) =>
+      createCalendarAction({ ...data, academy_code: academyCode }),
+    onSuccess: (response) => {
+      if (response.success) {
+        // 성공 시 쿼리 무효화 (데이터 다시 불러오기)
+        queryClient.invalidateQueries({ queryKey: ["calendar", academyCode] });
+        if (onSuccessCallback) onSuccessCallback();
+        addToast("일정 등록이 완료되었어요.");
+      } else {
+        addToast(response.message);
+      }
     },
     onError: (err) => {
-      console.error("일정 등록 실패:", err);
-      alert("일정 등록에 실패했습니다.");
-    },
-  });
-};
-
-/**
- * 캘린더 수정 훅
- */
-export const useUpdateCalendar = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (params: IUpdateCalendarParams) => updateCalendarAction(params),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEY.list(variables.academyCode),
-      });
-    },
-    onError: (err) => {
-      console.error("일정 수정 실패:", err);
-      alert("일정 수정에 실패했습니다.");
+      console.error(err);
+      addToast("등록 중 오류가 발생했어요");
     },
   });
 };
 
-/**
- * 캘린더 삭제 훅
- */
-export const useDeleteCalendar = () => {
+// 3. 일정 수정
+export const useUpdateCalendar = (
+  academyCode: string,
+  onSuccessCallback?: () => void
+) => {
   const queryClient = useQueryClient();
+  const { addToast } = useToastStore();
 
   return useMutation({
-    mutationFn: ({ id, academyCode }: { id: number; academyCode: string }) =>
-      deleteCalendarAction(id, academyCode),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEY.list(variables.academyCode),
-      });
+    mutationFn: (data: CalendarFormData & { id: number; updater_id: string }) =>
+      updateCalendarAction({ ...data, academy_code: academyCode }),
+    onSuccess: (response) => {
+      if (response.success) {
+        queryClient.invalidateQueries({ queryKey: ["calendar", academyCode] });
+        if (onSuccessCallback) onSuccessCallback();
+        addToast("일정 수정이 완료되었어요.");
+      } else {
+        alert(response.message);
+      }
     },
     onError: (err) => {
-      console.error("일정 삭제 실패:", err);
-      alert("일정 삭제에 실패했습니다.");
+      console.error(err);
+      addToast("일정 수정 중 오류가 발생했어요");
+    },
+  });
+};
+
+// 4. 일정 삭제
+export const useDeleteCalendar = (
+  academyCode: string,
+  onSuccessCallback?: () => void
+) => {
+  const queryClient = useQueryClient();
+  const { addToast } = useToastStore();
+
+  return useMutation({
+    mutationFn: (id: number) => deleteCalendarAction(id, academyCode),
+    onSuccess: (response) => {
+      if (response.success) {
+        queryClient.invalidateQueries({ queryKey: ["calendar", academyCode] });
+        if (onSuccessCallback) onSuccessCallback();
+        addToast("일정 삭제가 완료되었어요.");
+      } else {
+        alert(response.message);
+      }
+    },
+    onError: (err) => {
+      console.error(err);
+      addToast("일정 삭제 중 오류가 발생했어요");
     },
   });
 };

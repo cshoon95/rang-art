@@ -10,6 +10,7 @@ interface ModalState {
   content?: ReactNode | string; // 컴포넌트나 텍스트 모두 허용
   okText?: string;
   cancelText?: string;
+  hideFooter?: boolean;
   onConfirm?: () => void;
   onCancel?: () => void;
 
@@ -20,6 +21,7 @@ interface ModalState {
     content?: ReactNode | string;
     okText?: string;
     cancelText?: string;
+    hideFooter?: boolean;
     onConfirm?: () => void;
     onCancel?: () => void;
   }) => void;
@@ -36,6 +38,7 @@ export const useModalStore = create<ModalState>((set) => ({
   cancelText: "취소",
   onConfirm: undefined,
   onCancel: undefined,
+  hideFooter: undefined,
 
   openModal: (options) =>
     set({
@@ -45,6 +48,7 @@ export const useModalStore = create<ModalState>((set) => ({
       content: options.content || null,
       okText: options.okText || "확인",
       cancelText: options.cancelText || "취소",
+      hideFooter: options.hideFooter,
       onConfirm: options.onConfirm,
       onCancel: options.onCancel,
     }),
@@ -55,5 +59,6 @@ export const useModalStore = create<ModalState>((set) => ({
       content: null, // 닫을 때 내용 초기화
       onConfirm: undefined,
       onCancel: undefined,
+      hideFooter: false,
     }),
 }));
