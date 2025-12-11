@@ -341,7 +341,7 @@ const CloseButton = styled.button`
 const FormContainer = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 18px;
   padding: 24px;
   overflow-y: auto;
 

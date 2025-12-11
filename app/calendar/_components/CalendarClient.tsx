@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
-import styled, { createGlobalStyle, css } from "styled-components";
+import React, { useState, useMemo } from "react";
+import styled, { createGlobalStyle } from "styled-components";
 import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
 import {
   format,
@@ -18,27 +18,11 @@ import { ko } from "date-fns/locale";
 import Holidays from "date-holidays";
 
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  X,
-  Clock,
-  Calendar as CalIcon,
-  CheckCircle2,
-  Circle,
-} from "lucide-react";
-import {
-  MappedEvent,
-  CalendarFormData,
-  CalendarRow,
-} from "@/api/calendar/type";
-import {
-  useGetCalendarList,
-  useInsertCalendar,
-  useUpdateCalendar,
-  useDeleteCalendar,
-} from "@/api/calendar/useCalendarQuery";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { MappedEvent, CalendarRow } from "@/api/calendar/type";
+import { useGetCalendarList } from "@/api/calendar/useCalendarQuery";
+import ModalCalendarAdd from "@/components/modals/ModalCalendarAdd";
+import CalendarSkeleton from "./CalendarSkeleton";
 
 // --- 1. 글로벌 스타일 (폰트 및 캘린더 커스텀) ---
 const GlobalStyle = createGlobalStyle`
@@ -76,7 +60,6 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
-// 한국 공휴일 라이브러리
 const hd = new Holidays("KR");
 
 interface Props {
@@ -86,29 +69,16 @@ interface Props {
 
 export default function CalendarClient({ academyCode, userId }: Props) {
   const [currentDate, setCurrentDate] = useState(new Date());
+
+  // 현재 보고 있는 달력의 연/월 (API 파라미터용)
+  const currentYearMonth = format(currentDate, "yyyy-MM");
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<MappedEvent | null>(null);
+  const [initialDate, setInitialDate] = useState<Date>(new Date());
 
-  // 🌟 유효성 검사 및 포커싱을 위한 상태/Ref
-  const contentInputRef = useRef<HTMLInputElement>(null);
-  const [contentError, setContentError] = useState(false);
-
-  // 입력 폼 상태
-  const [formData, setFormData] = useState<
-    CalendarFormData & { isHoliday: boolean }
-  >({
-    content: "",
-    startDate: format(new Date(), "yyyy-MM-dd"),
-    startTime: "09:00",
-    endDate: format(new Date(), "yyyy-MM-dd"),
-    endTime: "10:00",
-    isHoliday: false,
-  });
-
-  const { data: rawEvents } = useGetCalendarList(academyCode);
-  const insertMutation = useInsertCalendar(academyCode, () => closeModal());
-  const updateMutation = useUpdateCalendar(academyCode, () => closeModal());
-  const deleteMutation = useDeleteCalendar(academyCode, () => closeModal());
+  // API 훅: 현재 월 데이터 조회
+  const { data: rawEvents, isLoading } = useGetCalendarList(academyCode);
 
   // --- Events Calculation (공휴일 + DB데이터) ---
   const events: MappedEvent[] = useMemo(() => {
@@ -136,7 +106,6 @@ export default function CalendarClient({ academyCode, userId }: Props) {
       const rawList = hd.getHolidays(year);
       const holidayMap = new Map<string, any>();
 
-      // 1. 기본 공휴일
       rawList.forEach((h) => {
         if (
           h.substitute ||
@@ -178,7 +147,6 @@ export default function CalendarClient({ academyCode, userId }: Props) {
         }
       });
 
-      // 2. 대체공휴일 계산
       const confirmedHolidays = Array.from(holidayMap.values());
       confirmedHolidays.forEach((h) => {
         const dateStr = h.date;
@@ -216,7 +184,6 @@ export default function CalendarClient({ academyCode, userId }: Props) {
         }
       });
 
-      // 3. 매핑
       const yearEvents = Array.from(holidayMap.values()).map((h, idx) => {
         let title = h.name;
         if (title === "Korean New Year") title = "설날";
@@ -252,34 +219,19 @@ export default function CalendarClient({ academyCode, userId }: Props) {
   }, [rawEvents, currentDate]);
 
   // --- Handlers ---
+
+  // ✅ [핵심] 빈 날짜 슬롯(배경) 클릭 시 실행
   const handleSelectSlot = ({ start }: { start: Date; end: Date }) => {
-    setSelectedEvent(null);
-    setFormData({
-      content: "",
-      startDate: format(start, "yyyy-MM-dd"),
-      startTime: "09:00",
-      endDate: format(start, "yyyy-MM-dd"),
-      endTime: "10:00",
-      isHoliday: false,
-    });
-    setContentError(false);
-    setIsModalOpen(true);
+    setSelectedEvent(null); // 신규 등록 모드
+    setInitialDate(start); // 클릭한 날짜를 초기값으로
+    setIsModalOpen(true); // 모달 열기
   };
 
+  // 기존 이벤트 클릭 (수정 모드)
   const handleSelectEvent = (event: MappedEvent) => {
     if (event.type === "holiday") return;
-    const { resource } = event;
-    if (resource) {
+    if (event.resource) {
       setSelectedEvent(event);
-      setFormData({
-        content: resource.content,
-        startDate: resource.start_date,
-        startTime: resource.start_time.substring(0, 5),
-        endDate: resource.end_date,
-        endTime: resource.end_time.substring(0, 5),
-        isHoliday: resource.isHoliday || resource.type === "school_holiday",
-      });
-      setContentError(false);
       setIsModalOpen(true);
     }
   };
@@ -287,43 +239,6 @@ export default function CalendarClient({ academyCode, userId }: Props) {
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedEvent(null);
-  };
-
-  const handleSave = () => {
-    // 🌟 유효성 검사 (필수 입력)
-    if (!formData.content.trim()) {
-      setContentError(true);
-      contentInputRef.current?.focus();
-      return;
-    }
-
-    const payload = {
-      content: formData.content,
-      startDate: formData.startDate,
-      startTime: formData.startTime,
-      endDate: formData.endDate,
-      endTime: formData.endTime,
-      type: formData.isHoliday ? "school_holiday" : "event",
-    };
-
-    if (selectedEvent && selectedEvent.resource) {
-      updateMutation.mutate({
-        ...payload,
-        id: Number(selectedEvent.id),
-        updater_id: userId,
-      });
-    } else {
-      insertMutation.mutate({
-        ...payload,
-        register_id: userId,
-      });
-    }
-  };
-
-  const handleDelete = () => {
-    if (selectedEvent && confirm("정말 삭제하시겠습니까?")) {
-      deleteMutation.mutate(Number(selectedEvent.id));
-    }
   };
 
   const eventPropGetter = (event: any) => {
@@ -343,8 +258,8 @@ export default function CalendarClient({ academyCode, userId }: Props) {
         padding: "1px 4px",
         fontSize: "12px",
         fontWeight: "600",
-        boxSizing: "border-box",
-        pointerEvents: (isPublicHoliday ? "none" : "auto") as "none" | "auto",
+        boxSizing: "border-box" as const,
+        pointerEvents: (isPublicHoliday ? "none" : "auto") as any,
         opacity: isDifferentMonth ? 0.5 : isSubstitute ? 0.8 : 1,
       },
     };
@@ -364,9 +279,12 @@ export default function CalendarClient({ academyCode, userId }: Props) {
       setCurrentDate(newDate);
     };
     const goToCurrent = () => {
+      const now = new Date();
       toolbar.onNavigate("TODAY");
-      setCurrentDate(new Date());
+      setCurrentDate(now);
     };
+
+    const isCurrentMonth = isSameMonth(toolbar.date, new Date());
 
     return (
       <ToolbarContainer>
@@ -379,183 +297,92 @@ export default function CalendarClient({ academyCode, userId }: Props) {
             <ChevronRight size={20} />
           </NavButton>
         </NavGroup>
-        <TodayButton onClick={goToCurrent}>오늘</TodayButton>
+        <TodayButton onClick={goToCurrent} disabled={isCurrentMonth}>
+          이번 달 바로가기
+        </TodayButton>
       </ToolbarContainer>
     );
   };
 
   return (
-    <Container>
-      <GlobalStyle />
-      <Header>
-        <Title>학원 일정표</Title>
-        <AddButton
-          onClick={() =>
-            handleSelectSlot({ start: new Date(), end: new Date() })
-          }
-        >
-          <Plus size={18} /> 일정 등록
-        </AddButton>
-      </Header>
+    <>
+      {isLoading ? (
+        <CalendarSkeleton />
+      ) : (
+        <Container>
+          <GlobalStyle />
+          <Header>
+            <Title>학원 일정표</Title>
+            <AddButton
+              onClick={() =>
+                handleSelectSlot({ start: new Date(), end: new Date() })
+              }
+            >
+              <Plus size={18} />
+            </AddButton>
+          </Header>
 
-      <CalendarWrapper>
-        <StyledCalendar
-          localizer={localizer}
-          events={events}
-          startAccessor={(event: any) => event.start}
-          endAccessor={(event: any) => event.end}
-          date={currentDate}
-          onNavigate={(date) => setCurrentDate(date)}
-          views={[Views.MONTH]}
-          defaultView={Views.MONTH}
-          culture="ko"
-          popup
-          selectable
-          onSelectSlot={handleSelectSlot}
-          onSelectEvent={(event: any) => handleSelectEvent(event)}
-          components={{ toolbar: CustomToolbar }}
-          eventPropGetter={eventPropGetter}
-        />
-      </CalendarWrapper>
-
-      {/* --- Modal --- */}
-      {isModalOpen && (
-        <ModalOverlay onClick={closeModal}>
-          <ModalContent onClick={(e) => e.stopPropagation()}>
-            <ModalHeader>
-              <ModalTitle>
-                {selectedEvent ? "일정 수정" : "새 일정 등록"}
-              </ModalTitle>
-              <CloseBtn onClick={closeModal}>
-                <X size={22} />
-              </CloseBtn>
-            </ModalHeader>
-
-            <ModalBody>
-              <InputGroup>
-                <Label>
-                  일정 내용 <RequiredMark>*</RequiredMark>
-                </Label>
-                {/* 🌟 한 줄 배치: 입력창 + 휴일 버튼 */}
-                <ContentRow>
-                  <div style={{ flex: 1, position: "relative" }}>
-                    <Input
-                      ref={contentInputRef}
-                      value={formData.content}
-                      onChange={(e) => {
-                        setFormData({ ...formData, content: e.target.value });
-                        if (e.target.value) setContentError(false);
-                      }}
-                      placeholder="예: 학부모 상담"
-                      $error={contentError}
-                      autoFocus
-                    />
-                    {contentError && (
-                      <ErrorMessage>내용을 입력해주세요.</ErrorMessage>
-                    )}
-                  </div>
-
-                  <HolidayButton
-                    type="button"
-                    $active={formData.isHoliday}
+          <CalendarWrapper>
+            <StyledCalendar
+              localizer={localizer}
+              events={events}
+              startAccessor={(event: any) => event.start}
+              endAccessor={(event: any) => event.end}
+              date={currentDate}
+              onNavigate={(date) => setCurrentDate(date)}
+              views={[Views.MONTH]}
+              defaultView={Views.MONTH}
+              culture="ko"
+              popup
+              // ✅ [변경 1] selectable은 유지하되, 주된 클릭은 아래 components로 처리
+              selectable
+              // ✅ [변경 2] 기존 이벤트 핸들러 유지 (헤더 클릭 등 보조용)
+              onSelectSlot={handleSelectSlot}
+              onDrillDown={(date) =>
+                handleSelectSlot({ start: date, end: date })
+              }
+              onSelectEvent={(event: any) => handleSelectEvent(event)}
+              // ✅ [핵심] components prop 수정
+              components={{
+                toolbar: CustomToolbar,
+                // 🌟 빈 날짜 칸(배경)을 렌더링하는 컴포넌트를 가로채서 onClick 이벤트를 심습니다.
+                dateCellWrapper: ({ children, value }) => (
+                  <div
+                    style={{
+                      flex: 1,
+                      height: "100%",
+                      cursor: "pointer",
+                      // 배경색이 투명해서 클릭이 안 먹히는 경우를 방지 (필요 시 조정)
+                    }}
                     onClick={() =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        isHoliday: !prev.isHoliday,
-                      }))
+                      handleSelectSlot({ start: value, end: value })
                     }
-                    title="학원 휴일로 지정"
                   >
-                    {formData.isHoliday ? (
-                      <CheckCircle2 size={18} />
-                    ) : (
-                      <Circle size={18} />
-                    )}
-                    <span>휴일</span>
-                  </HolidayButton>
-                </ContentRow>
-              </InputGroup>
+                    {children}
+                  </div>
+                ),
+              }}
+              eventPropGetter={eventPropGetter}
+            />
+          </CalendarWrapper>
 
-              <Row>
-                <InputGroup>
-                  <Label>
-                    <CalIcon size={14} /> 시작일
-                  </Label>
-                  <Input
-                    type="date"
-                    value={formData.startDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, startDate: e.target.value })
-                    }
-                  />
-                </InputGroup>
-                <InputGroup>
-                  <Label>
-                    <Clock size={14} /> 시간
-                  </Label>
-                  <Input
-                    type="time"
-                    value={formData.startTime}
-                    onChange={(e) =>
-                      setFormData({ ...formData, startTime: e.target.value })
-                    }
-                  />
-                </InputGroup>
-              </Row>
-              <Row>
-                <InputGroup>
-                  <Label>
-                    <CalIcon size={14} /> 종료일
-                  </Label>
-                  <Input
-                    type="date"
-                    value={formData.endDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, endDate: e.target.value })
-                    }
-                  />
-                </InputGroup>
-                <InputGroup>
-                  <Label>
-                    <Clock size={14} /> 시간
-                  </Label>
-                  <Input
-                    type="time"
-                    value={formData.endTime}
-                    onChange={(e) =>
-                      setFormData({ ...formData, endTime: e.target.value })
-                    }
-                  />
-                </InputGroup>
-              </Row>
-            </ModalBody>
-
-            <ModalFooter>
-              {selectedEvent && selectedEvent.resource && (
-                <DeleteButton
-                  onClick={handleDelete}
-                  disabled={deleteMutation.isPending}
-                >
-                  {deleteMutation.isPending ? "삭제 중..." : "삭제"}
-                </DeleteButton>
-              )}
-              <SaveButton
-                onClick={handleSave}
-                disabled={insertMutation.isPending || updateMutation.isPending}
-              >
-                {insertMutation.isPending || updateMutation.isPending
-                  ? "저장 중"
-                  : "저장"}
-              </SaveButton>
-            </ModalFooter>
-          </ModalContent>
-        </ModalOverlay>
+          <ModalCalendarAdd
+            isOpen={isModalOpen}
+            onClose={closeModal}
+            academyCode={academyCode}
+            userId={userId}
+            selectedEvent={selectedEvent}
+            initialDate={initialDate}
+          />
+        </Container>
       )}
-    </Container>
+    </>
   );
 }
 
-// --- Styles ---
+// --------------------------------------------------------------------------
+// ✨ Styles (스타일은 기존과 동일하므로 생략하지 않고 전체 포함)
+// --------------------------------------------------------------------------
 
 const Container = styled.div`
   padding: 32px;
@@ -593,7 +420,7 @@ const AddButton = styled.button`
   background-color: #3182f6;
   color: white;
   border: none;
-  padding: 10px 20px;
+  padding: 12px;
   border-radius: 12px;
   font-weight: 600;
   font-size: 15px;
@@ -630,6 +457,9 @@ const CalendarWrapper = styled.div`
 
 const StyledCalendar = styled(Calendar)`
   font-family: "Pretendard", sans-serif;
+
+  /* ... (기존 스타일 유지) ... */
+
   .rbc-month-view,
   .rbc-time-view,
   .rbc-agenda-view {
@@ -653,6 +483,10 @@ const StyledCalendar = styled(Calendar)`
     font-weight: 500;
     color: #333d4b;
     text-align: center;
+
+    /* ✅ [추가] 날짜 숫자 위에서도 포인터 표시 */
+    cursor: pointer;
+
     @media (max-width: 600px) {
       padding: 4px;
       font-size: 12px;
@@ -696,6 +530,18 @@ const StyledCalendar = styled(Calendar)`
       font-size: 10px;
     }
   }
+
+  /* ✅ [핵심 수정] 날짜 칸(배경) 스타일 강화 */
+  .rbc-day-bg {
+    cursor: pointer; /* 마우스 포인터 손가락 모양 */
+    transition: background-color 0.2s; /* 부드러운 전환 효과 */
+  }
+
+  /* ✅ [추가] 마우스 올렸을 때 배경색 변경 (인터랙션 피드백) */
+  .rbc-day-bg:hover {
+    background-color: #f8fafc;
+  }
+
   .rbc-day-bg + .rbc-day-bg {
     border-left: 1px dashed #f2f4f6;
   }
@@ -706,7 +552,6 @@ const StyledCalendar = styled(Calendar)`
     background-color: transparent;
   }
 `;
-
 const ToolbarContainer = styled.div`
   display: flex;
   justify-content: space-between;
@@ -772,270 +617,24 @@ const TodayButton = styled.button`
   font-weight: 600;
   color: #4e5968;
   cursor: pointer;
-  &:hover {
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
     background: #f2f4f6;
     color: #191f28;
   }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #f9f9f9;
+    color: #b0b8c1;
+  }
+
   @media (max-width: 600px) {
     width: 100%;
     padding: 10px;
     background-color: #f9f9fb;
     border: none;
-  }
-`;
-
-const ModalOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  padding: 20px;
-`;
-
-const ModalContent = styled.div`
-  background: white;
-  width: 420px;
-  max-width: 100%;
-  border-radius: 28px;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  max-height: 90vh; /* 🌟 모달 잘림 방지 */
-
-  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-  @keyframes slideUp {
-    from {
-      transform: translateY(40px) scale(0.95);
-      opacity: 0;
-    }
-    to {
-      transform: translateY(0) scale(1);
-      opacity: 1;
-    }
-  }
-`;
-
-const ModalHeader = styled.div`
-  padding: 24px 28px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-`;
-
-const ModalTitle = styled.h3`
-  font-size: 20px;
-  font-weight: 700;
-  color: #191f28;
-  margin: 0;
-`;
-
-const CloseBtn = styled.button`
-  background: #f2f4f6;
-  border: none;
-  cursor: pointer;
-  color: #6b7684;
-  padding: 8px;
-  border-radius: 50%;
-  transition: 0.2s;
-  &:hover {
-    background: #e5e8eb;
-    color: #333;
-  }
-`;
-
-const ModalBody = styled.div`
-  padding: 0 28px 28px 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  overflow-y: auto;
-  flex: 1;
-
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-  &::-webkit-scrollbar-thumb {
-    background-color: #ddd;
-    border-radius: 4px;
-  }
-
-  /* 🌟 [수정] 모바일에서는 양옆 패딩을 줄여서 입력창 공간을 넓힘 */
-  @media (max-width: 600px) {
-    padding: 0 16px 20px 16px;
-    gap: 16px;
-  }
-`;
-
-const InputGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex: 1;
-`;
-
-/* 2. Row 간격 조절 */
-const Row = styled.div`
-  display: flex;
-  gap: 12px;
-
-  /* 🌟 [수정] 모바일에서 간격을 조금 좁힘 */
-  @media (max-width: 600px) {
-    gap: 8px;
-  }
-`;
-
-/* 3. Input 패딩 및 폰트 사이즈 조절 (핵심!) */
-const Input = styled.input<{ $error?: boolean }>`
-  padding: 14px;
-  border: 2px solid transparent;
-  border-radius: 14px;
-  font-size: 16px;
-  outline: none;
-  transition: all 0.2s;
-  color: #191f28;
-  background: #f4f6f8;
-  font-family: inherit;
-  width: 100%;
-
-  ${({ $error }) =>
-    $error &&
-    css`
-      background: #fff5f5;
-      border-color: #ef4444;
-      box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
-    `}
-
-  &:focus {
-    background: white;
-    border-color: ${({ $error }) => ($error ? "#ef4444" : "#3182f6")};
-    box-shadow: 0 0 0 4px
-      ${({ $error }) =>
-        $error ? "rgba(239, 68, 68, 0.1)" : "rgba(49, 130, 246, 0.1)"};
-  }
-
-  /* 🌟 [수정] 모바일 대응 스타일 추가 */
-  @media (max-width: 600px) {
-    padding: 12px 8px; /* 좌우 패딩을 줄임 (14px -> 8px) */
-    font-size: 13px; /* 폰트 크기를 줄임 (16px -> 13px) */
-    border-radius: 10px;
-
-    /* 날짜 아이콘 등 브라우저 기본 UI 간격 확보 */
-    &::-webkit-calendar-picker-indicator {
-      transform: scale(0.8); /* 아이콘 크기도 살짝 줄임 */
-      margin-left: 0;
-    }
-  }
-`;
-
-/* 🌟 한 줄 배치 Row */
-const ContentRow = styled.div`
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-`;
-
-const Label = styled.label`
-  font-size: 13px;
-  font-weight: 600;
-  color: #8b95a1;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-`;
-
-const RequiredMark = styled.span`
-  color: #ef4444;
-  margin-left: 2px;
-`;
-
-const ErrorMessage = styled.span`
-  font-size: 12px;
-  color: #ef4444;
-  font-weight: 600;
-  margin-top: 6px;
-  display: block;
-  animation: shake 0.3s ease-in-out;
-  @keyframes shake {
-    0%,
-    100% {
-      transform: translateX(0);
-    }
-    25% {
-      transform: translateX(-2px);
-    }
-    75% {
-      transform: translateX(2px);
-    }
-  }
-`;
-
-/* 🌟 휴일 버튼 스타일 */
-const HolidayButton = styled.button<{ $active: boolean }>`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 10px 8px;
-  border-radius: 12px;
-  border: 1px solid ${({ $active }) => ($active ? "#fda4af" : "#e5e8eb")};
-  background-color: ${({ $active }) => ($active ? "#fff0f0" : "#f9fafb")};
-  color: ${({ $active }) => ($active ? "#e11d48" : "#6b7684")};
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-  min-width: 50px;
-  height: 52px;
-
-  &:hover {
-    background-color: ${({ $active }) => ($active ? "#fee2e2" : "#f2f4f6")};
-  }
-`;
-
-const ModalFooter = styled.div`
-  padding: 20px 28px;
-  background-color: white;
-  border-top: 1px solid #f2f4f6;
-  display: flex;
-  gap: 12px;
-`;
-
-const Button = styled.button`
-  padding: 14px 20px;
-  border-radius: 14px;
-  font-size: 15px;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s;
-`;
-
-const SaveButton = styled(Button)`
-  background: #3182f6;
-  color: white;
-  flex: 1;
-  &:hover:not(:disabled) {
-    background: #1b64da;
-  }
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-`;
-
-const DeleteButton = styled(Button)`
-  background: #fff0f0;
-  color: #e11d48;
-  &:hover:not(:disabled) {
-    background: #fee2e2;
   }
 `;

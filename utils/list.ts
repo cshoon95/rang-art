@@ -80,6 +80,9 @@ export const hideHeaderTitlePath = [
   "/calendar",
   "/payment",
   "/cash-receipt",
+  "/reports",
+  "/planning",
+  "/attendance",
 ];
 
 // 직급 옵션 (학원 상황에 맞게 수정하세요)

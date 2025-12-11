@@ -66,7 +66,7 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
         pathname === "/signup" ||
         pathname === "/waiting"
       ) {
-        router.replace("/");
+        router.replace("/home");
         return;
       }
 

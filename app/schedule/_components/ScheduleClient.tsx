@@ -91,9 +91,9 @@ export default function ScheduleClient({
   };
 
   const rows = initialTimeList?.map((item: any) => {
-    const obj: any = { days: WEEKDAY_LIST, time: item.TIME };
+    const obj: any = { days: WEEKDAY_LIST, time: item.time };
     const filterList =
-      initialDataList?.filter((d: any) => d.TIME === item.TIME) || [];
+      initialDataList?.filter((d: any) => d.time === item.time) || [];
 
     for (let i = 0; i < 10; i++) {
       let contents = "";
@@ -101,11 +101,11 @@ export default function ScheduleClient({
       if (filterList.length > 0) {
         const data = filterList.find((d: any) => {
           return (
-            WEEKDAY_LIST[Math.floor(i / 2)].value === Number(d.DAY) &&
-            type === d.TYPE
+            WEEKDAY_LIST[Math.floor(i / 2)].value === Number(d.day) &&
+            type === d.type
           );
         });
-        contents = data?.CONTENT || "";
+        contents = data?.content || "";
       }
       obj["contents" + String(i)] = contents;
       obj["type" + String(i)] = type;
@@ -181,8 +181,8 @@ export default function ScheduleClient({
             </tr>
           </Thead>
           <tbody>
-            {rows.map((row: any) => (
-              <tr key={row.time}>
+            {rows.map((row: any, idx: number) => (
+              <tr key={row.time + "-" + idx}>
                 <ThStickyLeft onClick={() => handleManageTime(row.time)}>
                   {replaceTimeFormat(row.time)}
                 </ThStickyLeft>

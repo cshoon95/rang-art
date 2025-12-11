@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import styled, { keyframes, css } from "styled-components";
 import { useModalStore } from "@/store/modalStore";
 import { X } from "lucide-react";
@@ -14,7 +14,7 @@ export default function GlobalModal() {
     content,
     okText,
     cancelText,
-    hideFooter,
+    hideFooter = true,
     onConfirm,
     closeModal,
   } = useModalStore(
@@ -30,54 +30,63 @@ export default function GlobalModal() {
       closeModal: state.closeModal,
     }))
   );
-  if (!isOpen) return null;
 
-  console.log("hideFooter", hideFooter);
+  const [visible, setVisible] = useState(false);
 
-  // 확인 버튼 핸들러
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    if (isOpen) {
+      setVisible(true);
+    } else {
+      timeoutId = setTimeout(() => setVisible(false), 300);
+    }
+    return () => clearTimeout(timeoutId);
+  }, [isOpen]);
+
+  if (!visible) return null;
+
   const handleConfirm = () => {
     if (onConfirm) onConfirm();
     closeModal();
   };
 
-  // 타입별 컨텐츠 렌더링
   return (
-    <Overlay onClick={closeModal}>
-      <ModalContainer $type={type} onClick={(e) => e.stopPropagation()}>
-        {/* 1. 헤더 (ALERT 제외하고 표시) */}
-        {type !== "ALERT" && type !== "CONFIRM" && (
+    <Overlay $isOpen={isOpen} onClick={closeModal}>
+      <ModalContainer
+        $isOpen={isOpen}
+        $type={type}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* 1. 헤더 */}
+        {type !== "ALERT" && type !== "CONFIRM" && title && (
           <ModalHeader>
-            <Title>{title}</Title>
+            <HeaderTitle>{title}</HeaderTitle>
             <CloseButton onClick={closeModal}>
-              <X size={24} />
+              <X size={20} />
             </CloseButton>
           </ModalHeader>
         )}
 
-        {/* 2. 본문 (ALERT/CONFIRM은 제목이 본문에 포함됨) */}
-        <ModalBody $type={type}>
-          {(type === "ALERT" || type === "CONFIRM") && title && (
-            <AlertTitle>{title}</AlertTitle>
-          )}
-          {/* content가 문자열이면 텍스트로, 컴포넌트면 그대로 렌더링 */}
-          <ContentWrapper>{content}</ContentWrapper>
+        {/* 2. 본문 */}
+        <ModalBody $type={type} $noPadding={type === "FULL"}>
+          {content}
         </ModalBody>
 
-        {/* 3. 푸터 (버튼 영역) */}
+        {/* 3. 푸터 */}
         {!hideFooter && (
           <ModalFooter>
-            {(type === "CONFIRM" || type === "FULL") && (
-              <CancelButton onClick={closeModal}>{cancelText}</CancelButton>
+            {(type === "CONFIRM" || type === "FULL" || type === "SIMPLE") && (
+              <CancelButton onClick={closeModal}>
+                {cancelText || "취소"}
+              </CancelButton>
             )}
-            {/* ALERT, CONFIRM은 항상 확인 버튼 있음. SIMPLE, FULL은 선택 사항 */}
-            {(type === "ALERT" || type === "CONFIRM" || onConfirm) && (
-              <ConfirmButton
-                onClick={handleConfirm}
-                $fullWidth={type === "ALERT"}
-              >
-                {okText}
-              </ConfirmButton>
-            )}
+            <ConfirmButton
+              onClick={handleConfirm}
+              $fullWidth={type === "ALERT"}
+              $isDanger={type === "CONFIRM"}
+            >
+              {okText || "확인"}
+            </ConfirmButton>
           </ModalFooter>
         )}
       </ModalContainer>
@@ -85,135 +94,128 @@ export default function GlobalModal() {
   );
 }
 
-// --- Styles ---
+// --------------------------------------------------------------------------
+// ✨ Styles
+// --------------------------------------------------------------------------
 
-const fadeIn = keyframes`
-  from { opacity: 0; } to { opacity: 1; }
-`;
+const fadeIn = keyframes`from { opacity: 0; } to { opacity: 1; }`;
+const fadeOut = keyframes`from { opacity: 1; } to { opacity: 0; }`;
+const slideUp = keyframes`from { transform: translateY(20px) scale(0.98); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; }`;
+const slideDown = keyframes`from { transform: translateY(0) scale(1); opacity: 1; } to { transform: translateY(20px) scale(0.98); opacity: 0; }`;
 
-const slideUp = keyframes`
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-`;
-
-const Overlay = styled.div`
+const Overlay = styled.div<{ $isOpen: boolean }>`
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
   z-index: 9999;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
-  animation: ${fadeIn} 0.2s ease-out;
+  animation: ${({ $isOpen }) => ($isOpen ? fadeIn : fadeOut)} 0.25s forwards;
+
+  @media (max-width: 768px) {
+    padding: 0;
+    align-items: flex-end; /* 모바일: 바텀 시트처럼 아래 정렬 */
+  }
 `;
 
-const ModalContainer = styled.div<{ $type: string }>`
+const ModalContainer = styled.div<{ $type: string; $isOpen: boolean }>`
   background: white;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-  animation: ${slideUp} 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  animation: ${({ $isOpen }) => ($isOpen ? slideUp : slideDown)} 0.3s
+    cubic-bezier(0.16, 1, 0.3, 1) forwards;
 
-  /* 타입별 스타일 분기 */
-  ${({ $type }) => {
-    switch ($type) {
-      case "ALERT":
-      case "CONFIRM":
-        return css`
-          width: 320px;
-          border-radius: 20px;
-          text-align: center;
-        `;
-      case "FULL":
-        return css`
-          width: 100%;
-          height: 100%; /* 전체 화면 */
-          border-radius: 0;
-          max-width: none;
+  /* 반응형 크기 설정 */
+  width: 100%;
+  max-width: 480px;
+  max-height: 85vh; /* 화면 꽉 차지 않게 */
+  border-radius: 20px;
+  overflow: hidden;
 
-          @media (min-width: 768px) {
-            width: 600px;
-            height: auto;
-            max-height: 90vh;
-            border-radius: 24px;
-          }
-        `;
-      case "SIMPLE":
-      default:
-        return css`
-          width: 100%;
-          max-width: 420px;
-          border-radius: 24px;
-          max-height: 85vh;
-        `;
-    }
-  }}
+  /* FULL 타입일 경우 조금 더 넓게 */
+  ${({ $type }) =>
+    $type === "FULL" &&
+    css`
+      max-width: 600px;
+    `}
+
+  @media (max-width: 768px) {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 24px 24px 0 0; /* 위쪽만 둥글게 */
+    max-height: 90vh;
+  }
 `;
 
 const ModalHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 18px 24px;
+  background: white;
+  border-bottom: 1px solid #f1f5f9;
+  flex-shrink: 0;
 `;
 
-const Title = styled.h3`
-  font-size: 18px;
+const HeaderTitle = styled.h3`
+  font-size: 17px;
   font-weight: 700;
   margin: 0;
-  color: #191f28;
-`;
-
-const AlertTitle = styled.h3`
-  font-size: 18px;
-  font-weight: 700;
-  margin: 0 0 8px 0;
-  color: #191f28;
+  color: #1e293b;
 `;
 
 const CloseButton = styled.button`
-  background: none;
+  background: #f1f5f9;
   border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  padding: 4px;
+  color: #64748b;
+  transition: all 0.2s;
+  &:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+  }
 `;
 
-const ModalBody = styled.div<{ $type: string }>`
+const ModalBody = styled.div<{ $type: string; $noPadding?: boolean }>`
   flex: 1;
-  overflow-y: auto;
-  padding: 24px;
+  overflow-y: auto; /* 내용 넘치면 스크롤 */
   font-size: 15px;
   line-height: 1.6;
-  color: #4e5968;
+  color: #475569;
 
-  ${({ $type }) =>
-    $type === "FULL"
-      ? css`
-          padding: 20px;
-        `
-      : ""}
-`;
+  /* 내부 컴포넌트가 패딩을 직접 제어하도록 0으로 설정 가능 */
+  padding: ${({ $noPadding }) => ($noPadding ? "0" : "24px")};
 
-const ContentWrapper = styled.div`
-  /* 필요시 내부 컨텐츠 스타일 */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 3px;
+  }
 `;
 
 const ModalFooter = styled.div`
   padding: 16px 24px;
   display: flex;
-  gap: 10px;
-  border-top: 1px solid #f0f0f0;
-
-  /* 내용이 없으면 푸터 숨김 (빈 태그 방지용 로직 필요 시 추가) */
-  &:empty {
-    display: none;
-  }
+  gap: 12px;
+  background: white;
+  border-top: 1px solid #f1f5f9;
+  flex-shrink: 0;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
 `;
 
 const Button = styled.button`
@@ -225,21 +227,29 @@ const Button = styled.button`
   border: none;
   cursor: pointer;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `;
 
 const CancelButton = styled(Button)`
-  background-color: #f2f4f6;
-  color: #4e5968;
+  background-color: #f1f5f9;
+  color: #64748b;
   &:hover {
-    background-color: #e5e8eb;
+    background-color: #e2e8f0;
+    color: #334155;
   }
 `;
 
-const ConfirmButton = styled(Button)<{ $fullWidth?: boolean }>`
-  background-color: #3182f6;
+const ConfirmButton = styled(Button)<{
+  $fullWidth?: boolean;
+  $isDanger?: boolean;
+}>`
+  background-color: ${({ $isDanger }) => ($isDanger ? "#ef4444" : "#3182f6")};
   color: white;
   width: ${({ $fullWidth }) => ($fullWidth ? "100%" : "auto")};
   &:hover {
-    background-color: #2563eb;
+    background-color: ${({ $isDanger }) => ($isDanger ? "#dc2626" : "#2563eb")};
+    transform: translateY(-1px);
   }
 `;

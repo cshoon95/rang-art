@@ -16,6 +16,7 @@ import {
 import PageTitleWithStar from "@/components/PageTitleWithStar";
 import Select from "@/components/Select";
 import { useModalStore } from "@/store/modalStore";
+import CashReceiptSkeleton from "./CashReceiptSkeleton";
 
 interface Props {
   academyCode: string;
@@ -70,7 +71,7 @@ export default function CashReceiptClient({ academyCode, userId }: Props) {
 
     openModal({
       title: "일괄 발행",
-      content: `선택한 ${selectedIds.size}건을 '발행 완료' 처리하시겠습니까?`,
+      content: `선택한 ${selectedIds.size}건을 '발행 완료' 처리하시겠어요?`,
       type: "CONFIRM",
       onConfirm: async () => {
         await updateBatch({
@@ -140,206 +141,220 @@ export default function CashReceiptClient({ academyCode, userId }: Props) {
   });
 
   return (
-    <Container>
-      <Header>
-        <PageTitleWithStar title={<Title>현금영수증 관리</Title>} />
+    <>
+      {isLoading ? (
+        <CashReceiptSkeleton />
+      ) : (
+        <Container>
+          <Header>
+            <PageTitleWithStar title={<Title>현금영수증 관리</Title>} />
 
-        <Controls>
-          {/* 1. 연도 */}
-          <Select
-            options={yearOptions}
-            value={year}
-            onChange={setYear}
-            width="90px" // 모바일 고려 조금 줄임
-          />
-          {/* 2. 월 */}
-          <Select
-            options={monthOptions}
-            value={month}
-            onChange={setMonth}
-            width="80px" // 모바일 고려 조금 줄임
-          />
-          {/* 3. 검색창 */}
-          <SearchWrapper>
-            <SearchIcon size={18} color="#94a3b8" />
-            <SearchInput
-              placeholder="이름"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-            />
-          </SearchWrapper>
-        </Controls>
-      </Header>
+            <Controls>
+              {/* 1. 연도 */}
+              <Select
+                options={yearOptions}
+                value={year}
+                onChange={setYear}
+                width="90px" // 모바일 고려 조금 줄임
+              />
+              {/* 2. 월 */}
+              <Select
+                options={monthOptions}
+                value={month}
+                onChange={setMonth}
+                width="80px" // 모바일 고려 조금 줄임
+              />
+              {/* 3. 검색창 */}
+              <SearchWrapper>
+                <SearchIcon size={18} color="#94a3b8" />
+                <SearchInput
+                  placeholder="이름"
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                />
+              </SearchWrapper>
+            </Controls>
+          </Header>
 
-      <ContentArea>
-        <TableContainer>
-          <Table>
-            <thead>
-              <tr>
-                <Th style={{ width: "50px", textAlign: "center" }}>
-                  <CheckBoxButton
-                    onClick={toggleSelectAll}
-                    className={
-                      selectedIds.size === filteredRows.length &&
-                      filteredRows.length > 0
-                        ? "checked"
-                        : ""
-                    }
-                  >
-                    {selectedIds.size === filteredRows.length &&
-                    filteredRows.length > 0 ? (
-                      <CheckSquare size={20} />
-                    ) : (
-                      <Square size={20} />
-                    )}
-                  </CheckBoxButton>
-                </Th>
-                <Th style={{ width: "100px", textAlign: "center" }}>상태</Th>
-                <Th style={{ width: "140px" }}>날짜</Th>
-                <Th style={{ width: "100px" }}>이름</Th>
-                <Th style={{ width: "150px" }}>현금영수증 번호</Th>
-                <Th style={{ width: "120px", textAlign: "right" }}>금액</Th>
-                <Th>비고</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <Td
-                    colSpan={7}
-                    style={{ textAlign: "center", padding: "40px" }}
-                  >
-                    로딩 중...
-                  </Td>
-                </tr>
-              ) : filteredRows.length === 0 ? (
-                <tr>
-                  <Td
-                    colSpan={7}
-                    style={{
-                      textAlign: "center",
-                      padding: "40px",
-                      color: "#888",
-                    }}
-                  >
-                    데이터가 없습니다.
-                  </Td>
-                </tr>
-              ) : (
-                filteredRows.map((row: any) => (
-                  <Tr key={row.id} $isSelected={selectedIds.has(row.id)}>
-                    <Td style={{ textAlign: "center" }}>
+          <ContentArea>
+            <TableContainer>
+              <Table>
+                <thead>
+                  <tr>
+                    <Th style={{ width: "50px", textAlign: "center" }}>
                       <CheckBoxButton
-                        onClick={() => toggleSelect(row.id)}
-                        className={selectedIds.has(row.id) ? "checked" : ""}
+                        onClick={toggleSelectAll}
+                        className={
+                          selectedIds.size === filteredRows.length &&
+                          filteredRows.length > 0
+                            ? "checked"
+                            : ""
+                        }
                       >
-                        {selectedIds.has(row.id) ? (
+                        {selectedIds.size === filteredRows.length &&
+                        filteredRows.length > 0 ? (
                           <CheckSquare size={20} />
                         ) : (
                           <Square size={20} />
                         )}
                       </CheckBoxButton>
-                    </Td>
-                    <Td style={{ textAlign: "center" }}>
-                      <Badge
-                        $active={row.register === "Y"}
-                        onClick={() =>
-                          toggleRegister(row.id, row.name, row.register)
-                        }
+                    </Th>
+                    <Th style={{ width: "100px", textAlign: "center" }}>
+                      상태
+                    </Th>
+                    <Th style={{ width: "140px" }}>날짜</Th>
+                    <Th style={{ width: "100px" }}>이름</Th>
+                    <Th style={{ width: "150px" }}>현금영수증 번호</Th>
+                    <Th style={{ width: "120px", textAlign: "right" }}>금액</Th>
+                    <Th>비고</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading ? (
+                    <tr>
+                      <Td
+                        colSpan={7}
+                        style={{ textAlign: "center", padding: "40px" }}
                       >
-                        {row.register === "Y" ? "발행" : "미발행"}
-                      </Badge>
-                    </Td>
-                    <Td>
-                      <Input
-                        defaultValue={formatDate(row.year, row.month, row.day)}
-                        onBlur={(e) =>
-                          handleBlur(
-                            row.id,
-                            row.name,
-                            "date",
-                            e.target.value,
-                            formatDate(row.year, row.month, row.day)
-                          )
-                        }
-                        placeholder="YYYY-MM-DD"
-                      />
-                    </Td>
-                    <Td style={{ fontWeight: 600 }}>{row.name}</Td>
-                    <Td>
-                      <Input
-                        defaultValue={replaceHyphenFormat(
-                          row.cash_number,
-                          "phone"
-                        )}
-                        placeholder="번호 입력"
-                        onBlur={(e) =>
-                          handleBlur(
-                            row.id,
-                            row.name,
-                            "cash_number",
-                            e.target.value,
-                            row.cash_number
-                          )
-                        }
-                      />
-                    </Td>
-                    <Td style={{ textAlign: "right" }}>
-                      <Input
-                        defaultValue={Number(row.fee).toLocaleString() + "원"}
+                        로딩 중...
+                      </Td>
+                    </tr>
+                  ) : filteredRows.length === 0 ? (
+                    <tr>
+                      <Td
+                        colSpan={7}
                         style={{
-                          textAlign: "right",
-                          fontWeight: 700,
-                          color: "#3182f6",
+                          textAlign: "center",
+                          padding: "40px",
+                          color: "#888",
                         }}
-                        onBlur={(e) =>
-                          handleBlur(
-                            row.id,
-                            row.name,
-                            "fee",
-                            e.target.value,
-                            row.fee
-                          )
-                        }
-                      />
-                    </Td>
-                    <Td>
-                      <Input
-                        defaultValue={row.note}
-                        placeholder="메모"
-                        onBlur={(e) =>
-                          handleBlur(
-                            row.id,
-                            row.name,
-                            "note",
-                            e.target.value,
-                            row.note
-                          )
-                        }
-                      />
-                    </Td>
-                  </Tr>
-                ))
-              )}
-            </tbody>
-          </Table>
-        </TableContainer>
+                      >
+                        데이터가 없습니다.
+                      </Td>
+                    </tr>
+                  ) : (
+                    filteredRows.map((row: any) => (
+                      <Tr key={row.id} $isSelected={selectedIds.has(row.id)}>
+                        <Td style={{ textAlign: "center" }}>
+                          <CheckBoxButton
+                            onClick={() => toggleSelect(row.id)}
+                            className={selectedIds.has(row.id) ? "checked" : ""}
+                          >
+                            {selectedIds.has(row.id) ? (
+                              <CheckSquare size={20} />
+                            ) : (
+                              <Square size={20} />
+                            )}
+                          </CheckBoxButton>
+                        </Td>
+                        <Td style={{ textAlign: "center" }}>
+                          <Badge
+                            $active={row.register === "Y"}
+                            onClick={() =>
+                              toggleRegister(row.id, row.name, row.register)
+                            }
+                          >
+                            {row.register === "Y" ? "발행" : "미발행"}
+                          </Badge>
+                        </Td>
+                        <Td>
+                          <Input
+                            defaultValue={formatDate(
+                              row.year,
+                              row.month,
+                              row.day
+                            )}
+                            onBlur={(e) =>
+                              handleBlur(
+                                row.id,
+                                row.name,
+                                "date",
+                                e.target.value,
+                                formatDate(row.year, row.month, row.day)
+                              )
+                            }
+                            placeholder="YYYY-MM-DD"
+                          />
+                        </Td>
+                        <Td style={{ fontWeight: 600 }}>{row.name}</Td>
+                        <Td>
+                          <Input
+                            defaultValue={replaceHyphenFormat(
+                              row.cash_number,
+                              "phone"
+                            )}
+                            placeholder="번호 입력"
+                            onBlur={(e) =>
+                              handleBlur(
+                                row.id,
+                                row.name,
+                                "cash_number",
+                                e.target.value,
+                                row.cash_number
+                              )
+                            }
+                          />
+                        </Td>
+                        <Td style={{ textAlign: "right" }}>
+                          <Input
+                            defaultValue={
+                              Number(row.fee).toLocaleString() + "원"
+                            }
+                            style={{
+                              textAlign: "right",
+                              fontWeight: 700,
+                              color: "#3182f6",
+                            }}
+                            onBlur={(e) =>
+                              handleBlur(
+                                row.id,
+                                row.name,
+                                "fee",
+                                e.target.value,
+                                row.fee
+                              )
+                            }
+                          />
+                        </Td>
+                        <Td>
+                          <Input
+                            defaultValue={row.note}
+                            placeholder="메모"
+                            onBlur={(e) =>
+                              handleBlur(
+                                row.id,
+                                row.name,
+                                "note",
+                                e.target.value,
+                                row.note
+                              )
+                            }
+                          />
+                        </Td>
+                      </Tr>
+                    ))
+                  )}
+                </tbody>
+              </Table>
+            </TableContainer>
 
-        <ActionFooter>
-          <FooterText>
-            {selectedIds.size > 0
-              ? `${selectedIds.size}건 선택됨`
-              : "선택된 항목 없음"}
-          </FooterText>
-          <ActionButton
-            onClick={handleBatchIssue}
-            disabled={selectedIds.size === 0}
-          >
-            일괄 발행 처리
-          </ActionButton>
-        </ActionFooter>
-      </ContentArea>
-    </Container>
+            <ActionFooter>
+              <FooterText>
+                {selectedIds.size > 0
+                  ? `${selectedIds.size}건 선택됨`
+                  : "선택된 항목 없음"}
+              </FooterText>
+              <ActionButton
+                onClick={handleBatchIssue}
+                disabled={selectedIds.size === 0}
+              >
+                일괄 발행 처리
+              </ActionButton>
+            </ActionFooter>
+          </ContentArea>
+        </Container>
+      )}
+    </>
   );
 }
 

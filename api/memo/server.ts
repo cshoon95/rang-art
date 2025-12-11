@@ -25,8 +25,6 @@ export async function getEmployees(academyCode: string) {
     return [];
   }
 
-  console.log("item", data);
-
   // 여기서 포맷팅을 수행하여 반환합니다.
   return data.map((item: any) => ({
     IDX: item.idx, // PK

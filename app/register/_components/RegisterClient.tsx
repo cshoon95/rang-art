@@ -16,6 +16,7 @@ import * as XLSX from "xlsx";
 import ModalCertificate from "@/components/modals/ModalCertificate";
 import { useModalStore } from "@/store/modalStore";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
+import RegisterSkeleton from "./RegisterSkeleton";
 
 interface Props {
   academyCode: string;
@@ -25,18 +26,15 @@ const MONTHS = Array.from({ length: 12 }, (_, i) =>
   String(i + 1).padStart(2, "0")
 );
 
-// 기본값 (PC/태블릿 기준)
-const DEFAULT_ITEMS_PER_PAGE = 10;
+const DEFAULT_ITEMS_PER_PAGE = 8;
 
 export default function RegisterClient({ academyCode }: Props) {
   const [year, setYear] = useState(new Date().getFullYear().toString());
   const [searchText, setSearchText] = useState("");
 
-  // ✅ 페이지네이션 상태
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
 
-  // 뷰 모드 상태 (기본값: 전체보기)
   const [viewMode, setViewMode] = useState<"all" | "current">("all");
   const currentMonth = String(new Date().getMonth() + 1).padStart(2, "0");
 
@@ -47,14 +45,14 @@ export default function RegisterClient({ academyCode }: Props) {
   const monthTotals = data?.monthTotals || {};
   const grandTotal = data?.grandTotal || 0;
 
-  // 🌟 [추가] 화면 크기에 따른 페이지당 아이템 수 조절
   useEffect(() => {
     const handleResize = () => {
-      // 모바일(768px 미만)에서는 7개, 그 외(아이패드 등)는 10개
-      if (window.innerWidth < 768) {
-        setItemsPerPage(8);
+      // 1024px보다 크면 (데스크탑) -> 10개
+      // 1024px 이하이면 (아이패드, 태블릿, 모바일) -> 8개
+      if (window.innerWidth > 1180) {
+        setItemsPerPage(11);
       } else {
-        setItemsPerPage(10);
+        setItemsPerPage(8);
       }
     };
 
@@ -66,12 +64,10 @@ export default function RegisterClient({ academyCode }: Props) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // itemsPerPage가 바뀌면 현재 페이지를 1페이지로 리셋
   useEffect(() => {
     setCurrentPage(1);
-  }, [itemsPerPage]);
+  }, [itemsPerPage, searchText]);
 
-  // 1. 검색 필터링
   const filteredData = useMemo(() => {
     if (!searchText) return reportData;
     return reportData.filter((item: any) => {
@@ -82,12 +78,6 @@ export default function RegisterClient({ academyCode }: Props) {
     });
   }, [reportData, searchText]);
 
-  // ✅ 검색어가 변경되면 페이지를 1로 초기화
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchText]);
-
-  // ✅ 2. 페이지네이션 데이터 계산 (동적 itemsPerPage 사용)
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
   const paginatedData = useMemo(() => {
@@ -95,7 +85,7 @@ export default function RegisterClient({ academyCode }: Props) {
     return filteredData.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredData, currentPage, itemsPerPage]);
 
-  const handleNameDoubleClick = (name: string) => {
+  const handleNameClick = (name: string) => {
     openModal({
       title: "납입증명서 발급",
       content: (
@@ -145,7 +135,6 @@ export default function RegisterClient({ academyCode }: Props) {
     return MONTHS;
   }, [viewMode, currentMonth]);
 
-  // ✅ 페이지 번호 배열 생성
   const getPageNumbers = () => {
     const pageNumbers = [];
     let startPage = Math.max(1, currentPage - 2);
@@ -162,169 +151,183 @@ export default function RegisterClient({ academyCode }: Props) {
   };
 
   return (
-    <Container>
-      <Header>
-        <TitleArea>
-          <PageTitleWithStar title={<Title>등록부</Title>} />
-          <YearController>
-            <YearBtn onClick={() => handleYearChange(-1)}>
-              <ChevronLeft size={20} />
-            </YearBtn>
-            <YearText>{year}년</YearText>
-            <YearBtn onClick={() => handleYearChange(1)}>
-              <ChevronRight size={20} />
-            </YearBtn>
-          </YearController>
-        </TitleArea>
+    <>
+      {isLoading ? (
+        <RegisterSkeleton />
+      ) : (
+        <Container>
+          <Header>
+            {/* 1. TitleArea에는 타이틀만 남김 */}
+            <TitleArea>
+              <PageTitleWithStar title={<Title>등록부</Title>} />
+            </TitleArea>
 
-        <Controls>
-          <MobileViewToggle
-            onClick={() => setViewMode(viewMode === "all" ? "current" : "all")}
-          >
-            {viewMode === "all" ? (
-              <Calendar size={18} />
-            ) : (
-              <LayoutList size={18} />
-            )}
-            <span>{viewMode === "all" ? "이번달" : "전체"}</span>
-          </MobileViewToggle>
+            {/* 2. Controls에 YearController 포함 모든 기능 버튼 통합 */}
+            <Controls>
+              {/* ✅ 년도 선택기 이동 */}
+              <YearController>
+                <YearBtn onClick={() => handleYearChange(-1)}>
+                  <ChevronLeft size={20} />
+                </YearBtn>
+                <YearText>{year}년</YearText>
+                <YearBtn onClick={() => handleYearChange(1)}>
+                  <ChevronRight size={20} />
+                </YearBtn>
+              </YearController>
 
-          <SearchWrapper>
-            <SearchIcon size={18} color="#94a3b8" />
-            <SearchInput
-              placeholder="이름 검색..."
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-            />
-          </SearchWrapper>
-          <ExcelButton onClick={handleExcelDownload}>
-            <Download size={18} /> 엑셀 저장
-          </ExcelButton>
-        </Controls>
-      </Header>
+              <MobileViewToggle
+                onClick={() =>
+                  setViewMode(viewMode === "all" ? "current" : "all")
+                }
+              >
+                {viewMode === "all" ? (
+                  <Calendar size={18} />
+                ) : (
+                  <LayoutList size={18} />
+                )}
+                <span>{viewMode === "all" ? "이번달" : "전체"}</span>
+              </MobileViewToggle>
 
-      <TableContainer>
-        <Table $isCurrentView={viewMode === "current"}>
-          <Thead>
-            <tr style={{ height: "50px" }}>
-              <StickyThLeft>이름</StickyThLeft>
-              {displayedMonths.map((m) => (
-                <Th key={m}>{Number(m)}월</Th>
-              ))}
-              <StickyThRight>합계</StickyThRight>
-            </tr>
-            <TotalRow>
-              <StickyTdLeftTotal>월별 합계</StickyTdLeftTotal>
-              {displayedMonths.map((m) => (
-                <TotalTd key={m}>
-                  {monthTotals[m] ? replaceMoneyKr(monthTotals[m]) : "-"}
-                </TotalTd>
-              ))}
-              <StickyTdRightTotal>
-                {replaceMoneyKr(grandTotal)}
-              </StickyTdRightTotal>
-            </TotalRow>
-          </Thead>
+              <SearchWrapper>
+                <SearchIcon size={18} color="#94a3b8" />
+                <SearchInput
+                  placeholder="이름 검색..."
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                />
+              </SearchWrapper>
+              <ExcelButton onClick={handleExcelDownload}>
+                <Download size={18} /> 엑셀 저장
+              </ExcelButton>
+            </Controls>
+          </Header>
 
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td
-                  colSpan={14}
-                  style={{
-                    padding: "40px",
-                    textAlign: "center",
-                    color: "#888",
-                  }}
-                >
-                  데이터를 불러오는 중입니다...
-                </td>
-              </tr>
-            ) : filteredData.length > 0 ? (
-              // ✅ 페이지네이션된 데이터 렌더링
-              paginatedData.map((row: any) => (
-                <tr key={row.name}>
-                  <StickyTdLeft
-                    onDoubleClick={() => handleNameDoubleClick(row.name)}
-                    style={{
-                      cursor: "pointer",
-                      color: "#3182f6",
-                      textDecoration: "underline",
-                    }}
-                  >
-                    {row.name}
-                  </StickyTdLeft>
-
-                  {displayedMonths.map((m) => {
-                    const cellData = row.months[m];
-                    return (
-                      <Td key={m} $hasData={!!cellData?.fee}>
-                        {cellData?.fee ? (
-                          <CellContent>
-                            <DateText>
-                              {Number(m)}월 {cellData.day}일
-                            </DateText>
-                            <FeeText>{replaceMoneyKr(cellData.fee)}</FeeText>
-                          </CellContent>
-                        ) : (
-                          ""
-                        )}
-                      </Td>
-                    );
-                  })}
-
-                  <StickyTdRight>{replaceMoneyKr(row.totalSum)}</StickyTdRight>
+          <TableContainer>
+            <Table $isCurrentView={viewMode === "current"}>
+              <Thead>
+                <tr style={{ height: "50px" }}>
+                  <StickyThLeft>이름</StickyThLeft>
+                  {displayedMonths.map((m) => (
+                    <Th key={m}>{Number(m)}월</Th>
+                  ))}
+                  <StickyThRight>합계</StickyThRight>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan={14}
-                  style={{
-                    padding: "40px",
-                    textAlign: "center",
-                    color: "#888",
-                  }}
+                <TotalRow>
+                  <StickyTdLeftTotal>월별 합계</StickyTdLeftTotal>
+                  {displayedMonths.map((m) => (
+                    <TotalTd key={m}>
+                      {monthTotals[m] ? replaceMoneyKr(monthTotals[m]) : "-"}
+                    </TotalTd>
+                  ))}
+                  <StickyTdRightTotal>
+                    {replaceMoneyKr(grandTotal)}
+                  </StickyTdRightTotal>
+                </TotalRow>
+              </Thead>
+
+              <tbody>
+                {isLoading ? (
+                  <tr>
+                    <td
+                      colSpan={14}
+                      style={{
+                        padding: "40px",
+                        textAlign: "center",
+                        color: "#888",
+                      }}
+                    >
+                      데이터를 불러오는 중입니다...
+                    </td>
+                  </tr>
+                ) : filteredData.length > 0 ? (
+                  paginatedData.map((row: any) => (
+                    <tr key={row.name}>
+                      <StickyTdLeft
+                        onClick={() => handleNameClick(row.name)}
+                        style={{
+                          cursor: "pointer",
+                          color: "#3182f6",
+                          textDecoration: "underline",
+                        }}
+                      >
+                        {row.name}
+                      </StickyTdLeft>
+
+                      {displayedMonths.map((m) => {
+                        const cellData = row.months[m];
+                        return (
+                          <Td key={m} $hasData={!!cellData?.fee}>
+                            {cellData?.fee ? (
+                              <CellContent>
+                                <DateText>
+                                  {Number(m)}월 {cellData.day}일
+                                </DateText>
+                                <FeeText>
+                                  {replaceMoneyKr(cellData.fee)}
+                                </FeeText>
+                              </CellContent>
+                            ) : (
+                              ""
+                            )}
+                          </Td>
+                        );
+                      })}
+
+                      <StickyTdRight>
+                        {replaceMoneyKr(row.totalSum)}
+                      </StickyTdRight>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={14}
+                      style={{
+                        padding: "40px",
+                        textAlign: "center",
+                        color: "#888",
+                      }}
+                    >
+                      데이터가 없습니다.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </Table>
+          </TableContainer>
+
+          {!isLoading && filteredData.length > 0 && (
+            <PaginationWrapper>
+              <PageButton
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft size={16} />
+              </PageButton>
+
+              {getPageNumbers().map((pageNum) => (
+                <PageNumber
+                  key={pageNum}
+                  $active={pageNum === currentPage}
+                  onClick={() => setCurrentPage(pageNum)}
                 >
-                  데이터가 없습니다.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </Table>
-      </TableContainer>
+                  {pageNum}
+                </PageNumber>
+              ))}
 
-      {/* ✅ 페이지네이션 UI */}
-      {!isLoading && filteredData.length > 0 && (
-        <PaginationWrapper>
-          <PageButton
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-          >
-            <ChevronLeft size={16} />
-          </PageButton>
-
-          {getPageNumbers().map((pageNum) => (
-            <PageNumber
-              key={pageNum}
-              $active={pageNum === currentPage}
-              onClick={() => setCurrentPage(pageNum)}
-            >
-              {pageNum}
-            </PageNumber>
-          ))}
-
-          <PageButton
-            onClick={() =>
-              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-            }
-            disabled={currentPage === totalPages}
-          >
-            <ChevronRight size={16} />
-          </PageButton>
-        </PaginationWrapper>
+              <PageButton
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                disabled={currentPage === totalPages}
+              >
+                <ChevronRight size={16} />
+              </PageButton>
+            </PaginationWrapper>
+          )}
+        </Container>
       )}
-    </Container>
+    </>
   );
 }
 
@@ -343,6 +346,7 @@ const Container = styled.div`
   }
 `;
 
+// ✅ [Header 수정] Flex 정렬 방식 변경
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
@@ -351,11 +355,11 @@ const Header = styled.div`
   gap: 16px;
 `;
 
+// ✅ [TitleArea 수정] width 100% 제거 -> 왼쪽 정렬
 const TitleArea = styled.div`
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
+  /* width: 100%; 제거 */
 `;
 
 const Title = styled.h1`
@@ -372,6 +376,7 @@ const YearController = styled.div`
   border-radius: 12px;
   padding: 4px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  height: 40px; /* 높이 통일 */
 `;
 
 const YearBtn = styled.button`
@@ -392,16 +397,17 @@ const YearText = styled.span`
   margin: 0 8px;
 `;
 
+// ✅ [Controls 수정] 우측 정렬 및 아이템 간격 설정
 const Controls = styled.div`
   display: flex;
   gap: 12px;
   align-items: center;
-  width: 100%;
-  justify-content: end;
+  flex-wrap: wrap; /* 작은 화면에서 줄바꿈 허용 */
 
+  /* width: 100%; justify-content: end; 제거 또는 수정 */
   @media (max-width: 768px) {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-end; /* 모바일에서는 우측 정렬 */
   }
 `;
 
@@ -485,6 +491,7 @@ const ExcelButton = styled.button`
   }
 `;
 
+/* Table 관련 스타일은 기존과 동일 */
 const TableContainer = styled.div`
   background: #fff;
   border-radius: 16px;

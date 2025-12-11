@@ -354,6 +354,7 @@ export default function ModalPaymentMessage({
 
     openModal({
       title: "상태 변경",
+      hideFooter: false,
       content: `총 ${targets.length}명의 상태를 업데이트하시겠습니까?`,
       type: "CONFIRM",
       onConfirm: async () => {
@@ -472,7 +473,7 @@ export default function ModalPaymentMessage({
                         $isPaid={row.feeYn}
                         onClick={() => handleFeeYnChange(row.id, row.feeYn)}
                       >
-                        {row.feeYn ? "완료" : "미납"}
+                        {row.feeYn ? "발신 완료" : "미발신"}
                       </StatusBadge>
                     </Td>
 

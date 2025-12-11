@@ -15,7 +15,7 @@ export const getScheduleTimeListAction = async (academyCode: string) => {
   // DISTINCT를 직접 지원하지 않으므로 전체를 가져와서 JS에서 중복을 제거합니다.
   const { data, error } = await supabase
     .from(TABLE_NAME)
-    .select("TIME") // 컬럼명 대문자
+    .select("time")
     .eq("academy_code", academyCode);
 
   if (error || !data) {
@@ -24,8 +24,8 @@ export const getScheduleTimeListAction = async (academyCode: string) => {
   }
 
   // ✅ 중복 제거 (Set 활용)
-  const uniqueTimeStrings = Array.from(new Set(data.map((d) => d.TIME)));
-  const uniqueRows = uniqueTimeStrings.map((t) => ({ TIME: t }));
+  const uniqueTimeStrings = Array.from(new Set(data.map((d) => d.time)));
+  const uniqueRows = uniqueTimeStrings.map((t) => ({ time: t }));
 
   // ✅ 학원 시간표 맞춤 정렬 로직 (기존 로직 유지)
   const sortedRows = uniqueRows.sort((a: any, b: any) => {
@@ -44,7 +44,7 @@ export const getScheduleTimeListAction = async (academyCode: string) => {
       return hour * 60 + minute;
     };
 
-    return getWeight(a.TIME) - getWeight(b.TIME);
+    return getWeight(a.time) - getWeight(b.time);
   });
 
   return sortedRows;
@@ -58,7 +58,7 @@ export const getScheduleDataListAction = async (academyCode: string) => {
 
   const { data, error } = await supabase
     .from(TABLE_NAME)
-    .select("TIME, DAY, CONTENT, TYPE") // 컬럼명 대문자
+    .select("time, day, content, type") // 컬럼명 대문자
     .eq("academy_code", academyCode);
 
   if (error) {

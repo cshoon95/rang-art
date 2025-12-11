@@ -77,6 +77,23 @@ export async function getBranches() {
   return data;
 }
 
+export async function getBranchesCount(code: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from(TABLE_NAME)
+    .select("count1, count2, count3, count4, count5") // [수정] count -> count5
+    .eq("code", code)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Get Branches Error:", error);
+    return null;
+  }
+
+  return data;
+}
+
 export async function upsertBranchAction(formData: any) {
   const supabase = await createClient();
 
@@ -88,6 +105,11 @@ export async function upsertBranchAction(formData: any) {
     tel: formData.tel,
     owner: formData.owner,
     business_no: formData.businessNo, // ✅ 추가됨
+    count1: formData.count1,
+    count2: formData.count2,
+    count3: formData.count3,
+    count4: formData.count4,
+    count5: formData.count5,
   };
 
   const { error } = await supabase

@@ -11,7 +11,7 @@ export default async function CalendarPage() {
   // const userId = session?.user?.id || "TEST_USER";
 
   // 더미 데이터
-  const academyCode = "2";
+  const academyCode = "0";
   const userId = "TEACHER_01";
 
   return <CalendarClient academyCode={academyCode} userId={userId} />;

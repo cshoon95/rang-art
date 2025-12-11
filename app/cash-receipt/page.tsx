@@ -1,12 +1,12 @@
 import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
 import CashReceiptClient from "./_components/CashReceiptClient";
+import { cookies } from "next/headers";
 
 export default async function CashReceiptPage() {
-  const session = await getServerSession(authOptions);
-  // 세션에서 academyCode, userId 가져오기 (구조에 맞게 수정)
-  const academyCode = "0";
-  const userId = session?.user?.email || "unknown";
+  const cookieStore = await cookies();
+  const academyCode = cookieStore.get("academyCode")?.value || "0";
+  const userId = cookieStore.get("userRole")?.value || "admin";
 
   return <CashReceiptClient academyCode={academyCode} userId={userId} />;
 }

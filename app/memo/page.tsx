@@ -1,7 +1,8 @@
-import React from "react";
+import React, { Suspense } from "react";
 import { cookies } from "next/headers";
 import { getMemosAction } from "@/api/memo/actions";
 import MemoClient from "./_components/MemoClient";
+import MemoSkeleton from "./_components/MemoSkeleton";
 
 export default async function MemoPage() {
   const cookieStore = await cookies();
@@ -9,5 +10,9 @@ export default async function MemoPage() {
 
   const memos = await getMemosAction(academyCode);
 
-  return <MemoClient initialData={memos} academyCode={academyCode} />;
+  return (
+    <Suspense fallback={<MemoSkeleton />}>
+      <MemoClient initialData={memos} academyCode={academyCode} />;
+    </Suspense>
+  );
 }

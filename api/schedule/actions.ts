@@ -27,10 +27,10 @@ export async function upsertScheduleAction(param: {
   // 키값을 DB 컬럼명(대문자 등)과 일치시켜야 합니다.
   const { data: existing, error: checkError } = await supabase
     .from(TABLE_NAME)
-    .select("CONTENT")
-    .eq("DAY", day)
-    .eq("TIME", time)
-    .eq("TYPE", type)
+    .select("content")
+    .eq("day", day)
+    .eq("time", time)
+    .eq("type", type)
     .eq("academy_code", academyCode)
     .maybeSingle();
 
@@ -44,10 +44,10 @@ export async function upsertScheduleAction(param: {
   if (!existing) {
     // 2-A. 신규 등록 (INSERT)
     const { error } = await supabase.from(TABLE_NAME).insert({
-      CONTENT: content,
-      DAY: day,
-      TIME: time,
-      TYPE: type,
+      content: content,
+      day: day,
+      time: time,
+      type: type,
       register_id: registerID,
       academy_code: academyCode,
     });
@@ -57,12 +57,12 @@ export async function upsertScheduleAction(param: {
     const { error } = await supabase
       .from(TABLE_NAME)
       .update({
-        CONTENT: content,
+        content: content,
         updater_id: registerID,
       })
-      .eq("DAY", day)
-      .eq("TIME", time)
-      .eq("TYPE", type)
+      .eq("day", day)
+      .eq("time", time)
+      .eq("type", type)
       .eq("academy_code", academyCode);
     resultError = error;
   }
@@ -91,7 +91,7 @@ export async function insertScheduleTimeAction(data: {
   const { time, academyCode, registerID } = data;
 
   const { error } = await supabase.from(TABLE_NAME).insert({
-    TIME: time,
+    time: time,
     register_id: registerID,
     academy_code: academyCode,
   });
@@ -116,7 +116,7 @@ export async function deleteScheduleTimeAction(data: {
   const { error } = await supabase
     .from(TABLE_NAME)
     .delete()
-    .eq("TIME", time)
+    .eq("time", time)
     .eq("academy_code", academyCode);
 
   if (error) {

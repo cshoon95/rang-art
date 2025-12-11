@@ -34,8 +34,8 @@ export default function ModalMemoManager({
   // 🌟 에러 상태
   const [showError, setShowError] = useState(false);
 
-  const initialTitle = initialData?.title || initialData?.TITLE || "";
-  const initialContent = initialData?.content || initialData?.CONTENT || "";
+  const initialTitle = initialData?.title || "";
+  const initialContent = initialData?.content || "";
   const initialFixed =
     initialData?.fixed_yn === "Y" || initialData?.FIXED_YN === "Y";
 

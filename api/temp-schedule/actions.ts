@@ -26,10 +26,10 @@ export async function upsertTempScheduleAction(param: {
   // 1. 해당 셀에 데이터가 있는지 확인 (SELECT)
   const { data: existing, error: checkError } = await supabase
     .from(TABLE_NAME)
-    .select("CONTENT") // 대문자 컬럼
-    .eq("DAY", day)
-    .eq("TIME", time)
-    .eq("TYPE", type)
+    .select("content") // 대문자 컬럼
+    .eq("day", day)
+    .eq("time", time)
+    .eq("type", type)
     .eq("academy_code", academyCode)
     .maybeSingle();
 
@@ -43,10 +43,10 @@ export async function upsertTempScheduleAction(param: {
   if (!existing) {
     // 2-A. 신규 등록 (INSERT)
     const { error } = await supabase.from(TABLE_NAME).insert({
-      CONTENT: content,
-      DAY: day,
-      TIME: time,
-      TYPE: type,
+      content: content,
+      day: day,
+      time: time,
+      type: type,
       register_id: registerID,
       academy_code: academyCode,
     });
@@ -56,12 +56,12 @@ export async function upsertTempScheduleAction(param: {
     const { error } = await supabase
       .from(TABLE_NAME)
       .update({
-        CONTENT: content,
+        content: content,
         updater_id: registerID,
       })
-      .eq("DAY", day)
-      .eq("TIME", time)
-      .eq("TYPE", type)
+      .eq("day", day)
+      .eq("time", time)
+      .eq("type", type)
       .eq("academy_code", academyCode);
     resultError = error;
   }
@@ -90,7 +90,7 @@ export async function insertTempScheduleTimeAction(data: {
   const { time, academyCode, registerID } = data;
 
   const { error } = await supabase.from(TABLE_NAME).insert({
-    TIME: time,
+    time: time,
     register_id: registerID,
     academy_code: academyCode,
   });
@@ -115,7 +115,7 @@ export async function deleteTempScheduleTimeAction(data: {
   const { error } = await supabase
     .from(TABLE_NAME)
     .delete()
-    .eq("TIME", time)
+    .eq("time", time)
     .eq("academy_code", academyCode);
 
   if (error) {

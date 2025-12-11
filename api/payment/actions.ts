@@ -24,6 +24,7 @@ export async function getPaymentMessageListAction(academyCode: string) {
     return [];
   }
 
+  console.log(customers);
   // 2. 'L'(Last day) 표시가 있는 출석 기록 가져오기
   // 🌟 날짜 내림차순(DESC) 정렬이 핵심! (가장 최신 날짜가 먼저 옴)
   const { data: attendanceData, error: attError } = await supabase
@@ -33,6 +34,7 @@ export async function getPaymentMessageListAction(academyCode: string) {
     .like("content", "%L%") // 'L' 포함
     .order("date", { ascending: false });
 
+  console.log(attendanceData);
   if (attError || !attendanceData) {
     return [];
   }
@@ -52,7 +54,6 @@ export async function getPaymentMessageListAction(academyCode: string) {
     // (만약 customers에 동명이인이 있다면, 첫 번째 사람 정보를 가져옵니다.)
     // * 정확성을 높이려면 출석부에도 customer_id가 있어야 하지만, 현재 구조상 이름 매칭합니다.
     const matchedCustomer = customers.find((c) => c.name === name);
-
     if (matchedCustomer) {
       resultMap.set(name, {
         id: matchedCustomer.id,
@@ -67,6 +68,7 @@ export async function getPaymentMessageListAction(academyCode: string) {
     }
   });
 
+  console.log(resultMap);
   // 4. 이름순 정렬하여 반환
   const result = Array.from(resultMap.values()).sort((a: any, b: any) =>
     a.name.localeCompare(b.name)

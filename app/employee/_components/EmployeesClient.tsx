@@ -4,19 +4,20 @@ import React, { useState, useMemo, useRef, useEffect } from "react";
 import styled from "styled-components";
 import {
   Search as SearchIcon,
-  Add as AddIcon,
   PhoneIphone as PhoneIcon,
   MoreVert as MoreVertIcon,
 } from "@mui/icons-material";
+// ✅ [New] 페이지네이션용 아이콘 추가
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
 import { useModalStore } from "@/store/modalStore";
 import { extractInitialConsonants } from "@/utils/common";
 import ModalEmployeeManager from "@/components/modals/ModalEmployeeManager";
-import { deleteEmployeeAction } from "@/api/employee/actions";
 import { ModalEmployeeDelete } from "@/components/modals/ModalEmployeeDelete";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
 
 interface Props {
-  initialData: any[]; // getEmployeeList로 가져온 데이터
+  initialData: any[];
   academyCode: string;
 }
 
@@ -31,11 +32,11 @@ const LEVEL_FILTER_OPTIONS = [
 
 const STATE_FILTER_OPTIONS = [
   { value: "all", label: "모든 상태" },
-  { value: "O", label: "재직" }, // DB에서 Y -> O 로 변환되어 온다고 가정 (CustomersClient의 로직 참조)
+  { value: "O", label: "재직" },
   { value: "X", label: "퇴사" },
 ];
 
-// 정렬 순서 (원장 -> 부원장 -> 강사 -> 스탭 -> 기타)
+// 정렬 순서
 const LEVEL_ORDER: { [key: string]: number } = {
   원장님: 1,
   부원장님: 2,
@@ -113,7 +114,36 @@ export default function EmployeesClient({ initialData, academyCode }: Props) {
   const [filterLevel, setFilterLevel] = useState("all");
   const [filterState, setFilterState] = useState("all");
 
+  // ✅ [New] 페이지네이션 상태
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10); // 기본값
+
   const { openModal, closeModal } = useModalStore();
+
+  // ✅ [New] 반응형 itemsPerPage 설정
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 1180) {
+        setItemsPerPage(10);
+      } else if (window.innerWidth > 800) {
+        setItemsPerPage(8);
+      } else {
+        setItemsPerPage(4);
+      }
+    };
+
+    // 초기 실행
+    handleResize();
+
+    // 리사이즈 이벤트 등록
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // ✅ 검색어/필터 변경 시 1페이지로 리셋
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchText, filterLevel, filterState]);
 
   // 데이터 필터링 및 정렬
   const filteredAndSortedData = useMemo(() => {
@@ -124,7 +154,6 @@ export default function EmployeesClient({ initialData, academyCode }: Props) {
         name.includes(searchText) ||
         extractInitialConsonants(name).includes(searchText);
 
-      // LEVEL_CD가 '1','2' 등으로 들어온다고 가정
       const matchesLevel =
         filterLevel === "all" || item.LEVEL_CD === filterLevel;
       const matchesState = filterState === "all" || item.STATE === filterState;
@@ -132,9 +161,8 @@ export default function EmployeesClient({ initialData, academyCode }: Props) {
       return matchesSearch && matchesLevel && matchesState;
     });
 
-    // 정렬: 재직상태(재직우선) -> 직급(높은순) -> 이름순
     return filtered.sort((a, b) => {
-      if (a.STATE !== b.STATE) return a.STATE === "O" ? -1 : 1; // 재직(O) 우선
+      if (a.STATE !== b.STATE) return a.STATE === "O" ? -1 : 1;
 
       const orderA = LEVEL_ORDER[a.LEVEL] || 99;
       const orderB = LEVEL_ORDER[b.LEVEL] || 99;
@@ -143,6 +171,29 @@ export default function EmployeesClient({ initialData, academyCode }: Props) {
       return (a.NAME || "").localeCompare(b.NAME || "");
     });
   }, [initialData, searchText, filterLevel, filterState]);
+
+  // ✅ [New] 페이지네이션 데이터 슬라이싱
+  const totalPages = Math.ceil(filteredAndSortedData.length / itemsPerPage);
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredAndSortedData.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredAndSortedData, currentPage, itemsPerPage]);
+
+  // ✅ [New] 페이지 번호 배열 생성 함수
+  const getPageNumbers = () => {
+    const pageNumbers = [];
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, startPage + 4);
+
+    if (endPage - startPage < 4) {
+      startPage = Math.max(1, endPage - 4);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pageNumbers.push(i);
+    }
+    return pageNumbers;
+  };
 
   const handleAdd = () => {
     openModal({
@@ -254,7 +305,8 @@ export default function EmployeesClient({ initialData, academyCode }: Props) {
               </tr>
             </thead>
             <tbody>
-              {filteredAndSortedData.map((item, index) => (
+              {/* ✅ filteredAndSortedData 대신 paginatedData 사용 */}
+              {paginatedData.map((item, index) => (
                 <tr key={item.IDX} onClick={() => handleDetail(item)}>
                   <td
                     style={{
@@ -264,7 +316,7 @@ export default function EmployeesClient({ initialData, academyCode }: Props) {
                       backgroundColor: "#fff",
                     }}
                   >
-                    {index + 1}
+                    {(currentPage - 1) * itemsPerPage + index + 1}
                   </td>
                   <td
                     style={{
@@ -309,7 +361,8 @@ export default function EmployeesClient({ initialData, academyCode }: Props) {
 
         {/* Mobile View */}
         <CardView>
-          {filteredAndSortedData.map((item) => (
+          {/* ✅ filteredAndSortedData 대신 paginatedData 사용 */}
+          {paginatedData.map((item) => (
             <Card key={item.IDX} onClick={() => handleDetail(item)}>
               <CardHeader>
                 <div
@@ -352,19 +405,117 @@ export default function EmployeesClient({ initialData, academyCode }: Props) {
           ))}
         </CardView>
       </ListContainer>
+
+      {/* ✅ [New] 페이지네이션 UI */}
+      {filteredAndSortedData.length > 0 && (
+        <PaginationWrapper>
+          <PageButton
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft size={16} />
+          </PageButton>
+
+          {getPageNumbers().map((pageNum) => (
+            <PageNumber
+              key={pageNum}
+              $active={pageNum === currentPage}
+              onClick={() => setCurrentPage(pageNum)}
+            >
+              {pageNum}
+            </PageNumber>
+          ))}
+
+          <PageButton
+            onClick={() =>
+              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+            }
+            disabled={currentPage === totalPages}
+          >
+            <ChevronRight size={16} />
+          </PageButton>
+        </PaginationWrapper>
+      )}
     </Container>
   );
 }
 
-// [수정] 직급 뱃지 스타일 ($ 접두사 추가)
+// ... (기존 스타일 코드들: LevelBadge, StateBadge, Container, Header ... 등 동일) ...
+
+// ✅ [New] 페이지네이션 스타일 추가
+const PaginationWrapper = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 20px;
+  margin-top: auto; /* 리스트가 짧을 때도 하단에 위치하도록 */
+`;
+
+const PageButton = styled.button`
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e5e8eb;
+  background-color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #333;
+  transition: all 0.2s;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #f9fafb;
+  }
+
+  &:hover:not(:disabled) {
+    background-color: #f2f4f6;
+    border-color: #d1d5db;
+  }
+`;
+
+const PageNumber = styled.button<{ $active?: boolean }>`
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: ${(props) => (props.$active ? "700" : "500")};
+  cursor: pointer;
+  border: ${(props) => (props.$active ? "none" : "1px solid #e5e8eb")};
+  background-color: ${(props) => (props.$active ? "#3182f6" : "white")};
+  color: ${(props) => (props.$active ? "white" : "#333")};
+  transition: all 0.2s;
+
+  &:hover {
+    ${(props) =>
+      !props.$active &&
+      `
+        background-color: #f2f4f6;
+        border-color: #d1d5db;
+      `}
+  }
+`;
+
+// [아래는 기존에 있던 스타일 코드들입니다. 생략하지 않고 그대로 사용하시면 됩니다.]
+// (LevelBadge, StateBadge, Container, Header, Title, Highlight, Controls, FilterGroup...)
+// (SelectWrapper, SelectTrigger, SelectedText, ArrowIcon, DropdownList, DropdownItem...)
+// (SearchWrapper, SearchInput, AddButton, ListContainer, TableScrollWrapper, TableView...)
+// (CardView, Card, CardHeader, Avatar, NameArea, Name, SubText, CardBody, InfoRow, NoteRow, MoreBtnWrapper, MoreIcon...)
+
+// --- 기존 스타일 (참고용 - 실제 코드엔 위에서 생략된 부분도 모두 포함해야 함) ---
 const LevelBadge = styled.span<{ $level: string }>`
   padding: 4px 8px;
   border-radius: 6px;
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
-
-  /* props도 $level로 받습니다 */
   ${({ $level }) => {
     if ($level === "원장님") return "background: #f3e8ff; color: #7e22ce;";
     if ($level === "부원장님") return "background: #dbeafe; color: #1d4ed8;";
@@ -374,25 +525,17 @@ const LevelBadge = styled.span<{ $level: string }>`
   }}
 `;
 
-// [수정] 상태 뱃지 스타일 ($ 접두사 추가 - StateText는 이미 되어있지만 Badge도 수정 필요)
 const StateBadge = styled.span<{ $state: string }>`
   padding: 4px 8px;
   border-radius: 6px;
   font-size: 11px;
   font-weight: 600;
-
-  /* props도 $state로 받습니다 */
   ${({ $state }) =>
     $state === "O"
       ? "background: #dcfce7; color: #15803d;"
       : "background: #ffebee; color: #ef4444;"}
 `;
 
-// 나머지 스타일 (Container, Header, Title, Controls, SelectWrapper... 등)은
-// CustomersClient.tsx의 하단 스타일을 그대로 복사해서 사용하시면 됩니다.
-// (분량이 많아 생략하나, CustomersClient의 코드를 100% 재사용 가능합니다)
-
-// 아래는 CustomersClient에서 복사해와야 할 핵심 스타일들입니다.
 const Container = styled.div`
   padding: 24px;
   background-color: #f2f4f6;
@@ -573,33 +716,6 @@ const SearchInput = styled.input`
   font-family: "Pretendard", sans-serif;
   &::placeholder {
     color: #b0b8c1;
-  }
-`;
-const AddButton = styled.button`
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  background: #3182f6;
-  color: white;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(49, 130, 246, 0.3);
-  transition: background 0.2s;
-  &:hover {
-    background: #1b64da;
-  }
-  @media (max-width: 768px) {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    box-shadow: 0 4px 16px rgba(49, 130, 246, 0.5);
-    z-index: 100;
   }
 `;
 const ListContainer = styled.div`

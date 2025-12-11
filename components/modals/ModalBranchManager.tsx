@@ -3,9 +3,8 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { useModalStore } from "@/store/modalStore";
-import { RefreshCw, Search } from "lucide-react"; // Search 아이콘 추가
+import { RefreshCw, Search } from "lucide-react";
 import { useToastStore } from "@/store/toastStore";
-// 👇 카카오 주소찾기 훅 임포트
 import { useDaumPostcodePopup } from "react-daum-postcode";
 import { useUpsertBranch } from "@/api/branch/useBranchQuery";
 
@@ -19,6 +18,8 @@ const generateRandomCode = () => {
   return "A" + Math.floor(100000 + Math.random() * 900000).toString();
 };
 
+const FEE_COUNTS = [1, 2, 3, 4, 5];
+
 export default function ModalBranchManager({ mode, initialData }: Props) {
   const [formData, setFormData] = useState({
     code: initialData?.code || "",
@@ -27,19 +28,23 @@ export default function ModalBranchManager({ mode, initialData }: Props) {
     detailAddress: initialData?.detail_address || "",
     tel: initialData?.tel || "",
     owner: initialData?.owner || "",
-    businessNo: initialData?.business_no || "", // ✅ 상태 추가
+    businessNo: initialData?.business_no || "",
+    // ✅ 회비 정보 추가 (DB컬럼: count1 ~ count5)
+    count1: initialData?.count1 ? String(initialData.count1) : "0",
+    count2: initialData?.count2 ? String(initialData.count2) : "0",
+    count3: initialData?.count3 ? String(initialData.count3) : "0",
+    count4: initialData?.count4 ? String(initialData.count4) : "0",
+    count5: initialData?.count5 ? String(initialData.count5) : "0",
   });
 
   const { addToast } = useToastStore();
   const { closeModal } = useModalStore();
   const { mutate: upsertBranch, isPending } = useUpsertBranch();
 
-  // 👇 카카오 주소찾기 스크립트 로드
   const open = useDaumPostcodePopup(
     "https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"
   );
 
-  // 2. 초기 코드 생성
   useEffect(() => {
     if (mode === "add" && !formData.code) {
       setFormData((prev) => ({ ...prev, code: generateRandomCode() }));
@@ -52,12 +57,25 @@ export default function ModalBranchManager({ mode, initialData }: Props) {
     }
   };
 
+  // 금액 포맷팅 함수 (10000 -> 10,000)
+  const formatCurrency = (val: string) => {
+    if (!val) return "";
+    return Number(val).toLocaleString();
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+
+    // ✅ 회비 필드인 경우 숫자만 입력받도록 처리
+    if (name.startsWith("count")) {
+      const rawValue = value.replace(/[^0-9]/g, "");
+      setFormData((prev) => ({ ...prev, [name]: rawValue }));
+      return;
+    }
+
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // 👇 주소 검색 완료 핸들러
   const handleComplete = (data: any) => {
     let fullAddress = data.address;
     let extraAddress = "";
@@ -73,11 +91,9 @@ export default function ModalBranchManager({ mode, initialData }: Props) {
       fullAddress += extraAddress !== "" ? ` (${extraAddress})` : "";
     }
 
-    // 주소 업데이트
     setFormData((prev) => ({ ...prev, address: fullAddress }));
   };
 
-  // 👇 주소 검색 팝업 열기
   const handleAddressClick = () => {
     open({ onComplete: handleComplete });
   };
@@ -88,9 +104,17 @@ export default function ModalBranchManager({ mode, initialData }: Props) {
       return;
     }
 
-    // ✅ 더 이상 주소를 합치지 않고 그대로 보냅니다.
-    // upsertBranchAction에서 detailAddress를 받아서 처리합니다.
-    upsertBranch(formData, {
+    // ✅ 전송 시 숫자 변환 처리
+    const submitData = {
+      ...formData,
+      count1: Number(formData.count1 || 0),
+      count2: Number(formData.count2 || 0),
+      count3: Number(formData.count3 || 0),
+      count4: Number(formData.count4 || 0),
+      count5: Number(formData.count5 || 0),
+    };
+
+    upsertBranch(submitData, {
       onSuccess: () => closeModal(),
     });
   };
@@ -168,7 +192,6 @@ export default function ModalBranchManager({ mode, initialData }: Props) {
         />
       </InputGroup>
 
-      {/* 👇 주소 입력 부분 수정 */}
       <InputGroup>
         <Label>주소</Label>
         <CodeInputWrapper>
@@ -176,15 +199,14 @@ export default function ModalBranchManager({ mode, initialData }: Props) {
             name="address"
             value={formData.address}
             placeholder="주소를 검색하세요"
-            readOnly // 직접 입력 방지 (검색 유도)
-            onClick={handleAddressClick} // 클릭 시 검색창 오픈
+            readOnly
+            onClick={handleAddressClick}
             style={{ cursor: "pointer", backgroundColor: "#fff" }}
           />
           <IconButton onClick={handleAddressClick} type="button">
             <Search size={16} />
           </IconButton>
         </CodeInputWrapper>
-        {/* 상세 주소 입력칸 (선택 사항) */}
         <Input
           name="detailAddress"
           value={formData.detailAddress}
@@ -193,6 +215,29 @@ export default function ModalBranchManager({ mode, initialData }: Props) {
           style={{ marginTop: "4px" }}
         />
       </InputGroup>
+
+      <Divider />
+
+      {/* ✅ [추가] 회비 설정 섹션 */}
+      <SectionTitle>회비 설정 (주 n회)</SectionTitle>
+      <FeeGrid>
+        {FEE_COUNTS.map((num) => (
+          <InputGroup key={`count${num}`}>
+            <Label>주 {num}회</Label>
+            <InputWrapper>
+              <Input
+                name={`count${num}`}
+                // @ts-ignore
+                value={formatCurrency(formData[`count${num}`])}
+                onChange={handleChange}
+                style={{ textAlign: "right", paddingRight: "30px" }}
+                placeholder="0"
+              />
+              <Unit>원</Unit>
+            </InputWrapper>
+          </InputGroup>
+        ))}
+      </FeeGrid>
 
       <Footer>
         <SaveBtn onClick={handleSubmit} disabled={isPending}>
@@ -256,7 +301,6 @@ const CodeInputWrapper = styled.div`
   display: flex;
   align-items: center;
 `;
-// 스타일 이름 변경: RefreshButton -> IconButton (범용 사용)
 const IconButton = styled.button`
   position: absolute;
   right: 10px;
@@ -296,4 +340,25 @@ const SaveBtn = styled.button`
   &:hover {
     opacity: 0.9;
   }
+`;
+
+// ✅ [추가] 회비 입력용 스타일
+const FeeGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 2열 배치 */
+  gap: 12px;
+`;
+
+const InputWrapper = styled.div`
+  position: relative;
+  display: flex;
+  align-items: center;
+`;
+
+const Unit = styled.span`
+  position: absolute;
+  right: 12px;
+  font-size: 14px;
+  color: #8b95a1;
+  pointer-events: none;
 `;

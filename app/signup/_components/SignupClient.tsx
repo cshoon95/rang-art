@@ -39,7 +39,7 @@ export default function SignupClient({ initialBranches }: Props) {
       const nextPath = "/waiting"; // 일단 대기 페이지로 보냄 (AuthCheck가 알아서 처리)
 
       openModal({
-        type: "SIMPLE",
+        type: "ALERT",
         title: "가입 대기",
         content: <ModalLoginWaiting academyCode={variables.academyCode} />,
         onConfirm: () => {

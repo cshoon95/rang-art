@@ -21,9 +21,9 @@ export async function upsertPickupAction(param: {
   // 1. 해당 셀에 데이터가 있는지 확인 (SELECT)
   const { data: existing, error: checkError } = await supabase
     .from(TABLE_NAME)
-    .select("CONTENT") // 존재 여부만 확인하면 되므로 컬럼 하나만 선택
-    .eq("DAY", day)
-    .eq("TIME", time)
+    .select("content") // 존재 여부만 확인하면 되므로 컬럼 하나만 선택
+    .eq("day", day)
+    .eq("time", time)
     .eq("academy_code", academyCode)
     .maybeSingle(); // 0개 또는 1개 조회 (없어도 에러 아님)
 
@@ -40,9 +40,9 @@ export async function upsertPickupAction(param: {
   if (!existing) {
     // 2-A. 신규 등록 (INSERT)
     const { error } = await supabase.from(TABLE_NAME).insert({
-      CONTENT: content,
-      DAY: day,
-      TIME: time,
+      content: content,
+      day: day,
+      time: time,
       register_id: registerID,
       academy_code: academyCode,
     });
@@ -52,12 +52,12 @@ export async function upsertPickupAction(param: {
     const { error } = await supabase
       .from(TABLE_NAME)
       .update({
-        CONTENT: content,
+        content: content,
         updater_id: registerID,
         // updated_at: new Date().toISOString() // 필요 시 추가
       })
-      .eq("DAY", day)
-      .eq("TIME", time)
+      .eq("day", day)
+      .eq("time", time)
       .eq("academy_code", academyCode);
     resultError = error;
   }
@@ -87,7 +87,6 @@ export async function insertPickupTimeAction(param: {
   const supabase = await createClient();
   const { time, registerID, academyCode } = param;
 
-  // 기존 쿼리: INSERT INTO "pickup"("TIME", ...)
   const { error } = await supabase.from(TABLE_NAME).insert({
     time,
     register_id: registerID,
@@ -113,7 +112,6 @@ export async function deletePickupTimeAction(param: {
   const supabase = await createClient();
   const { time, academyCode } = param;
 
-  // 기존 쿼리: DELETE FROM "pickup" WHERE "TIME" = $1 ...
   const { error } = await supabase
     .from(TABLE_NAME)
     .delete()

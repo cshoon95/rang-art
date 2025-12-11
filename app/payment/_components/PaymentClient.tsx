@@ -228,6 +228,7 @@ export default function PaymentClient({ academyCode, userId }: Props) {
   // 🌟 [추가] 부모 컴포넌트에서 데이터 미리 로드 (인원수 확인용)
   const { data: messageList = [], isLoading: messageLoading } =
     usePaymentMessageList(academyCode);
+
   const msgCount = messageList.length;
 
   const yearOptions = Array.from({ length: 5 }, (_, i) => {

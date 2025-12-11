@@ -96,6 +96,8 @@ function FilterSelect({ value, options, onChange }: any) {
   );
 }
 
+const DEFAULT_ITEMS_PER_PAGE = 8;
+
 export default function CustomersClient({
   initialData,
   academyCode,
@@ -107,7 +109,7 @@ export default function CustomersClient({
 
   // [페이지네이션 1] 상태 추가
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8; // 페이지당 보여줄 개수
+  const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
 
   const { openModal, closeModal } = useModalStore();
 
@@ -141,6 +143,25 @@ export default function CustomersClient({
   useEffect(() => {
     setCurrentPage(1);
   }, [searchText, filterState, filterCount]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 1180) {
+        setItemsPerPage(10);
+      } else if (window.innerWidth > 800) {
+        setItemsPerPage(8);
+      } else {
+        setItemsPerPage(4);
+      }
+    };
+
+    // 초기 실행
+    handleResize();
+
+    // 리사이즈 이벤트 등록
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // [페이지네이션 3] 현재 페이지 데이터 계산
   const indexOfLastItem = currentPage * itemsPerPage;

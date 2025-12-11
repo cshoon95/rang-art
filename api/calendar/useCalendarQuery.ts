@@ -34,6 +34,9 @@ export const useInsertCalendar = (
       if (response.success) {
         // 성공 시 쿼리 무효화 (데이터 다시 불러오기)
         queryClient.invalidateQueries({ queryKey: ["calendar", academyCode] });
+        queryClient.invalidateQueries({
+          queryKey: ["todayEvents", academyCode],
+        });
         if (onSuccessCallback) onSuccessCallback();
         addToast("일정 등록이 완료되었어요.");
       } else {
@@ -61,6 +64,10 @@ export const useUpdateCalendar = (
     onSuccess: (response) => {
       if (response.success) {
         queryClient.invalidateQueries({ queryKey: ["calendar", academyCode] });
+        queryClient.invalidateQueries({
+          queryKey: ["todayEvents", academyCode],
+        });
+
         if (onSuccessCallback) onSuccessCallback();
         addToast("일정 수정이 완료되었어요.");
       } else {

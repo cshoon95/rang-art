@@ -12,14 +12,14 @@ import {
 } from "lucide-react";
 import { useModalStore } from "@/store/modalStore";
 import ModalMemoManager from "@/components/modals/ModalMemoManager";
-import PageTitleWithStar from "@/components/PageTitleWithStar"; // 별 버튼이 포함된 타이틀 컴포넌트
+import PageTitleWithStar from "@/components/PageTitleWithStar";
 
 interface Props {
   initialData: any[];
   academyCode: string;
 }
 
-// 날짜 포맷 (연도 포함)
+// 날짜 포맷
 const formatDate = (dateString: string) => {
   if (!dateString) return "";
   const date = new Date(dateString);
@@ -42,12 +42,13 @@ const getSectionLabel = (type: string) => {
   }
 };
 
+const DEFAULT_ITEMS_PER_PAGE = 10; // ✅ [변경] 기본값을 넉넉하게 수정 (초기 로딩 시 깜빡임 방지)
+
 export default function MemoClient({ initialData, academyCode }: Props) {
   const [searchText, setSearchText] = useState("");
 
-  // 페이지네이션 상태
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
 
   const { openModal } = useModalStore();
 
@@ -73,10 +74,28 @@ export default function MemoClient({ initialData, academyCode }: Props) {
     });
   };
 
-  // 검색 시 페이지 리셋
+  // ✅ [수정 1] 검색어 변경 OR 페이지당 아이템 수 변경 시 1페이지로 리셋
+  // (화면 크기를 줄였다 늘렸다 할 때 페이지 계산이 꼬이는 것 방지)
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchText]);
+  }, [searchText, itemsPerPage]);
+
+  // 화면 크기에 따른 아이템 개수 조절
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 1180) {
+        setItemsPerPage(13);
+      } else if (window.innerWidth > 800) {
+        setItemsPerPage(7);
+      } else {
+        setItemsPerPage(3);
+      }
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // 1. 데이터 필터링 및 정렬
   const sortedFilteredData = useMemo(() => {
@@ -89,14 +108,12 @@ export default function MemoClient({ initialData, academyCode }: Props) {
     const weekStart = todayStart - 7 * 24 * 60 * 60 * 1000;
     const monthStart = todayStart - 30 * 24 * 60 * 60 * 1000;
 
-    // 검색 필터
     const filtered = initialData.filter((item) => {
-      const title = item.title || item.TITLE || "";
-      const content = item.content || item.CONTENT || "";
+      const title = item.title || "";
+      const content = item.content || "";
       return title.includes(searchText) || content.includes(searchText);
     });
 
-    // 섹션 부여 및 정렬
     const dataWithSection = filtered.map((item) => {
       const isFixed = item.fixed_yn === "Y" || item.FIXED_YN === "Y";
       let section = "old";
@@ -109,11 +126,9 @@ export default function MemoClient({ initialData, academyCode }: Props) {
         else if (itemDate >= weekStart) section = "week";
         else if (itemDate >= monthStart) section = "month";
       }
-
       return { ...item, section };
     });
 
-    // 섹션 우선순위
     const sectionOrder: Record<string, number> = {
       fix: 0,
       today: 1,
@@ -126,7 +141,6 @@ export default function MemoClient({ initialData, academyCode }: Props) {
       if (sectionOrder[a.section] !== sectionOrder[b.section]) {
         return sectionOrder[a.section] - sectionOrder[b.section];
       }
-      // 같은 섹션 내 최신순
       return (
         new Date(b.update_date || b.UPDATE_DATE).getTime() -
         new Date(a.update_date || a.UPDATE_DATE).getTime()
@@ -134,16 +148,17 @@ export default function MemoClient({ initialData, academyCode }: Props) {
     });
   }, [initialData, searchText]);
 
-  // 2. 현재 페이지 데이터 슬라이싱
+  // ✅ [수정 2] 의존성 배열에 itemsPerPage 추가 (매우 중요)
+  // 이게 없으면 화면 크기가 바뀌어도 데이터 자르는 기준이 갱신되지 않습니다.
   const currentItems = useMemo(() => {
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     return sortedFilteredData.slice(indexOfFirstItem, indexOfLastItem);
-  }, [sortedFilteredData, currentPage]);
+  }, [sortedFilteredData, currentPage, itemsPerPage]);
 
   const totalPages = Math.ceil(sortedFilteredData.length / itemsPerPage);
 
-  // 3. 현재 페이지 아이템 그룹화 (화면 표시용)
+  // 3. 그룹화
   const groupedCurrentItems = useMemo(() => {
     const groups: Record<string, any[]> = {
       fix: [],
@@ -163,6 +178,7 @@ export default function MemoClient({ initialData, academyCode }: Props) {
   const sectionKeys = ["fix", "today", "week", "month", "old"];
 
   const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) return; // 범위 체크
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -170,9 +186,7 @@ export default function MemoClient({ initialData, academyCode }: Props) {
   return (
     <Container>
       <Header>
-        {/* ⭐ 즐겨찾기 별이 포함된 타이틀 */}
         <PageTitleWithStar title={<Title>MEMO</Title>} />
-
         <Controls>
           <SearchWrapper>
             <SearchIcon size={18} color="#94a3b8" />
@@ -189,20 +203,18 @@ export default function MemoClient({ initialData, academyCode }: Props) {
       </Header>
 
       <ContentArea>
-        {sectionKeys.map((key) => {
+        {sectionKeys.map((key, idx) => {
           const items = groupedCurrentItems[key];
           if (!items || items.length === 0) return null;
 
           return (
-            <Section key={key}>
+            <Section key={key + "" + idx}>
               <SectionTitle>{getSectionLabel(key)}</SectionTitle>
               <Grid>
-                {items.map((item) => {
+                {items.map((item, idx) => {
                   const isFixed =
                     item.fixed_yn === "Y" || item.FIXED_YN === "Y";
                   const title = item.title || item.TITLE || "제목 없음";
-
-                  console.log("item.content", item.content);
                   const content =
                     item.content === "<p><br></p>" ? "본문 없음" : item.content;
                   const date = item.update_date || item.UPDATE_DATE;
@@ -214,7 +226,7 @@ export default function MemoClient({ initialData, academyCode }: Props) {
 
                   return (
                     <Card
-                      key={item.id}
+                      key={item.id + "" + idx}
                       onClick={() => handleDetail(item)}
                       $isFixed={isFixed}
                     >
@@ -224,11 +236,9 @@ export default function MemoClient({ initialData, academyCode }: Props) {
                           <Pin size={16} color="#3182f6" fill="#3182f6" />
                         )}
                       </CardHeader>
-
                       <CardContent
                         dangerouslySetInnerHTML={{ __html: content }}
                       />
-
                       <CardFooter>
                         <DateInfo>
                           <Clock size={12} />
@@ -254,8 +264,9 @@ export default function MemoClient({ initialData, academyCode }: Props) {
         )}
       </ContentArea>
 
-      {/* 페이지네이션 */}
-      {totalPages > 1 && (
+      {/* ✅ 페이지네이션 UI */}
+      {/* 데이터가 있고 페이지가 1개 이상일 때만 노출 */}
+      {sortedFilteredData.length > 0 && totalPages > 1 && (
         <PaginationContainer>
           <PageButton
             onClick={() => handlePageChange(currentPage - 1)}
@@ -264,15 +275,17 @@ export default function MemoClient({ initialData, academyCode }: Props) {
             <ChevronLeft size={16} />
           </PageButton>
 
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <PageButton
-              key={page}
-              $active={currentPage === page}
-              onClick={() => handlePageChange(page)}
-            >
-              {page}
-            </PageButton>
-          ))}
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+            (page, idx) => (
+              <PageButton
+                key={page + "" + idx}
+                $active={currentPage === page}
+                onClick={() => handlePageChange(page)}
+              >
+                {page}
+              </PageButton>
+            )
+          )}
 
           <PageButton
             onClick={() => handlePageChange(currentPage + 1)}
@@ -286,54 +299,44 @@ export default function MemoClient({ initialData, academyCode }: Props) {
   );
 }
 
-// --------------------------------------------------------------------------
-// ✨ Styled Components
-// --------------------------------------------------------------------------
-
+// ... (Styled Components는 이전과 동일) ...
 const Container = styled.div`
   padding: 24px;
   background-color: #f2f4f6;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 24px; /* 간격 증가 */
-  padding-bottom: 100px; /* 하단 여유 공간 */
-
+  gap: 24px;
+  padding-bottom: 100px;
   @media (max-width: 768px) {
     padding: 20px;
     gap: 20px;
     margin-bottom: 60px;
   }
 `;
-
-// 🔥 [Updated] 헤더 스타일 개선
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap; /* 모바일 대응 */
+  flex-wrap: wrap;
   gap: 16px;
   padding-top: 8px;
 `;
-
 const Title = styled.h1`
-  font-size: 26px; /* 폰트 사이즈 업 */
+  font-size: 26px;
   font-weight: 800;
   color: #191f28;
   margin: 0;
   letter-spacing: -0.5px;
 `;
-
 const Controls = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px; /* 간격 넓힘 */
-
+  gap: 12px;
   @media (max-width: 600px) {
-    width: 100%; /* 모바일 꽉 채움 */
+    width: 100%;
   }
 `;
-
 const SearchWrapper = styled.div`
   display: flex;
   align-items: center;
@@ -341,17 +344,15 @@ const SearchWrapper = styled.div`
   padding: 0 14px;
   border-radius: 14px;
   width: 220px;
-  height: 44px; /* 높이 증가 */
+  height: 44px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
   border: 1px solid transparent;
   transition: all 0.2s ease;
-
   &:focus-within {
     border-color: #3182f6;
     box-shadow: 0 0 0 3px rgba(49, 130, 246, 0.1);
     width: 260px;
   }
-
   @media (max-width: 600px) {
     flex: 1;
     width: auto;
@@ -360,7 +361,6 @@ const SearchWrapper = styled.div`
     }
   }
 `;
-
 const SearchInput = styled.input`
   border: none;
   outline: none;
@@ -368,13 +368,11 @@ const SearchInput = styled.input`
   margin-left: 10px;
   font-size: 15px;
   background: transparent;
-
   &::placeholder {
     color: #b0b8c1;
     font-weight: 500;
   }
 `;
-
 const AddButton = styled.button`
   min-width: 44px;
   height: 44px;
@@ -387,45 +385,36 @@ const AddButton = styled.button`
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(49, 130, 246, 0.25);
   transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
-
   &:hover {
     background-color: #1b64da;
     transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(49, 130, 246, 0.35);
   }
-
   &:active {
     transform: scale(0.95);
   }
 `;
-
-// --- Content Styles ---
-
 const ContentArea = styled.div`
   display: flex;
   flex-direction: column;
   gap: 32px;
 `;
-
 const Section = styled.div`
   display: flex;
   flex-direction: column;
   gap: 12px;
 `;
-
 const SectionTitle = styled.h2`
   font-size: 16px;
   font-weight: 700;
   color: #4e5968;
   margin-left: 4px;
 `;
-
 const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
 `;
-
 const Card = styled.div<{ $isFixed: boolean }>`
   background: white;
   border-radius: 16px;
@@ -438,20 +427,17 @@ const Card = styled.div<{ $isFixed: boolean }>`
   display: flex;
   flex-direction: column;
   gap: 12px;
-
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
   }
 `;
-
 const CardHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   min-height: 24px;
 `;
-
 const CardTitle = styled.h3`
   font-size: 17px;
   font-weight: 700;
@@ -460,13 +446,11 @@ const CardTitle = styled.h3`
   line-height: 1.3;
   word-break: break-all;
 `;
-
 const CardContent = styled.div`
   font-size: 14px;
   color: #6b7684;
   line-height: 1.5;
   margin: 0;
-
   p {
     margin: 0;
   }
@@ -475,7 +459,6 @@ const CardContent = styled.div`
     padding-left: 20px;
     margin: 4px 0;
   }
-
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -483,7 +466,6 @@ const CardContent = styled.div`
   text-overflow: ellipsis;
   min-height: 21px;
 `;
-
 const CardFooter = styled.div`
   display: flex;
   justify-content: space-between;
@@ -492,7 +474,6 @@ const CardFooter = styled.div`
   padding-top: 12px;
   border-top: 1px solid rgba(0, 0, 0, 0.05);
 `;
-
 const DateInfo = styled.span`
   font-size: 12px;
   color: #8b95a1;
@@ -500,7 +481,6 @@ const DateInfo = styled.span`
   align-items: center;
   gap: 4px;
 `;
-
 const Author = styled.span`
   font-size: 12px;
   font-weight: 600;
@@ -509,7 +489,6 @@ const Author = styled.span`
   padding: 2px 6px;
   border-radius: 4px;
 `;
-
 const EmptyState = styled.div`
   display: flex;
   flex-direction: column;
@@ -519,7 +498,6 @@ const EmptyState = styled.div`
   padding: 60px 0;
   color: #8b95a1;
 `;
-
 const AddButtonLarge = styled.button`
   padding: 12px 24px;
   background-color: #3182f6;
@@ -532,16 +510,12 @@ const AddButtonLarge = styled.button`
     background-color: #2563eb;
   }
 `;
-
 const PaginationContainer = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 8px;
-  margin-top: auto;
-  padding-top: 20px;
 `;
-
 const PageButton = styled.button<{ $active?: boolean }>`
   min-width: 32px;
   height: 32px;
@@ -556,12 +530,10 @@ const PageButton = styled.button<{ $active?: boolean }>`
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
-
   &:hover:not(:disabled) {
     background-color: ${({ $active }) => ($active ? "#1b64da" : "#f2f4f6")};
     border-color: ${({ $active }) => ($active ? "#1b64da" : "#d1d6db")};
   }
-
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;

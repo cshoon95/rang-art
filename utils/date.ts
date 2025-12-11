@@ -352,3 +352,89 @@ export const getDDay = (dateString: string) => {
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return `D+${diffDays}`;
 };
+
+import Holidays from "date-holidays";
+import { format, getYear, addDays, subDays, isWeekend, getDay } from "date-fns";
+
+const hd = new Holidays("KR");
+
+const toDateString = (dateInput: string | Date) => {
+  if (typeof dateInput === "string") return dateInput.substring(0, 10);
+  return format(dateInput, "yyyy-MM-dd");
+};
+
+// 특정 연도의 공휴일 목록(YYYY-MM-DD 문자열 배열)을 반환하는 함수
+export const getPublicHolidays = (year: number) => {
+  const years = [year - 1, year, year + 1]; // 앞뒤 연도 포함해서 계산 (안전하게)
+  const holidayMap = new Map<string, any>();
+
+  years.forEach((y) => {
+    const rawList = hd.getHolidays(y);
+
+    rawList.forEach((h) => {
+      // 대체공휴일 등은 라이브러리 기본 제공 말고 직접 계산 로직 따름 (기존 로직 유지)
+      if (
+        h.substitute ||
+        h.name.includes("Substitute") ||
+        h.name.includes("대체") ||
+        h.type !== "public"
+      )
+        return;
+
+      if (h.name === "설날" || h.name === "추석") {
+        const mainDate = new Date(h.date);
+        const threeDays = [
+          subDays(mainDate, 1),
+          mainDate,
+          addDays(mainDate, 1),
+        ];
+        threeDays.forEach((d) => {
+          holidayMap.set(toDateString(d), { ...h, date: toDateString(d) });
+        });
+      } else {
+        holidayMap.set(toDateString(h.date), {
+          ...h,
+          date: toDateString(h.date),
+        });
+      }
+    });
+
+    // 대체 공휴일 계산
+    const confirmedHolidays = Array.from(holidayMap.values());
+    confirmedHolidays.forEach((h) => {
+      const dateStr = h.date;
+      const holidayDate = new Date(dateStr);
+      const dow = getDay(holidayDate);
+      const isSeollalOrChuseok = h.name === "설날" || h.name === "추석";
+      let needSubstitute = false;
+
+      if (isSeollalOrChuseok) {
+        if (dow === 0) needSubstitute = true;
+      } else {
+        if (isWeekend(holidayDate)) needSubstitute = true;
+      }
+
+      if (needSubstitute) {
+        let nextDay = addDays(holidayDate, 1);
+        while (true) {
+          const nextKey = toDateString(nextDay);
+          const isWeekendDay = isWeekend(nextDay);
+          const isOccupied = holidayMap.has(nextKey);
+
+          if (!isWeekendDay && !isOccupied) {
+            holidayMap.set(nextKey, {
+              ...h,
+              date: nextKey,
+              name: `(대체) ${h.name}`,
+            });
+            break;
+          }
+          nextDay = addDays(nextDay, 1);
+        }
+      }
+    });
+  });
+
+  // Map의 키(날짜 문자열)만 배열로 반환
+  return Array.from(holidayMap.keys());
+};

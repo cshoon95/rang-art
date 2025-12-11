@@ -7,7 +7,9 @@ import {
   useUpsertCustomer,
   useDeleteCustomer,
 } from "@/api/customers/useCustomersQuery";
-import { FEE_LIST } from "@/utils/list";
+import { useBranchCount } from "@/api/reports/useReportsQuery";
+// [변경 1] FEE_LIST 삭제하고 지점 정보를 가져오는 Hook을 import 합니다.
+// ※ 실제 Hook 파일 위치와 이름에 맞춰 수정해주세요.
 
 // --- 옵션 데이터 정의 ---
 const SEX_OPTIONS = [
@@ -116,6 +118,9 @@ export default function ModalCustomerManager({
   initialData,
   userRole,
 }: Props) {
+  // [변경 2] 지점 데이터(수강료 정보 포함) 호출
+  const { data: branchData } = useBranchCount("A305632");
+
   const formatDateToInput = (str: string) => {
     if (!str || str.length !== 8) return "";
     return str.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
@@ -133,11 +138,8 @@ export default function ModalCustomerManager({
     parentPhone: initialData?.parentphone || "",
     cashNumber: initialData?.cash_number || "",
     count: initialData?.count || "1",
-    fee: initialData?.fee
-      ? String(initialData.fee)
-      : FEE_LIST
-      ? FEE_LIST["1"] || "90000"
-      : "90000",
+    // [변경 3] 초기 fee 설정: 수정 모드면 기존 데이터, 아니면 빈 값(useEffect에서 채움)
+    fee: initialData?.fee ? String(initialData.fee) : "",
     state: initialData?.state || "0",
     date: initialData?.date
       ? formatDateToInput(initialData.date)
@@ -148,16 +150,24 @@ export default function ModalCustomerManager({
     note: initialData?.note || "",
   });
 
-  // 이름 필드 에러 상태
   const [nameError, setNameError] = useState(false);
-
-  // [수정 1] 포커싱을 위한 Ref 생성
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   const [isPending, startTransition] = useTransition();
   const closeModal = useModalStore((state) => state.closeModal);
   const { mutate: mutateUpsertCustomer } = useUpsertCustomer(mode);
   const deleteMutation = useDeleteCustomer();
+
+  // [변경 4] 데이터가 로드되었고 'add' 모드일 때 기본(1회) 수강료 자동 세팅
+  useEffect(() => {
+    if (mode === "add" && branchData && !initialData) {
+      // 이미 사용자가 입력한 값이 없거나 초기 상태일 때만
+      if (formData.fee === "" || formData.fee === "0") {
+        const defaultFee = branchData.count1 || "0";
+        setFormData((prev) => ({ ...prev, fee: String(defaultFee) }));
+      }
+    }
+  }, [branchData, mode, initialData]);
 
   const autoHyphen = (value: string) => {
     const raw = value.replace(/[^0-9]/g, "");
@@ -182,8 +192,16 @@ export default function ModalCustomerManager({
       setNameError(false);
     }
 
+    // [변경 5] 수강횟수 선택 시 branchData에서 해당 회비(countX) 찾아서 세팅
     if (name === "count") {
-      const autoFee = FEE_LIST[value] || "";
+      let autoFee = "";
+      if (branchData && value) {
+        // value가 "1"이면 branchData["count1"] 값을 가져옴
+        const key = `count${value}`;
+        // branchData의 key가 동적으로 접근되므로 타입 단언이 필요할 수 있음
+        autoFee = String((branchData as any)[key] || "");
+      }
+
       setFormData((prev) => ({
         ...prev,
         count: value,
@@ -209,7 +227,6 @@ export default function ModalCustomerManager({
   const handleSubmit = () => {
     if (!formData.name) {
       setNameError(true);
-      // [수정 2] 이름 입력창으로 포커스 이동
       nameInputRef.current?.focus();
       return;
     }
@@ -244,7 +261,6 @@ export default function ModalCustomerManager({
             <Label>
               이름 <RequiredMark>*</RequiredMark>
             </Label>
-            {/* [수정 3] ref 연결 */}
             <Input
               ref={nameInputRef}
               name="name"

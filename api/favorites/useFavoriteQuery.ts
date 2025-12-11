@@ -6,6 +6,7 @@ import {
   toggleFavoriteAction,
   reorderFavoritesAction,
 } from "./actions";
+import { useToastStore } from "@/store/toastStore";
 
 // 조회
 export const useFavorites = () => {
@@ -25,11 +26,19 @@ export const useToggleFavorite = () => {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
   const email = session?.user?.email;
+  const { addToast } = useToastStore();
 
   return useMutation({
     mutationFn: (path: string) => toggleFavoriteAction(email!, path),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["favorites", email] });
+
+      addToast(
+        data.action === "added"
+          ? "즐겨찾기에 추가되었어요."
+          : "즐겨찾기에서 해제되었어요.",
+        "success"
+      );
     },
   });
 };
