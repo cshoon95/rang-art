@@ -13,7 +13,7 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user, trigger, session }) {
       // 1. 초기 로그인 시점
-      if (user.email) {
+      if (user?.email) {
         token.id = user.email;
       }
 

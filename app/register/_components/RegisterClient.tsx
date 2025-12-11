@@ -11,12 +11,12 @@ import {
   Calendar,
 } from "lucide-react";
 import { replaceMoneyKr, extractInitialConsonants } from "@/utils/format";
-import { useRegisterReport } from "@/api/register/useRegisterQuery";
 import * as XLSX from "xlsx";
 import ModalCertificate from "@/components/modals/ModalCertificate";
 import { useModalStore } from "@/store/modalStore";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
 import RegisterSkeleton from "./RegisterSkeleton";
+import { useRegisterReport } from "@/api/payment/usePaymentQuery";
 
 interface Props {
   academyCode: string;

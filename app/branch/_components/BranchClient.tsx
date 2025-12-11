@@ -12,7 +12,7 @@ import {
 import { useModalStore } from "@/store/modalStore";
 import ModalBranchManager from "@/components/modals/ModalBranchManager";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
-import { useDeleteBranch } from "@/api/branch/useBranchQuery";
+import { useDeleteBranch } from "@/api/customers/useCustomersQuery";
 
 interface Props {
   initialData: any[];

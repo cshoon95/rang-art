@@ -5,10 +5,10 @@ import styled from "styled-components";
 import { toPng } from "html-to-image";
 import { useModalStore } from "@/store/modalStore";
 import CertificateTemplate from "@/components/modals/CertificateTemplate";
-import { useStudentPaymentData } from "@/api/register/useRegisterQuery";
-import { useBranchDetail } from "@/api/branch/useBranchQuery";
 import { Download, X } from "lucide-react";
 import jsPDF from "jspdf";
+import { useBranchDetail } from "@/api/customers/useCustomersQuery";
+import { useStudentPaymentData } from "@/api/payment/usePaymentQuery";
 
 interface Props {
   academyCode: string;

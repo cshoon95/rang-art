@@ -12,9 +12,9 @@ import {
   ViewDay as ViewDayIcon,
 } from "@mui/icons-material";
 import { replaceTimeFormat, replaceTimePattern } from "@/utils/format";
-import { useUpsertPickup } from "@/api/pickup/usePickupQuery";
 import { WEEKDAY_LIST } from "@/utils/list";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
+import { useUpsertPickup } from "@/api/schedule/useScheduleQuery";
 
 interface Props {
   initialTimeList: any[];
@@ -59,6 +59,7 @@ export default function PickupClient({
       day,
       academyCode: "2",
       registerID: "admin",
+      type: "",
     });
   };
 

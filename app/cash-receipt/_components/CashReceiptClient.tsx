@@ -3,11 +3,7 @@
 import React, { useState, useMemo } from "react";
 import styled, { css } from "styled-components";
 import { Search as SearchIcon, CheckSquare, Square } from "lucide-react";
-import {
-  useGetCashReceiptList,
-  useUpdateCashReceipt,
-  useUpdateCashReceiptBatch,
-} from "@/api/cash-receipt/useCashReceiptQuery";
+
 import {
   replaceHyphenFormat,
   replaceOnlyNum,
@@ -17,6 +13,11 @@ import PageTitleWithStar from "@/components/PageTitleWithStar";
 import Select from "@/components/Select";
 import { useModalStore } from "@/store/modalStore";
 import CashReceiptSkeleton from "./CashReceiptSkeleton";
+import {
+  useGetCashReceiptList,
+  useUpdateCashReceipt,
+  useUpdateCashReceiptBatch,
+} from "@/api/payment/usePaymentQuery";
 
 interface Props {
   academyCode: string;

@@ -1,11 +1,12 @@
 import { Suspense } from "react";
-import {
-  getServerPickupTimeList,
-  getServerPickupDataList,
-} from "@/api/pickup/server";
+
 import PickupClient from "./_components/PickupClient";
 import { cookies } from "next/headers";
 import PickupSkeleton from "./_components/PickupSkeleton";
+import {
+  getServerPickupTimeList,
+  getServerPickupDataList,
+} from "@/api/schedule/server";
 
 export default async function PickupPage() {
   const cookieStore = await cookies();

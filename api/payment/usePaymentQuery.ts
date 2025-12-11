@@ -7,7 +7,12 @@ import {
 import { PaymentType } from "./type";
 import {
   deletePaymentAction,
+  getCashReceiptListAction,
   getPaymentMessageListAction,
+  getRegisterReportAction,
+  getStudentPaymentDataAction,
+  updateCashReceiptAction,
+  updateCashReceiptBatchAction,
   updatePaymentStatusBatchAction,
 } from "./actions";
 import { useToastStore } from "@/store/toastStore";
@@ -169,5 +174,82 @@ export const useUpdatePaymentStatusBatch = () => {
       console.error("업데이트 실패:", err);
       addToast("수정 중 오류가 발생했어요.", "error"); // 성공 토스트
     },
+  });
+};
+
+export const useGetCashReceiptList = (
+  academyCode: string,
+  year: string,
+  month: string
+) => {
+  return useQuery({
+    queryKey: ["cash-receipt", academyCode, year, month],
+    queryFn: () => getCashReceiptListAction(academyCode, year, month),
+    enabled: !!academyCode,
+  });
+};
+
+export const useUpdateCashReceipt = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateCashReceiptAction,
+    onSuccess: () => {
+      // 목록 갱신
+      queryClient.invalidateQueries({ queryKey: ["cash-receipt"] });
+    },
+    onError: (err) => {
+      console.error(err);
+      alert("수정 중 오류가 발생했습니다.");
+    },
+  });
+};
+
+export const useUpdateCashReceiptBatch = () => {
+  const queryClient = useQueryClient();
+  const { addToast } = useToastStore();
+
+  return useMutation({
+    mutationFn: ({
+      ids,
+      value,
+      updaterId,
+      academyCode,
+    }: {
+      ids: number[];
+      value: string;
+      updaterId: string;
+      academyCode: string;
+    }) => updateCashReceiptBatchAction(ids, value, updaterId, academyCode),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cash-receipt"] });
+      addToast("업데이트가 완료되었습니다.", "success"); // 성공 토스트
+    },
+    onError: (err) => {
+      console.error(err);
+      alert("일괄 처리 중 오류가 발생했습니다.");
+      addToast("수정 중 오류가 발생했어요.", "error"); // 성공 토스트
+    },
+  });
+};
+
+export const useRegisterReport = (academyCode: string, year: string) => {
+  return useQuery({
+    queryKey: ["registerReport", academyCode, year],
+    queryFn: () => getRegisterReportAction(academyCode, year),
+    enabled: !!academyCode && !!year,
+  });
+};
+
+export const useStudentPaymentData = (
+  academyCode: string,
+  year: string,
+  name: string | null // 이름이 있을 때만 조회
+) => {
+  return useQuery({
+    queryKey: ["studentPayment", academyCode, year, name],
+    queryFn: () => getStudentPaymentDataAction(academyCode, year, name!),
+    enabled: !!academyCode && !!year && !!name, // 조건 충족 시 실행
   });
 };

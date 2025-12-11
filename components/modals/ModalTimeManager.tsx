@@ -8,19 +8,15 @@ import { AccessTime, DeleteOutline, Add } from "@mui/icons-material";
 import {
   useInsertScheduleTime,
   useDeleteScheduleTime,
+  useDeleteTempScheduleTime,
+  useInsertTempScheduleTime,
+  useDeletePickupTime,
+  useInsertPickupTime,
 } from "@/api/schedule/useScheduleQuery";
 import { removeTimePattern, replaceTimePattern } from "@/utils/format";
 import { useToastStore } from "@/store/toastStore";
 import { useRouter } from "next/navigation";
 import { Variable } from "lucide-react";
-import {
-  useDeletePickupTime,
-  useInsertPickupTime,
-} from "@/api/pickup/usePickupQuery";
-import {
-  useInsertTempScheduleTime,
-  useDeleteTempScheduleTime,
-} from "@/api/temp-schedule/useTempScheduleQuery";
 
 // ✅ React Query Hooks Import
 // 🚀 추후 Pickup 훅이 만들어지면 여기서 import 하세요!

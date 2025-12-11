@@ -5,8 +5,11 @@ import {
   getFavoritesAction,
   toggleFavoriteAction,
   reorderFavoritesAction,
+  deleteMemoAction,
+  upsertMemoAction,
 } from "./actions";
 import { useToastStore } from "@/store/toastStore";
+import { useRouter } from "next/navigation";
 
 // 조회
 export const useFavorites = () => {
@@ -55,6 +58,46 @@ export const useReorderFavorites = () => {
     onSuccess: () => {
       // 서버 데이터 다시 불러오기 (혹은 setQueryData로 클라이언트 상태만 먼저 바꿔도 됨)
       queryClient.invalidateQueries({ queryKey: ["favorites", email] });
+    },
+  });
+};
+
+export const useUpsertMemo = () => {
+  const router = useRouter();
+  const { addToast } = useToastStore();
+
+  return useMutation({
+    mutationFn: async (data: any) => {
+      const result = await upsertMemoAction(data);
+      if (!result.success) throw new Error(result.message);
+      return result;
+    },
+    onSuccess: (data) => {
+      router.refresh();
+      addToast(data.message, "success");
+    },
+    onError: (error: Error) => {
+      addToast(error.message, "error");
+    },
+  });
+};
+
+export const useDeleteMemo = () => {
+  const router = useRouter();
+  const { addToast } = useToastStore();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const result = await deleteMemoAction(id);
+      if (!result.success) throw new Error(result.message);
+      return result;
+    },
+    onSuccess: (data) => {
+      router.refresh();
+      addToast(data.message, "success");
+    },
+    onError: (error: Error) => {
+      addToast(error.message, "error");
     },
   });
 };

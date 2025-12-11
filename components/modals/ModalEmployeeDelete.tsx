@@ -1,4 +1,4 @@
-import { useDeleteEmployee } from "@/api/employee/useEmployeesQuery";
+import { useDeleteEmployee } from "@/api/customers/useCustomersQuery";
 import { useToastStore } from "@/store/toastStore";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";

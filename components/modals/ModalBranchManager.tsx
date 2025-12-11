@@ -6,7 +6,7 @@ import { useModalStore } from "@/store/modalStore";
 import { RefreshCw, Search } from "lucide-react";
 import { useToastStore } from "@/store/toastStore";
 import { useDaumPostcodePopup } from "react-daum-postcode";
-import { useUpsertBranch } from "@/api/branch/useBranchQuery";
+import { useUpsertBranch } from "@/api/customers/useCustomersQuery";
 
 interface Props {
   mode: "add" | "edit";

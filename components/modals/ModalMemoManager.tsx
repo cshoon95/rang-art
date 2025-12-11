@@ -3,12 +3,12 @@
 import React, { useState, useMemo, useRef } from "react";
 import styled, { keyframes } from "styled-components";
 import { useModalStore } from "@/store/modalStore";
-import { useUpsertMemo, useDeleteMemo } from "@/api/memo/useMemoQuery";
 import { useSession } from "next-auth/react";
 import { Pin, AlertCircle } from "lucide-react";
 import dynamic from "next/dynamic";
 
 import "react-quill-new/dist/quill.snow.css";
+import { useUpsertMemo, useDeleteMemo } from "@/api/favorites/useFavoriteQuery";
 
 const ReactQuill = dynamic(() => import("react-quill-new"), {
   ssr: false,

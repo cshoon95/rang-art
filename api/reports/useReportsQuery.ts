@@ -6,7 +6,7 @@ import {
   deleteBranchAction,
   getBranchDetailAction,
   getBranchesCount,
-} from "../branch/actions";
+} from "../customers/actions";
 
 // 등록/수정
 export const useUpsertBranch = () => {
