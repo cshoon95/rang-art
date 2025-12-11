@@ -10,18 +10,16 @@ import { Check } from "lucide-react";
 import { useModalStore } from "@/store/modalStore";
 import ModalLoginWaiting from "@/components/modals/ModalLoginWaiting";
 import { useInsertJoin } from "@/app/api/auth/useAuth";
+import { useBranchList } from "@/api/reports/useReportsQuery";
 
-interface Props {
-  initialBranches: any[]; // DB에서 넘어온 지점 목록
-}
-
-export default function SignupClient({ initialBranches }: Props) {
+export default function SignupClient() {
   const { data: session, update } = useSession();
   const router = useRouter();
   const openModal = useModalStore((state) => state.openModal);
 
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const { data: initialBranches } = useBranchList();
 
   const { mutate: joinMutate, isPending: isLoadingJoinMutate } = useInsertJoin({
     onSuccess: async (data, variables) => {
@@ -83,7 +81,7 @@ export default function SignupClient({ initialBranches }: Props) {
 
         <BranchList>
           {/* ✅ DB 데이터로 렌더링 */}
-          {initialBranches.map((branch) => (
+          {initialBranches?.map((branch) => (
             <BranchItem
               key={branch.code}
               $isSelected={selectedCode === branch.code}

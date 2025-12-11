@@ -13,19 +13,21 @@ import { useModalStore } from "@/store/modalStore";
 import ModalBranchManager from "@/components/modals/ModalBranchManager";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
 import { useDeleteBranch } from "@/api/customers/useCustomersQuery";
+import { useBranchList } from "@/api/reports/useReportsQuery";
 
 interface Props {
   initialData: any[];
 }
 
-export default function BranchClient({ initialData }: Props) {
+export default function BranchClient() {
   const [searchText, setSearchText] = useState("");
   const { openModal } = useModalStore();
   const { mutate: deleteBranch } = useDeleteBranch();
+  const { data: initialData } = useBranchList();
 
   // 필터링
   const filteredData = useMemo(() => {
-    return initialData.filter((item) => {
+    return initialData?.filter((item) => {
       const name = item.name || "";
       const code = item.code || "";
       return name.includes(searchText) || code.includes(searchText);
@@ -101,7 +103,7 @@ export default function BranchClient({ initialData }: Props) {
               </tr>
             </thead>
             <tbody>
-              {filteredData.map((item) => (
+              {filteredData?.map((item) => (
                 <tr key={item.code} onClick={() => handleEdit(item)}>
                   <td style={{ fontWeight: 700, color: "#3182f6" }}>
                     {item.code}
@@ -128,7 +130,7 @@ export default function BranchClient({ initialData }: Props) {
 
         {/* Mobile Card View */}
         <CardView>
-          {filteredData.map((item) => (
+          {filteredData?.map((item) => (
             <Card key={item.code} onClick={() => handleEdit(item)}>
               <CardHeader>
                 <div

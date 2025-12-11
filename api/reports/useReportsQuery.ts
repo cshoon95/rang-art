@@ -6,6 +6,7 @@ import {
   deleteBranchAction,
   getBranchDetailAction,
   getBranchesCount,
+  getBranches,
 } from "../customers/actions";
 
 // 등록/수정
@@ -65,5 +66,12 @@ export const useBranchCount = (code: string) => {
     queryKey: ["branchCount", code],
     queryFn: () => getBranchesCount(code),
     enabled: !!code, // 코드가 있을 때만 실행
+  });
+};
+
+export const useBranchList = () => {
+  return useQuery({
+    queryKey: ["branchList"],
+    queryFn: () => getBranches(),
   });
 };
