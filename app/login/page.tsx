@@ -3,7 +3,8 @@
 import { signIn } from "next-auth/react";
 import React from "react";
 import styled, { keyframes } from "styled-components";
-import { Palette } from "lucide-react"; // 아이콘 추가
+import Image from "next/image"; // ✅ next/image 사용
+import logoImg from "@/assets/icon.png"; // ✅ 이미지 import (경로 확인 필요)
 
 export default function LoginPage() {
   const handleGoogleLogin = () => {
@@ -15,7 +16,15 @@ export default function LoginPage() {
       <Card>
         <LogoWrapper>
           <IconCircle>
-            <Palette size={32} color="#fff" />
+            {/* ✅ 아이콘 대신 이미지 적용 */}
+            <Image
+              src={logoImg}
+              alt="Rang Art Logo"
+              width={40} // 원 안에 들어갈 적절한 크기
+              height={40}
+              style={{ objectFit: "contain" }}
+              priority
+            />
           </IconCircle>
           <LogoTitle>
             RANG <span style={{ color: "#3b82f6" }}>ART</span>
@@ -84,14 +93,20 @@ const fadeIn = keyframes`
   to { opacity: 1; transform: translateY(0); }
 `;
 
+// ✅ 레이아웃 무시하고 전체 화면 덮기 (position: fixed 사용)
 const Container = styled.div`
+  position: fixed; /* 레이아웃의 패딩이나 마진을 무시하고 뷰포트 기준으로 배치 */
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999; /* 다른 요소들 위에 오도록 설정 */
+
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
   background-color: #f8fafc;
   font-family: "Pretendard", sans-serif;
-  position: relative;
   overflow: hidden;
 `;
 
@@ -105,7 +120,7 @@ const Card = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 100%;
+  width: 90%; /* 모바일 대응을 위해 100% -> 90% */
   max-width: 420px;
   animation: ${fadeIn} 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
   z-index: 1;
@@ -122,7 +137,7 @@ const LogoWrapper = styled.div`
 const IconCircle = styled.div`
   width: 64px;
   height: 64px;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: "white";
   border-radius: 20px;
   display: flex;
   align-items: center;
@@ -130,6 +145,8 @@ const IconCircle = styled.div`
   margin-bottom: 20px;
   box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25);
   transform: rotate(-5deg);
+  overflow: hidden; /* 이미지가 둥근 모서리를 넘지 않게 */
+  position: relative; /* Image 컴포넌트 위치 잡기 위함 */
 `;
 
 const LogoTitle = styled.h1`

@@ -9,7 +9,15 @@ import localFont from "next/font/local";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v14-appRouter";
 import ToastSystem from "@/components/ToastSystem";
 import AuthCheck from "@/components/auth/AuthCheck";
-import { Metadata } from "next";
+import { Metadata, Viewport } from "next";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false, // 앱처럼 느끼게 하기 위해 확대 방지
+  themeColor: "#ffffff",
+};
 
 export const metadata: Metadata = {
   title: "랑아트 미술학원 😊", // 사이트 제목
@@ -17,6 +25,11 @@ export const metadata: Metadata = {
   icons: {
     icon: "https://cshoon95-rang-art.vercel.app/icon.png", // 파비콘 설정
     apple: "https://cshoon95-rang-art.vercel.app/icon.png", // 애플 터치 아이콘 설정 (선택 사항)
+  },
+  appleWebApp: {
+    capable: true, // PWA 모드 활성화
+    statusBarStyle: "default", // 상단 상태바 색상 (default, black, black-translucent)
+    title: "RANG ART", // 홈 화면 아이콘 아래 이름
   },
   openGraph: {
     title: "랑아트 미술학원 😊", // 카톡 등 SNS 공유 시 제목
