@@ -359,16 +359,27 @@ const Row = styled.div`
 `;
 
 const Input = styled.input<{ $error?: boolean }>`
-  padding: 14px;
+  width: 100%;
+
+  /* ✅ [핵심 1] 모바일 브라우저 기본 스타일 초기화 */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+
+  /* ✅ [핵심 2] 높이 강제 고정 (padding 대신 height로 제어) */
+  height: 50px; /* PC 기준 넉넉한 높이 */
+  padding: 0 14px; /* 좌우 패딩만 설정 */
+
   border: 2px solid transparent;
   border-radius: 14px;
   font-size: 16px;
-  outline: none;
-  transition: all 0.2s;
+  font-family: inherit;
   color: #191f28;
   background: #f4f6f8;
-  font-family: inherit;
-  width: 100%;
+  outline: none;
+  transition: all 0.2s;
+  box-sizing: border-box; /* 패딩 포함 크기 계산 */
+
   ${({ $error }) =>
     $error &&
     css`
@@ -376,6 +387,7 @@ const Input = styled.input<{ $error?: boolean }>`
       border-color: #ef4444;
       box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
     `}
+
   &:focus {
     background: white;
     border-color: ${({ $error }) => ($error ? "#ef4444" : "#3182f6")};
@@ -383,12 +395,26 @@ const Input = styled.input<{ $error?: boolean }>`
       ${({ $error }) =>
         $error ? "rgba(239, 68, 68, 0.1)" : "rgba(49, 130, 246, 0.1)"};
   }
+
+  /* ✅ [핵심 3] 날짜/시간 인풋 전용 스타일 보정 */
+  &[type="date"],
+  &[type="time"] {
+    display: block; /* flex 레이아웃 깨짐 방지 */
+    line-height: 50px; /* 텍스트 수직 정렬 */
+    /* iOS 기본 폰트 무시하고 상속받기 */
+    font-family: inherit;
+  }
+
+  /* 📱 모바일 대응 */
   @media (max-width: 600px) {
-    padding: 12px 8px;
-    font-size: 13px;
-    border-radius: 10px;
+    height: 44px; /* 모바일 높이 조정 */
+    line-height: 44px;
+    font-size: 16px; /* iOS 자동 확대 방지 (16px 이상 권장) */
+    border-radius: 12px;
+    padding: 0 12px;
+
     &::-webkit-calendar-picker-indicator {
-      transform: scale(0.8);
+      transform: scale(0.9);
       margin-left: 0;
     }
   }

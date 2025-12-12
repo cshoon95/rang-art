@@ -561,7 +561,7 @@ export const Header = () => {
         <ModalOverlay style={{ zIndex: 11000 }}>
           <ConfirmModalContent>
             <ConfirmTitle>로그아웃</ConfirmTitle>
-            <ConfirmDesc>정말 로그아웃 하시겠습니까?</ConfirmDesc>
+            <ConfirmDesc>정말 로그아웃 하시겠어요?</ConfirmDesc>
             <ModalActions>
               <CancelButton onClick={() => setIsLogoutModalOpen(false)}>
                 취소

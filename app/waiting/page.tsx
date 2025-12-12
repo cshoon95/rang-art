@@ -3,6 +3,7 @@
 import styled, { keyframes } from "styled-components";
 import { useSession, signOut } from "next-auth/react";
 import { Hourglass, LogOut, RefreshCw } from "lucide-react";
+import { useEffect } from "react";
 
 export default function WaitingPage() {
   const { data: session } = useSession();

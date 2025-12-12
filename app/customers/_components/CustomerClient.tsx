@@ -2,14 +2,15 @@
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import styled from "styled-components";
+// ✅ MUI 아이콘 제거 -> Lucide 아이콘으로 변경
 import {
-  Search as SearchIcon,
-  Add as AddIcon,
-  PhoneIphone as PhoneIcon,
-  MoreVert as MoreVertIcon,
+  Search,
+  Plus,
+  Smartphone,
+  MoreVertical,
   ChevronLeft,
   ChevronRight,
-} from "@mui/icons-material";
+} from "lucide-react";
 import { useModalStore } from "@/store/modalStore";
 import { extractInitialConsonants, getStateLabel } from "@/utils/common";
 import { replaceHyphenFormat } from "@/utils/format";
@@ -248,7 +249,8 @@ export default function CustomersClient({
           </FilterGroup>
 
           <SearchWrapper>
-            <SearchIcon style={{ color: "#94a3b8" }} />
+            {/* ✅ MUI SearchIcon -> Lucide Search */}
+            <Search size={20} color="#94a3b8" />
             <SearchInput
               placeholder="이름 검색..."
               value={searchText}
@@ -256,7 +258,8 @@ export default function CustomersClient({
             />
           </SearchWrapper>
           <AddButton onClick={handleAdd}>
-            <AddIcon />
+            {/* ✅ MUI AddIcon -> Lucide Plus */}
+            <Plus size={24} />
           </AddButton>
         </Controls>
       </Header>
@@ -305,7 +308,6 @@ export default function CustomersClient({
               </tr>
             </thead>
             <tbody>
-              {/* [수정] filteredAndSortedData -> currentItems 로 변경 */}
               {currentItems.map((item, index) => (
                 <tr key={item.id} onClick={() => handleDetail(item)}>
                   <td
@@ -316,7 +318,6 @@ export default function CustomersClient({
                       backgroundColor: "#fff",
                     }}
                   >
-                    {/* 번호 계산: (현재페이지-1)*10 + 인덱스 + 1 */}
                     {(currentPage - 1) * itemsPerPage + index + 1}
                   </td>
                   <td
@@ -366,6 +367,7 @@ export default function CustomersClient({
                     style={{ cursor: "pointer" }}
                   >
                     <MoreBtnWrapper>
+                      {/* ✅ Lucide MoreVertical */}
                       <MoreIcon />
                     </MoreBtnWrapper>
                   </td>
@@ -377,7 +379,6 @@ export default function CustomersClient({
 
         {/* === Mobile Card View === */}
         <CardView>
-          {/* [수정] filteredAndSortedData -> currentItems 로 변경 */}
           {currentItems.map((item) => (
             <Card key={item.id} onClick={() => handleDetail(item)}>
               <CardHeader>
@@ -413,7 +414,8 @@ export default function CustomersClient({
               </CardHeader>
               <CardBody>
                 <InfoRow>
-                  <PhoneIcon fontSize="small" />
+                  {/* ✅ MUI PhoneIcon -> Lucide Smartphone */}
+                  <Smartphone size={16} color="#b0b8c1" />
                   <span>
                     {formatPhoneNumber(item.tel) === "-"
                       ? "연락처 없음"
@@ -427,19 +429,18 @@ export default function CustomersClient({
         </CardView>
       </ListContainer>
 
-      {/* [페이지네이션 5] 페이지네이션 UI 추가 */}
+      {/* [페이지네이션] */}
       {totalPages > 0 && (
         <PaginationContainer>
           <PageButton
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
           >
-            <ChevronLeft fontSize="small" />
+            {/* ✅ MUI ChevronLeft -> Lucide ChevronLeft */}
+            <ChevronLeft size={20} />
           </PageButton>
 
-          {/* 페이지 번호 (간단하게 모든 페이지 표시 or 10개 제한 가능) */}
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            // 페이지가 너무 많으면 로직 추가 필요하지만, 일단 전체 렌더링
             <PageButton
               key={page}
               $active={currentPage === page}
@@ -453,7 +454,8 @@ export default function CustomersClient({
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
           >
-            <ChevronRight fontSize="small" />
+            {/* ✅ MUI ChevronRight -> Lucide ChevronRight */}
+            <ChevronRight size={20} />
           </PageButton>
         </PaginationContainer>
       )}
@@ -711,10 +713,6 @@ const InfoRow = styled.div`
   color: #4e5968;
   font-size: 14px;
   font-weight: 500;
-  svg {
-    color: #b0b8c1;
-    font-size: 18px;
-  }
 `;
 
 const NoteRow = styled.div`
@@ -785,19 +783,20 @@ const MoreBtnWrapper = styled.div`
   }
 `;
 
-const MoreIcon = styled(MoreVertIcon)`
+// ✅ Styled Component with Lucide Icon
+const MoreIcon = styled(MoreVertical)`
   color: #d1d6db;
-  font-size: 20px;
+  width: 20px;
+  height: 20px;
 `;
 
-// [신규] 페이지네이션 스타일
 const PaginationContainer = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 8px;
   margin-top: 20px;
-  flex-wrap: wrap; /* 모바일에서 많아지면 줄바꿈 */
+  flex-wrap: wrap;
 `;
 
 const PageButton = styled.button<{ $active?: boolean }>`
@@ -827,7 +826,6 @@ const PageButton = styled.button<{ $active?: boolean }>`
   }
 `;
 
-// --- Custom Select Styles ---
 const SelectWrapper = styled.div`
   position: relative;
   width: 130px;

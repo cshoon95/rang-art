@@ -418,11 +418,23 @@ const Unit = styled.span`
 
 const Input = styled.input<{ $error?: boolean }>`
   width: 100%;
-  padding: 12px;
+
+  /* ✅ [핵심 1] 모바일 브라우저 기본 스타일 초기화 */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+
+  /* ✅ [핵심 2] 높이 강제 고정 (padding 대신 height로 제어) */
+  height: 48px; /* 터치하기 편한 높이 */
+  padding: 0 12px; /* 좌우 패딩만 설정 */
+
   border-radius: 8px;
   border: 1px solid ${({ $error }) => ($error ? "#ef4444" : "#e5e8eb")};
+  background-color: #fff; /* 배경색 명시 */
+
   font-size: 15px;
-  font-family: "Pretendard", sans-serif;
+  font-family: inherit; /* 폰트 상속 */
+  color: #333d4b;
   transition: all 0.2s;
   box-sizing: border-box;
 
@@ -433,8 +445,27 @@ const Input = styled.input<{ $error?: boolean }>`
       ${({ $error }) =>
         $error ? "rgba(239, 68, 68, 0.1)" : "rgba(49, 130, 246, 0.1)"};
   }
+
   &::placeholder {
     color: #b0b8c1;
+  }
+
+  /* ✅ [핵심 3] 날짜 입력창 전용 스타일 보정 */
+  &[type="date"] {
+    display: block; /* Flex 컨테이너 내에서 찌그러짐 방지 */
+    line-height: 48px; /* 수직 정렬 */
+    font-family: inherit;
+
+    /* iOS에서 텍스트가 위로 쏠리는 현상 방지 */
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  /* 📱 모바일 대응 */
+  @media (max-width: 768px) {
+    height: 44px; /* 모바일 높이 미세 조정 */
+    line-height: 44px;
+    font-size: 16px; /* iOS 자동 확대 방지 (16px 이상 필수) */
   }
 `;
 

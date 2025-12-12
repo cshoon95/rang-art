@@ -17,40 +17,34 @@ export const authOptions: NextAuthOptions = {
         token.id = user.email;
       }
 
+      console.log("token_id", token);
       // 2. DB 최신 동기화
       if (token.id) {
-        try {
-          // 주의: 여기서 사용하는 createClient가 cookies()를 쓰면 에러가 날 수 있습니다.
-          // 만약 에러가 계속된다면, Supabase Admin Client(Service Role)를 사용해야 합니다.
-          const supabase = await createClient();
+        const supabase = await createClient();
+        const { data: dbUser } = await supabase
+          .from("users")
+          .select("state, academy_code, level, academy_name")
+          .eq("id", token.id)
+          .single();
 
-          const { data: dbUser, error } = await supabase
-            .from("users")
-            .select("state, academy_code, level, academy_name")
-            .eq("id", token.id)
-            .single();
-
-          if (error) {
-            console.error("Supabase fetch error in JWT:", error);
-            // 에러나도 로그인은 유지되도록 그냥 넘어감 (값은 비워둠)
-          }
-
-          if (dbUser) {
-            token.state = dbUser.state ?? "";
-            token.academyCode = dbUser.academy_code ?? "";
-            token.academyName = dbUser.academy_name ?? "";
-            token.level = dbUser.level ?? "";
-          }
-        } catch (err) {
-          console.error("JWT Callback Unexpected Error:", err);
-          // 여기서 throw를 하면 로그인이 아예 안 되므로, catch만 하고 진행합니다.
+        if (dbUser) {
+          console.log("asdasdsa", dbUser);
+          // --- 수정된 부분: ?? "" (Null 병합 연산자) 추가 ---
+          // dbUser의 값이 null이면 빈 문자열로 처리하여 타입 에러 방지
+          token.state = dbUser.state ?? token.state;
+          token.academyCode = dbUser.academy_code ?? token.academyCode;
+          token.academyName = dbUser.academy_name ?? token.academyName;
+          token.level = dbUser.level ?? token.level;
         }
       }
 
       return token;
     },
 
-    async session({ session, token }) {
+    async session({ session, token, user }) {
+      console.log("session", session);
+      console.log("tokensession", token);
+      console.log("user", user);
       // level 값 비교 시 token.level이 null일 경우 대비
       const levelName =
         LEVEL_OPTIONS.find((v) => v.value == token.level)?.label || "선생님";

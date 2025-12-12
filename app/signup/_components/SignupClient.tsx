@@ -2,15 +2,16 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styled, { keyframes } from "styled-components";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { useModalStore } from "@/store/modalStore";
 import ModalLoginWaiting from "@/components/modals/ModalLoginWaiting";
 import { useInsertJoin } from "@/app/api/auth/useAuth";
 import { useBranchList } from "@/app/_querys";
+import { useRouter, usePathname } from "next/navigation";
+import SignupSkeleton from "./SignupSkeleton";
 
 export default function SignupClient() {
   const { data: session, update } = useSession();
@@ -19,11 +20,11 @@ export default function SignupClient() {
 
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const { data: initialBranches } = useBranchList();
+  const { data: initialBranches, isLoading: isLoadingBranch } = useBranchList();
 
   const { mutate: joinMutate, isPending: isLoadingJoinMutate } = useInsertJoin({
     onSuccess: async (data, variables) => {
-      // 1. 세션 강제 갱신
+      // ✅ 수정: 명확한 키(key)와 함께 객체로 보냅니다.
       await update();
 
       // 2. 이동할 경로 결정 (무료체험이면 바로 홈, 아니면 대기)
@@ -36,18 +37,11 @@ export default function SignupClient() {
 
       const nextPath = "/waiting"; // 일단 대기 페이지로 보냄 (AuthCheck가 알아서 처리)
 
-      openModal({
+      await openModal({
         type: "ALERT",
         title: "가입 대기",
         content: <ModalLoginWaiting academyCode={variables.academyCode} />,
-        onConfirm: () => {
-          // 확인 버튼 누르면 이동
-          window.location.reload();
-        },
       });
-
-      // 모달 없이 바로 이동하려면
-      // router.replace(nextPath);
     },
     onError: (error) => {
       console.error(error);
@@ -69,48 +63,56 @@ export default function SignupClient() {
       name: userName,
       academyCode: selectedCode,
     });
+
+    // 1. 세션 강제 갱신
   };
 
   return (
-    <Container>
-      <Card>
-        <HeaderSection>
-          <Title>어느 지점 관리자이신가요?</Title>
-          <SubTitle>소속된 학원 지점을 선택해주세요.</SubTitle>
-        </HeaderSection>
+    <>
+      {isLoadingBranch ? (
+        <SignupSkeleton />
+      ) : (
+        <Container>
+          <Card>
+            <HeaderSection>
+              <Title>어느 지점 관리자이신가요?</Title>
+              <SubTitle>소속된 학원 지점을 선택해주세요.</SubTitle>
+            </HeaderSection>
 
-        <BranchList>
-          {/* ✅ DB 데이터로 렌더링 */}
-          {initialBranches?.map((branch) => (
-            <BranchItem
-              key={branch.code}
-              $isSelected={selectedCode === branch.code}
-              onClick={() => setSelectedCode(branch.code)}
+            <BranchList>
+              {/* ✅ DB 데이터로 렌더링 */}
+              {initialBranches?.map((branch) => (
+                <BranchItem
+                  key={branch.code}
+                  $isSelected={selectedCode === branch.code}
+                  onClick={() => setSelectedCode(branch.code)}
+                >
+                  <BranchName>
+                    {branch.name}
+                    <BranchOwner>
+                      ({branch.owner + " 원장님" || "원장 미정"})
+                    </BranchOwner>
+                  </BranchName>
+
+                  {selectedCode === branch.code && (
+                    <CheckIconWrapper>
+                      <Check size={20} strokeWidth={3} />
+                    </CheckIconWrapper>
+                  )}
+                </BranchItem>
+              ))}
+            </BranchList>
+
+            <SubmitButton
+              disabled={!selectedCode || isLoading || isLoadingJoinMutate}
+              onClick={handleSubmit}
             >
-              <BranchName>
-                {branch.name}
-                <BranchOwner>
-                  ({branch.owner + " 원장님" || "원장 미정"})
-                </BranchOwner>
-              </BranchName>
-
-              {selectedCode === branch.code && (
-                <CheckIconWrapper>
-                  <Check size={20} strokeWidth={3} />
-                </CheckIconWrapper>
-              )}
-            </BranchItem>
-          ))}
-        </BranchList>
-
-        <SubmitButton
-          disabled={!selectedCode || isLoading || isLoadingJoinMutate}
-          onClick={handleSubmit}
-        >
-          {isLoading || isLoadingJoinMutate ? "등록 중..." : "선택 완료"}
-        </SubmitButton>
-      </Card>
-    </Container>
+              {isLoading || isLoadingJoinMutate ? "등록 중..." : "선택 완료"}
+            </SubmitButton>
+          </Card>
+        </Container>
+      )}
+    </>
   );
 }
 

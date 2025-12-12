@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { useModalStore } from "@/store/modalStore";
-import { RefreshCw, Search } from "lucide-react";
+import { RefreshCw, Search, X } from "lucide-react"; // X 아이콘 추가
 import { useToastStore } from "@/store/toastStore";
-import { useDaumPostcodePopup } from "react-daum-postcode";
+import DaumPostcodeEmbed from "react-daum-postcode"; // ✅ Embed 컴포넌트 사용
 import { useUpsertBranch } from "@/app/_querys";
 
 interface Props {
@@ -13,7 +13,6 @@ interface Props {
   initialData?: any;
 }
 
-// 1. 랜덤 코드 생성 함수
 const generateRandomCode = () => {
   return "A" + Math.floor(100000 + Math.random() * 900000).toString();
 };
@@ -21,6 +20,9 @@ const generateRandomCode = () => {
 const FEE_COUNTS = [1, 2, 3, 4, 5];
 
 export default function ModalBranchManager({ mode, initialData }: Props) {
+  // ✅ 주소 검색창 열림 상태 관리
+  const [isPostcodeOpen, setIsPostcodeOpen] = useState(false);
+
   const [formData, setFormData] = useState({
     code: initialData?.code || "",
     name: initialData?.name || "",
@@ -29,7 +31,6 @@ export default function ModalBranchManager({ mode, initialData }: Props) {
     tel: initialData?.tel || "",
     owner: initialData?.owner || "",
     businessNo: initialData?.business_no || "",
-    // ✅ 회비 정보 추가 (DB컬럼: count1 ~ count5)
     count1: initialData?.count1 ? String(initialData.count1) : "0",
     count2: initialData?.count2 ? String(initialData.count2) : "0",
     count3: initialData?.count3 ? String(initialData.count3) : "0",
@@ -40,10 +41,6 @@ export default function ModalBranchManager({ mode, initialData }: Props) {
   const { addToast } = useToastStore();
   const { closeModal } = useModalStore();
   const { mutate: upsertBranch, isPending } = useUpsertBranch();
-
-  const open = useDaumPostcodePopup(
-    "https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"
-  );
 
   useEffect(() => {
     if (mode === "add" && !formData.code) {
@@ -57,7 +54,6 @@ export default function ModalBranchManager({ mode, initialData }: Props) {
     }
   };
 
-  // 금액 포맷팅 함수 (10000 -> 10,000)
   const formatCurrency = (val: string) => {
     if (!val) return "";
     return Number(val).toLocaleString();
@@ -65,17 +61,15 @@ export default function ModalBranchManager({ mode, initialData }: Props) {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-
-    // ✅ 회비 필드인 경우 숫자만 입력받도록 처리
     if (name.startsWith("count")) {
       const rawValue = value.replace(/[^0-9]/g, "");
       setFormData((prev) => ({ ...prev, [name]: rawValue }));
       return;
     }
-
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // ✅ 주소 검색 완료 핸들러
   const handleComplete = (data: any) => {
     let fullAddress = data.address;
     let extraAddress = "";
@@ -92,10 +86,7 @@ export default function ModalBranchManager({ mode, initialData }: Props) {
     }
 
     setFormData((prev) => ({ ...prev, address: fullAddress }));
-  };
-
-  const handleAddressClick = () => {
-    open({ onComplete: handleComplete });
+    setIsPostcodeOpen(false); // 검색창 닫기
   };
 
   const handleSubmit = () => {
@@ -104,7 +95,6 @@ export default function ModalBranchManager({ mode, initialData }: Props) {
       return;
     }
 
-    // ✅ 전송 시 숫자 변환 처리
     const submitData = {
       ...formData,
       count1: Number(formData.count1 || 0),
@@ -119,6 +109,30 @@ export default function ModalBranchManager({ mode, initialData }: Props) {
     });
   };
 
+  // --------------------------------------------------------
+  // ✅ 1. 주소 검색 화면 (PostcodeEmbed View)
+  // --------------------------------------------------------
+  if (isPostcodeOpen) {
+    return (
+      <PostcodeContainer>
+        <PostcodeHeader>
+          <SectionTitle>주소 검색</SectionTitle>
+          <CloseIconButton onClick={() => setIsPostcodeOpen(false)}>
+            <X size={24} />
+          </CloseIconButton>
+        </PostcodeHeader>
+        <DaumPostcodeEmbed
+          onComplete={handleComplete}
+          style={{ height: "400px", width: "100%" }}
+          autoClose={false}
+        />
+      </PostcodeContainer>
+    );
+  }
+
+  // --------------------------------------------------------
+  // ✅ 2. 기본 입력 폼 화면 (Default View)
+  // --------------------------------------------------------
   return (
     <FormContainer>
       <SectionTitle>지점 기본 정보</SectionTitle>
@@ -200,10 +214,10 @@ export default function ModalBranchManager({ mode, initialData }: Props) {
             value={formData.address}
             placeholder="주소를 검색하세요"
             readOnly
-            onClick={handleAddressClick}
+            onClick={() => setIsPostcodeOpen(true)} // ✅ 검색창 열기
             style={{ cursor: "pointer", backgroundColor: "#fff" }}
           />
-          <IconButton onClick={handleAddressClick} type="button">
+          <IconButton onClick={() => setIsPostcodeOpen(true)} type="button">
             <Search size={16} />
           </IconButton>
         </CodeInputWrapper>
@@ -218,7 +232,6 @@ export default function ModalBranchManager({ mode, initialData }: Props) {
 
       <Divider />
 
-      {/* ✅ [추가] 회비 설정 섹션 */}
       <SectionTitle>회비 설정 (주 n회)</SectionTitle>
       <FeeGrid>
         {FEE_COUNTS.map((num) => (
@@ -249,12 +262,55 @@ export default function ModalBranchManager({ mode, initialData }: Props) {
 }
 
 // --- Styles ---
+
 const FormContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 20px;
   padding: 10px 4px;
 `;
+
+/* ✅ 주소 검색창 전용 컨테이너 스타일 */
+const PostcodeContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  padding: 10px 4px;
+  animation: fadeIn 0.2s ease-out;
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+`;
+
+const PostcodeHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f2f4f6;
+`;
+
+const CloseIconButton = styled.button`
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: #8b95a1;
+  transition: 0.2s;
+  &:hover {
+    color: #333;
+    background-color: #f2f4f6;
+    border-radius: 50%;
+  }
+`;
+
 const SectionTitle = styled.h3`
   font-size: 15px;
   font-weight: 700;
@@ -341,20 +397,16 @@ const SaveBtn = styled.button`
     opacity: 0.9;
   }
 `;
-
-// ✅ [추가] 회비 입력용 스타일
 const FeeGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, 1fr); /* 2열 배치 */
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
 `;
-
 const InputWrapper = styled.div`
   position: relative;
   display: flex;
   align-items: center;
 `;
-
 const Unit = styled.span`
   position: absolute;
   right: 12px;

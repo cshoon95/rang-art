@@ -5,12 +5,16 @@ import styled, { keyframes } from "styled-components";
 import { CheckCircle, Clock, Loader2 } from "lucide-react";
 import { useModalStore } from "@/store/modalStore";
 import { useShallow } from "zustand/react/shallow";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 export default function ModalLoginWaiting({
   academyCode,
 }: {
   academyCode: string | null;
 }) {
+  const router = useRouter();
+  const { data: session, update } = useSession();
   // ✅ 수정: store에서 data를 꺼내와야 합니다.
   const { closeModal } = useModalStore(
     useShallow((state) => ({
@@ -28,8 +32,10 @@ export default function ModalLoginWaiting({
     const timer = setInterval(() => {
       setTime((prev) => {
         if (prev <= 1) {
+          update();
           clearInterval(timer);
           closeModal(); // 닫히면서 store에 등록된 콜백(페이지 이동) 실행
+          window.location.replace("/waiting");
           return 0;
         }
         return prev - 1;

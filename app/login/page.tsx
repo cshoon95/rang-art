@@ -29,7 +29,7 @@ export default function LoginPage() {
           <LogoTitle>
             RANG <span style={{ color: "#3b82f6" }}>ART</span>
           </LogoTitle>
-          <LogoSubtitle>Rang Art Academy Management System</LogoSubtitle>
+          <LogoSubtitle>Rang Art Academy Management</LogoSubtitle>
         </LogoWrapper>
 
         <ContentSection>

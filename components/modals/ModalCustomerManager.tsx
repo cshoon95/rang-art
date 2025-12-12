@@ -589,13 +589,24 @@ const Unit = styled.span`
 
 const Input = styled.input<{ $error?: boolean }>`
   width: 100%;
-  padding: 12px;
+  padding: 0 12px; /* 상하 패딩 대신 높이로 제어하기 위해 좌우만 줌 */
   border-radius: 8px;
   border: 1px solid ${({ $error }) => ($error ? "#ef4444" : "#e5e8eb")};
   font-size: 15px;
   font-family: "Pretendard", sans-serif;
   transition: all 0.2s;
   box-sizing: border-box;
+  background-color: #fff; /* 배경색 명시 */
+  color: #333d4b;
+
+  /* ✅ [핵심 1] 모바일 브라우저 기본 스타일 제거 (PWA 필수) */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+
+  /* ✅ [핵심 2] 높이 강제 고정 (SelectBox와 높이 맞춤) */
+  height: 44px; /* 터치하기 좋은 높이 */
+  line-height: 44px; /* 텍스트 수직 정렬 */
 
   &:focus {
     outline: none;
@@ -604,8 +615,32 @@ const Input = styled.input<{ $error?: boolean }>`
       ${({ $error }) =>
         $error ? "rgba(239, 68, 68, 0.1)" : "rgba(49, 130, 246, 0.1)"};
   }
+
   &::placeholder {
     color: #b0b8c1;
+  }
+
+  /* ✅ [핵심 3] date 타입 전용 스타일 보정 */
+  &[type="date"] {
+    /* iOS에서 date input이 flex로 동작하여 높이가 틀어지는 것 방지 */
+    display: block;
+
+    /* 캘린더 아이콘 등의 위치 정렬 */
+    align-items: center;
+
+    /* 텍스트가 위로 쏠리는 현상 방지 */
+    padding-top: 0;
+    padding-bottom: 0;
+
+    /* 기본 폰트 적용 (iOS 기본 폰트 무시) */
+    font-family: inherit;
+  }
+
+  /* 모바일 화면 대응 */
+  @media (max-width: 768px) {
+    font-size: 16px; /* iOS 자동 줌 방지 (16px 이상이어야 함) */
+    height: 42px; /* 모바일 높이 미세 조정 */
+    line-height: 42px;
   }
 `;
 
