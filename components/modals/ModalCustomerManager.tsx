@@ -109,17 +109,15 @@ interface Props {
   mode: "add" | "edit";
   academyCode: string;
   initialData?: any;
-  userRole?: string;
 }
 
 export default function ModalCustomerManager({
   mode,
   academyCode,
   initialData,
-  userRole,
 }: Props) {
   // [변경 2] 지점 데이터(수강료 정보 포함) 호출
-  const { data: branchData } = useBranchCount("A305632");
+  const { data: branchData } = useBranchCount(academyCode);
 
   const formatDateToInput = (str: string) => {
     if (!str || str.length !== 8) return "";

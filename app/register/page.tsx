@@ -4,12 +4,14 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // ⚠️ auth
 import RegisterClient from "./_components/RegisterClient";
 
 export default async function RegisterPage() {
-  // 1. 서버 세션 가져오기
+  // 1. 서버 세션 가져오기 (authOptions 필수)
   const session = await getServerSession(authOptions);
 
-  // 2. 세션에서 academyCode 추출 (없으면 기본값 '2')
-  // 타입스크립트 에러 방지를 위해 any 캐스팅 혹은 커스텀 타입 사용
-  // const academyCode = (session?.user as any)?.academyCode;
+  // 2. session.user에서 academyCode 추출
+  // (TypeScript 에러가 난다면 as any로 우회하거나 next-auth.d.ts 설정 필요)
+  const user = session?.user as any;
+  const academyCode = user?.academyCode;
+  const userId = user?.id;
 
-  return <RegisterClient academyCode={"0"} />;
+  return <RegisterClient academyCode={academyCode} />;
 }

@@ -17,7 +17,6 @@ export const authOptions: NextAuthOptions = {
         token.id = user.email;
       }
 
-      console.log("token_id", token);
       // 2. DB 최신 동기화
       if (token.id) {
         const supabase = await createClient();
@@ -28,7 +27,6 @@ export const authOptions: NextAuthOptions = {
           .single();
 
         if (dbUser) {
-          console.log("asdasdsa", dbUser);
           // --- 수정된 부분: ?? "" (Null 병합 연산자) 추가 ---
           // dbUser의 값이 null이면 빈 문자열로 처리하여 타입 에러 방지
           token.state = dbUser.state ?? token.state;
@@ -42,9 +40,6 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token, user }) {
-      console.log("session", session);
-      console.log("tokensession", token);
-      console.log("user", user);
       // level 값 비교 시 token.level이 null일 경우 대비
       const levelName =
         LEVEL_OPTIONS.find((v) => v.value == token.level)?.label || "선생님";

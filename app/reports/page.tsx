@@ -7,6 +7,7 @@ import {
   getCustomerStatsAction,
   getServerCustomerList,
 } from "../_actions";
+import { authOptions } from "@/lib/auth";
 export const metadata: Metadata = {
   title: "통계 리포트 - 학원 관리",
 };
@@ -26,15 +27,14 @@ interface ReportData {
 }
 
 export default async function ReportsPage() {
-  // 1. 세션 및 학원 코드 확인
-  // [참고] App Router 서버 컴포넌트에서는 getSession보다 getServerSession을 권장합니다.
-  // const session = await getServerSession(authOptions);
-  const academyCode = "0"; // 테스트용 하드코딩
+  // 1. 서버 세션 가져오기 (authOptions 필수)
+  const session = await getServerSession(authOptions);
 
-  // 학원 코드가 없으면 (로그인 안됨 등) 처리
-  if (!academyCode) {
-    return <div>로그인이 필요합니다.</div>;
-  }
+  // 2. session.user에서 academyCode 추출
+  // (TypeScript 에러가 난다면 as any로 우회하거나 next-auth.d.ts 설정 필요)
+  const user = session?.user as any;
+  const academyCode = user?.academyCode;
+  const userId = user?.id;
 
   // 2. 현재 연도 기준 데이터 조회
   const currentYear = new Date().getFullYear().toString();

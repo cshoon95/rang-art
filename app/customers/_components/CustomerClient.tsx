@@ -27,7 +27,6 @@ import PageTitleWithStar from "@/components/PageTitleWithStar";
 interface Props {
   initialData: any[];
   academyCode: string;
-  userRole: string;
 }
 
 // --- [신규] 필터용 커스텀 셀렉트 컴포넌트 ---
@@ -196,7 +195,6 @@ export default function CustomersClient({
           mode="edit"
           academyCode={academyCode}
           initialData={customer}
-          userRole={userRole}
         />
       ),
       type: "SIMPLE",
