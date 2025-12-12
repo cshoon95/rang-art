@@ -1,17 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image"; // ✅ Image 컴포넌트 임포트
 import { usePathname, useRouter } from "next/navigation";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { signOut, useSession } from "next-auth/react";
 import styled, { css } from "styled-components";
-import logoImg from "@/assets/icon.png";
 import {
   Menu,
   X,
   ChevronDown,
   ChevronRight,
+  LogOut,
   Star,
   Bookmark,
   CalendarDays,
@@ -34,6 +33,7 @@ import {
   ChartPie,
   BookOpen,
 } from "lucide-react";
+import { isHiddenHeaderTitlePage } from "@/utils/common";
 import { clearAcademySession } from "../api/auth/actions";
 
 // 👇 dnd-kit
@@ -54,7 +54,11 @@ import {
   horizontalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useFavorites, useReorderFavorites } from "../_querys";
+import {
+  useFavorites,
+  useToggleFavorite,
+  useReorderFavorites,
+} from "../_querys";
 
 // ----------------------------------------------------------------------
 // ✅ 1. 메뉴 데이터 구조
@@ -265,6 +269,7 @@ export const Header = () => {
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [openSections, setOpenSections] = useState<number[]>([0, 1, 2, 3]);
 
+  // --- Data & Mutation ---
   const { data: favoriteData = [] } = useFavorites();
   const { mutate: reorderFavorites } = useReorderFavorites();
   const [orderedFavorites, setOrderedFavorites] = useState<any[]>([]);
@@ -343,13 +348,7 @@ export const Header = () => {
   const isActive = (path: string) =>
     path === "/home" ? pathname === "/home" : pathname.startsWith(path);
 
-  // 홈으로 이동하는 공통 함수 (이미 홈이면 이동 방지)
-  const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    if (pathname === "/home") {
-      e.preventDefault();
-    }
-    setIsMenuOpen(false); // 드로어에서 클릭 시 닫기 위해
-  };
+  // if (!isHiddenHeaderTitlePage(pathname)) return null;
 
   return (
     <>
@@ -357,31 +356,12 @@ export const Header = () => {
       <PcHeaderWrapper>
         <PcHeaderContainer>
           <PcLeft>
-            {/* ✅ PC 로고 이미지 적용 */}
-            <ImageLogoLink
+            <Logo
               href="/home"
-              onClick={handleLogoClick}
-              style={{ marginRight: "40px" }} // 네비게이션과의 간격 유지
+              style={{ fontSize: "24px", marginRight: "40px" }}
             >
-              {/* 1. 로고가 들어갈 영역의 크기를 잡아주는 컨테이너 (헤더 높이 64px 고려) */}
-              <div
-                style={{
-                  position: "relative",
-                  width: "50px",
-                  height: "50px",
-                  backgroundColor: "white",
-                }}
-              >
-                <Image
-                  src={logoImg}
-                  alt="RANG ART"
-                  fill // 2. 부모 영역(div)에 꽉 차게 설정
-                  priority
-                  // 3. 비율을 유지하면서 영역 안에 전체가 다 보이도록 설정
-                  style={{ objectFit: "contain" }}
-                />
-              </div>
-            </ImageLogoLink>
+              RANG <LogoHighlight>ART</LogoHighlight>
+            </Logo>
             <PcNavList>
               <PcNavLink href="/home" $active={isActive("/home")}>
                 홈
@@ -425,16 +405,18 @@ export const Header = () => {
         </PcHeaderContainer>
       </PcHeaderWrapper>
 
-      {/* 📱 Mobile & Tablet Bottom Nav */}
+      {/* 📱 Mobile & Tablet Bottom Nav (PC 조건이 아닐 때만 보임) */}
       <BottomNavWrapper>
         <BottomLink href="/home" $active={isActive("/home")}>
           <StyledIcon as={Home} $active={isActive("/home")} />
           <Label $active={isActive("/home")}>홈</Label>
         </BottomLink>
+
         <BottomLink href="/attendance" $active={isActive("/attendance")}>
           <StyledIcon as={ClipboardCheck} $active={isActive("/attendance")} />
           <Label $active={isActive("/attendance")}>출석부</Label>
         </BottomLink>
+
         {["admin", "manager", "원장"].includes(userLevel) ? (
           <BottomLink href="/payment" $active={isActive("/payment")}>
             <StyledIcon as={CreditCard} $active={isActive("/payment")} />
@@ -446,6 +428,7 @@ export const Header = () => {
             <Label $active={isActive("/schedule")}>시간표</Label>
           </BottomLink>
         )}
+
         <BottomButton onClick={() => setIsMenuOpen(true)} $active={isMenuOpen}>
           <StyledIcon as={Menu} $active={isMenuOpen} />
           <Label $active={isMenuOpen}>전체</Label>
@@ -459,16 +442,7 @@ export const Header = () => {
           onClick={(e) => e.stopPropagation()}
         >
           <DrawerHeader>
-            {/* ✅ 드로어 상단 로고 이미지 적용 */}
-            <ImageLogoLink href="/home" onClick={handleLogoClick}>
-              <Image
-                src="/icon.png"
-                alt="RANG ART"
-                width={110} // 드로어에 맞는 약간 작은 너비
-                height={38} // 드로어에 맞는 약간 작은 높이
-                style={{ objectFit: "contain" }}
-              />
-            </ImageLogoLink>
+            <DrawerTitle>전체 메뉴</DrawerTitle>
             <CloseBtn onClick={() => setIsMenuOpen(false)}>
               <X size={24} color="#333" />
             </CloseBtn>
@@ -531,6 +505,7 @@ export const Header = () => {
                   if (!item.allowedLevels) return true;
                   return item.allowedLevels.includes(userLevel);
                 });
+
                 if (visibleItems.length === 0) return null;
                 const isOpen = openSections.includes(idx);
 
@@ -550,6 +525,7 @@ export const Header = () => {
                         }}
                       />
                     </AccordionHeader>
+
                     <AccordionContent $isOpen={isOpen}>
                       {visibleItems.map((item, itemIdx) => (
                         <MenuRow
@@ -574,7 +550,7 @@ export const Header = () => {
             <VersionInfo>
               RangArt Service v1.0.0
               <br />
-              문의: cshoon950@naver.com
+              문의: help@rangart.com
             </VersionInfo>
           </DrawerContent>
         </DrawerContainer>
@@ -603,25 +579,22 @@ export const Header = () => {
 // ✅ 4. Styles
 // ----------------------------------------------------------------------
 
-// ✅ 이미지를 감싸는 링크 스타일 (기존 Logo, LogoHighlight 대체)
-const ImageLogoLink = styled(Link)`
-  display: flex;
-  align-items: center;
+const Logo = styled(Link)`
+  font-size: 20px;
+  font-weight: 900;
+  color: #1a1f27;
   text-decoration: none;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-drag: none;
-  transition: opacity 0.2s;
-  &:hover {
-    opacity: 0.9;
-  }
+`;
+const LogoHighlight = styled.span`
+  color: #3182f6;
 `;
 
 // ==========================================
-// 🖥️ PC Header Styles
+// 🖥️ PC Header Styles (New Addition)
 // ==========================================
 const PcHeaderWrapper = styled.header`
   display: none;
+
   @media (min-width: 1025px) and (hover: hover) {
     display: block;
     position: sticky;
@@ -641,9 +614,11 @@ const PcHeaderContainer = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 40px;
+
+  /* ✅ 핵심: 레이아웃과 동일한 규격 적용 */
+  max-width: 1400px; /* 최대 너비 제한 */
+  margin: 0 auto; /* 중앙 정렬 */
+  padding: 0 40px; /* 좌우 여백 (레이아웃과 동일하게 맞춤) */
 `;
 const PcLeft = styled.div`
   display: flex;
@@ -664,6 +639,7 @@ const PcNavLink = styled(Link)<{ $active?: boolean }>`
   text-decoration: none;
   transition: all 0.2s;
   background-color: ${(props) => (props.$active ? "#eff6ff" : "transparent")};
+
   &:hover {
     background-color: ${(props) => (props.$active ? "#eff6ff" : "#f9fafb")};
     color: ${(props) => (props.$active ? "#3182f6" : "#111827")};
@@ -710,9 +686,12 @@ const PcName = styled.span`
 `;
 
 // ==========================================
-// 📱 Mobile/Tablet Bottom Nav
+// 📱 Mobile/Tablet Bottom Nav (Existing)
 // ==========================================
+// Header.tsx 하단 스타일 정의 부분
+
 const BottomNavWrapper = styled.nav`
+  /* 1. 레이아웃 강제 노출 */
   display: flex !important;
   position: fixed;
   bottom: 0;
@@ -721,14 +700,23 @@ const BottomNavWrapper = styled.nav`
   background-color: #fff;
   border-top: 1px solid #f2f4f6;
   z-index: 100;
+
+  /* 2. 높이 계산 수정 (핵심!) 
+     - border-box 기준이므로, 전체 높이를 "60px + 안전영역"으로 설정해야
+     - 안전영역을 제외한 순수 콘텐츠 영역이 60px로 확보됩니다.
+  */
   height: calc(60px + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
+
   box-shadow: 0 -4px 20px rgba(122, 78, 78, 0.02);
   box-sizing: border-box;
+
+  /* 3. PC 화면(1025px 이상 & 마우스 환경)일 때만 숨김 */
   @media (min-width: 1025px) and (hover: hover) {
     display: none !important;
   }
 `;
+
 const BottomLink = styled(Link)<{ $active?: boolean }>`
   flex: 1;
   display: flex;
@@ -802,7 +790,11 @@ const DrawerHeader = styled.div`
   padding: 0 20px;
   border-bottom: 1px solid #f2f4f6;
 `;
-// DrawerTitle 제거됨
+const DrawerTitle = styled.h2`
+  font-size: 17px;
+  font-weight: 700;
+  color: #191f28;
+`;
 const CloseBtn = styled.button`
   background: none;
   border: none;
