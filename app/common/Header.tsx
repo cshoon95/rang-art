@@ -63,7 +63,7 @@ import {
 // ----------------------------------------------------------------------
 // ✅ 1. 메뉴 데이터 구조
 // ----------------------------------------------------------------------
-type UserLevel = "원장" | "부원장" | "선생님" | string;
+type UserLevel = "원장" | "부원장" | "선생님" | number;
 
 interface MenuItem {
   id?: string;
@@ -160,7 +160,7 @@ const MENU_STRUCTURE: MenuSection[] = [
         type: "link",
         icon: UserCog,
         color: "#f0f9ff",
-        allowedLevels: ["원장"],
+        allowedLevels: [1],
       },
       {
         label: "지점 관리",
@@ -168,7 +168,7 @@ const MENU_STRUCTURE: MenuSection[] = [
         type: "link",
         icon: Building2,
         color: "#f0f9ff",
-        allowedLevels: ["원장"],
+        allowedLevels: [1],
       },
     ],
   },
@@ -182,7 +182,7 @@ const MENU_STRUCTURE: MenuSection[] = [
         type: "link",
         icon: CreditCard,
         color: "#f5f3ff",
-        allowedLevels: ["원장"],
+        allowedLevels: [1],
       },
       {
         label: "등록부",
@@ -190,7 +190,7 @@ const MENU_STRUCTURE: MenuSection[] = [
         type: "link",
         icon: FileSignature,
         color: "#f0fdf4",
-        allowedLevels: ["원장"],
+        allowedLevels: [1],
       },
       {
         label: "현금영수증",
@@ -198,7 +198,7 @@ const MENU_STRUCTURE: MenuSection[] = [
         type: "link",
         icon: Receipt,
         color: "#f5f3ff",
-        allowedLevels: ["원장"],
+        allowedLevels: [1],
       },
       {
         label: "통계",
@@ -206,7 +206,7 @@ const MENU_STRUCTURE: MenuSection[] = [
         type: "link",
         icon: ChartPie,
         color: "#f5f3ff",
-        allowedLevels: ["원장"],
+        allowedLevels: [1],
       },
     ],
   },
@@ -263,7 +263,7 @@ export const Header = () => {
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
-  const userLevel = session?.user?.levelName || "선생님";
+  const userLevel = Number(session?.user?.level) || 3;
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -375,7 +375,7 @@ export const Header = () => {
               <PcNavLink href="/pickup" $active={isActive("/pickup")}>
                 픽업 시간표
               </PcNavLink>
-              {["admin", "manager", "원장"].includes(userLevel) && (
+              {[1].includes(userLevel) && (
                 <PcNavLink href="/payment" $active={isActive("/payment")}>
                   출납부
                 </PcNavLink>
@@ -417,7 +417,7 @@ export const Header = () => {
           <Label $active={isActive("/attendance")}>출석부</Label>
         </BottomLink>
 
-        {["admin", "manager", "원장"].includes(userLevel) ? (
+        {[1].includes(userLevel) ? (
           <BottomLink href="/payment" $active={isActive("/payment")}>
             <StyledIcon as={CreditCard} $active={isActive("/payment")} />
             <Label $active={isActive("/payment")}>출납부</Label>
@@ -451,7 +451,9 @@ export const Header = () => {
           <DrawerContent>
             <ProfileCard>
               <ProfileInfo>
-                <ProfileAvatar>{session?.user?.name?.[0] || "U"}</ProfileAvatar>
+                <ProfileAvatar>
+                  {session?.user?.name?.[0] || "User"}
+                </ProfileAvatar>
                 <ProfileMeta>
                   <UserName>
                     {session?.user?.name}
