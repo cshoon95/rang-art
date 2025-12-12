@@ -1,15 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { useSession } from "next-auth/react";
+
+import { useToastStore } from "@/store/toastStore";
+import { useRouter } from "next/navigation";
 import {
   getFavoritesAction,
   toggleFavoriteAction,
   reorderFavoritesAction,
-  deleteMemoAction,
   upsertMemoAction,
-} from "./actions";
-import { useToastStore } from "@/store/toastStore";
-import { useRouter } from "next/navigation";
+  deleteMemoAction,
+} from "../_actions/favorite";
 
 // 조회
 export const useFavorites = () => {

@@ -11,14 +11,11 @@ import {
   GridView as GridViewIcon,
   ViewDay as ViewDayIcon,
 } from "@mui/icons-material";
-import {
-  useUpsertSchedule,
-  useUpsertTempSchedule,
-} from "@/api/schedule/useScheduleQuery";
 import { replaceTimeFormat, replaceTimePattern } from "@/utils/format";
 
 import { WEEKDAY_LIST } from "@/utils/list";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
+import { useUpsertTempSchedule } from "@/app/_querys";
 
 interface Props {
   initialTimeList: any[];

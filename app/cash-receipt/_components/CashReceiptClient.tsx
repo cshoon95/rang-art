@@ -17,7 +17,7 @@ import {
   useGetCashReceiptList,
   useUpdateCashReceipt,
   useUpdateCashReceiptBatch,
-} from "@/api/payment/usePaymentQuery";
+} from "@/app/_querys";
 
 interface Props {
   academyCode: string;

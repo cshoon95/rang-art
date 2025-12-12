@@ -10,7 +10,7 @@ import { Check } from "lucide-react";
 import { useModalStore } from "@/store/modalStore";
 import ModalLoginWaiting from "@/components/modals/ModalLoginWaiting";
 import { useInsertJoin } from "@/app/api/auth/useAuth";
-import { useBranchList } from "@/api/reports/useReportsQuery";
+import { useBranchList } from "@/app/_querys";
 
 export default function SignupClient() {
   const { data: session, update } = useSession();

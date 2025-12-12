@@ -8,9 +8,9 @@ import {
   replaceOnlyNum,
   replaceUnitMoney,
 } from "@/utils/format";
-import { useUpdatePaymentStatusBatch } from "@/api/payment/usePaymentQuery";
 import { convertDateFormat } from "@/utils/date";
 import { useModalStore } from "@/store/modalStore";
+import { useUpdatePaymentStatusBatch } from "@/app/_querys";
 
 // --- Styled Components ---
 const Overlay = styled.div`

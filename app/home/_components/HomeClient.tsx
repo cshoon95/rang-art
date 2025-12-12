@@ -16,7 +16,6 @@ import {
   CalendarOff,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { MappedEvent } from "@/api/calendar/type";
 import ModalCalendarAdd from "@/components/modals/ModalCalendarAdd";
 import {
   ScheduleListSkeleton,
@@ -28,7 +27,8 @@ import {
   useTodayTempSchedule,
   useTodayPickup,
   useTodayEvents,
-} from "@/api/schedule/useScheduleQuery";
+} from "@/app/_querys";
+import { MappedEvent } from "@/app/_types/type";
 
 // ✅ [추가] 스켈레톤 컴포넌트 import (경로를 실제 파일 위치에 맞게 수정해주세요)
 

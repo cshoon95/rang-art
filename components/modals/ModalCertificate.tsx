@@ -7,8 +7,7 @@ import { useModalStore } from "@/store/modalStore";
 import CertificateTemplate from "@/components/modals/CertificateTemplate";
 import { Download, X } from "lucide-react";
 import jsPDF from "jspdf";
-import { useBranchDetail } from "@/api/customers/useCustomersQuery";
-import { useStudentPaymentData } from "@/api/payment/usePaymentQuery";
+import { useStudentPaymentData, useBranchDetail } from "@/app/_querys";
 
 interface Props {
   academyCode: string;

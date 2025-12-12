@@ -4,10 +4,10 @@ import React, { useState, useTransition, useRef, useEffect } from "react";
 import styled from "styled-components";
 import { useModalStore } from "@/store/modalStore";
 import {
+  useBranchCount,
   useUpsertCustomer,
   useDeleteCustomer,
-} from "@/api/customers/useCustomersQuery";
-import { useBranchCount } from "@/api/reports/useReportsQuery";
+} from "@/app/_querys";
 // [변경 1] FEE_LIST 삭제하고 지점 정보를 가져오는 Hook을 import 합니다.
 // ※ 실제 Hook 파일 위치와 이름에 맞춰 수정해주세요.
 

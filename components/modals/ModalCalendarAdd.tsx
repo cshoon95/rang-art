@@ -14,8 +14,8 @@ import {
   useInsertCalendar,
   useUpdateCalendar,
   useDeleteCalendar,
-} from "@/api/calendar/useCalendarQuery";
-import { MappedEvent } from "@/api/calendar/type"; // 타입 경로 확인 필요
+} from "@/app/_querys";
+import { MappedEvent } from "@/app/_types/type";
 
 interface ScheduleModalProps {
   isOpen: boolean;

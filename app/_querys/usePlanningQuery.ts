@@ -3,7 +3,7 @@ import {
   getPlanningAction,
   upsertPlanningAction,
   deletePlanningAction,
-} from "./actions";
+} from "../_actions/planning";
 
 export const useGetPlanning = (params: any) => {
   return useQuery({

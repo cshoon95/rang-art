@@ -6,15 +6,13 @@ import {
   createCustomerAction,
   updateCustomerFullAction,
   deleteCustomerAction,
-} from "./server";
-import {
   createEmployeeAction,
-  deleteBranchAction,
-  deleteEmployeeAction,
-  getBranchDetailAction,
   updateEmployeeAction,
+  deleteEmployeeAction,
   upsertBranchAction,
-} from "./actions";
+  deleteBranchAction,
+  getBranchDetailAction,
+} from "../_actions/customers";
 
 // === 1. 등록/수정 (Upsert) 훅 ===
 export const useUpsertCustomer = (mode: "add" | "edit") => {

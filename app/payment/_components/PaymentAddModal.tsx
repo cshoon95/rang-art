@@ -2,12 +2,12 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import styled from "styled-components";
-import { PaymentType } from "@/api/payment/type";
 import { replaceOnlyNum } from "@/utils/format";
+import { PaymentType } from "@/app/_types/type";
 import {
   useInsertPaymentIncomeData,
   useInsertPaymentExpenditureData,
-} from "@/api/payment/usePaymentQuery";
+} from "@/app/_querys";
 
 // --- Main Component ---
 interface Props {

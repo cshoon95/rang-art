@@ -1,8 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server"; // Supabase 클라이언트 경로 확인
-import { PaymentType } from "../payment/type";
-
+import { PaymentType } from "../_types/type";
 // ... (기존 getMonthlyTotalAction 등은 유지)
 
 // ✅ [New] 월별 입원/퇴원/총원 통계 조회
@@ -70,39 +69,3 @@ const TABLE_MAP = {
   income: "payment",
   expenditure: "expenditure",
 };
-
-export async function getMonthlyTotalAction(
-  year: string,
-  type: PaymentType,
-  academyCode: string
-) {
-  const supabase = await createClient();
-  const tableName = TABLE_MAP[type];
-  const amountField = type === "income" ? "fee" : "amount";
-
-  const { data, error } = await supabase
-    .from(tableName)
-    .select(`month, ${amountField}`)
-    .eq("year", year)
-    .eq("academy_code", academyCode);
-
-  if (error) return [];
-
-  // 월별 그룹핑 (수정됨: 문자열 -> 숫자 변환 강제)
-  const result = data.reduce((acc: any, curr: any) => {
-    const m = curr.month;
-
-    // 🌟 [핵심 수정] 콤마(,) 제거 후 숫자로 변환
-    const rawValue = curr[amountField];
-    const val = Number(String(rawValue).replace(/[^0-9.-]+/g, "")) || 0;
-
-    if (!acc[m]) acc[m] = { month: m, total: 0, count: 0 };
-
-    acc[m].total += val; // 이제 숫자로 더해집니다!
-    acc[m].count += 1;
-
-    return acc;
-  }, {});
-
-  return Object.values(result);
-}

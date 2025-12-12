@@ -3,7 +3,7 @@
 import React, { useState, useTransition, useRef, useEffect } from "react";
 import styled from "styled-components";
 import { useModalStore } from "@/store/modalStore";
-import { useUpsertEmployee } from "@/api/customers/useCustomersQuery";
+import { useUpsertEmployee } from "@/app/_querys";
 
 // --- 옵션 데이터 ---
 const LEVEL_OPTIONS = [

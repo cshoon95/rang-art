@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { cookies } from "next/headers";
-import { getServerCustomerList } from "@/api/customers/actions";
 import { Spinner } from "@/components/Spinner";
 import CustomersClient from "./_components/CustomerClient";
+import { getServerCustomerList } from "../_actions";
 
 export default async function CustomersPage() {
   const cookieStore = await cookies();

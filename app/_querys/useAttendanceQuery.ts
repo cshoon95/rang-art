@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  getAttendanceListAction,
   getActiveStudentsAction,
+  getAttendanceListAction,
   upsertAttendanceAction,
   getStudentAttendanceHistoryAction,
-} from "./actions";
+} from "../_actions/attendance";
+
 // 학생 목록
 export const useGetStudents = (academyCode: string) => {
   return useQuery({

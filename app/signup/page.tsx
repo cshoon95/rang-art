@@ -1,4 +1,3 @@
-import { getBranches } from "@/api/customers/actions";
 import SignupClient from "./_components/SignupClient";
 
 // app/signup/page.tsx (서버 컴포넌트)

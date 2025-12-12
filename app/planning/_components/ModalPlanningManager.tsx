@@ -4,10 +4,7 @@ import React, { useState, useRef } from "react";
 import styled from "styled-components";
 import { Upload, Trash2, Check, Image as ImageIcon } from "lucide-react";
 import { useModalStore } from "@/store/modalStore";
-import {
-  useUpsertPlanning,
-  useDeletePlanning,
-} from "@/api/planning/usePlanningQuery";
+import { useUpsertPlanning, useDeletePlanning } from "@/app/_querys";
 
 interface Props {
   initialData?: any;

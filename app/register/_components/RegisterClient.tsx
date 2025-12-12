@@ -16,7 +16,7 @@ import ModalCertificate from "@/components/modals/ModalCertificate";
 import { useModalStore } from "@/store/modalStore";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
 import RegisterSkeleton from "./RegisterSkeleton";
-import { useRegisterReport } from "@/api/payment/usePaymentQuery";
+import { useRegisterReport } from "@/app/_querys";
 
 interface Props {
   academyCode: string;

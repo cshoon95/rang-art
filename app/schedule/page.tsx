@@ -1,11 +1,12 @@
 import { Suspense } from "react";
 import ScheduleClient from "./_components/ScheduleClient";
 import { cookies } from "next/headers";
-import {
-  getScheduleTimeListAction,
-  getScheduleDataListAction,
-} from "@/api/schedule/server";
+
 import ScheduleSkeleton from "./_components/ScheuldeSkeleton";
+import {
+  getScheduleDataListAction,
+  getScheduleTimeListAction,
+} from "../_actions";
 
 export default async function SchedulePage() {
   // 쿠키에서 학원 코드 가져오기 (로그인 방식에 따라 다를 수 있음)

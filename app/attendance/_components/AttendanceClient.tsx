@@ -25,20 +25,20 @@ import {
 } from "date-fns";
 import { ko } from "date-fns/locale";
 import { useModalStore } from "@/store/modalStore";
-import {
-  useGetStudents,
-  useGetAttendance,
-  useUpsertAttendance,
-} from "@/api/attendance/useAttendanceQuery";
-import { useGetCalendarList } from "@/api/calendar/useCalendarQuery";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
-import {
-  getPrevMonthLastDataAction,
-  updateCustomerStatusAction,
-} from "@/api/attendance/actions";
 import AttendanceDetailModal from "./AttendanceDetailModal";
 import { getPublicHolidays } from "@/utils/date";
 import AttendanceSkeleton from "./AttendanceSkeleton";
+import {
+  getPrevMonthLastDataAction,
+  updateCustomerStatusAction,
+} from "@/app/_actions";
+import {
+  useUpsertAttendance,
+  useGetStudents,
+  useGetAttendance,
+  useGetCalendarList,
+} from "@/app/_querys";
 
 interface Props {
   academyCode: string;

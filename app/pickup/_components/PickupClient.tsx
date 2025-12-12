@@ -14,7 +14,7 @@ import {
 import { replaceTimeFormat, replaceTimePattern } from "@/utils/format";
 import { WEEKDAY_LIST } from "@/utils/list";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
-import { useUpsertPickup } from "@/api/schedule/useScheduleQuery";
+import { useUpsertPickup } from "@/app/_querys";
 
 interface Props {
   initialTimeList: any[];

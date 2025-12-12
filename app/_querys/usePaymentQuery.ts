@@ -1,21 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { useToastStore } from "@/store/toastStore";
 import {
   getPaymentListAction,
   getMonthlyTotalAction,
   upsertPaymentAction,
-} from "./server";
-import { PaymentType } from "./type";
-import {
-  deletePaymentAction,
-  getCashReceiptListAction,
   getPaymentMessageListAction,
-  getRegisterReportAction,
-  getStudentPaymentDataAction,
+  deletePaymentAction,
+  updatePaymentStatusBatchAction,
+  getCashReceiptListAction,
   updateCashReceiptAction,
   updateCashReceiptBatchAction,
-  updatePaymentStatusBatchAction,
-} from "./actions";
-import { useToastStore } from "@/store/toastStore";
+  getRegisterReportAction,
+  getStudentPaymentDataAction,
+} from "../_actions/payment";
+import { PaymentType } from "../_types/type";
 
 export const usePaymentList = (
   year: string,

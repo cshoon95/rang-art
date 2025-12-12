@@ -5,14 +5,14 @@ import styled, { css, keyframes } from "styled-components";
 
 import PaymentGrid from "./PaymentGrid";
 import PaymentSummary from "./PaymentSummary";
-import { PaymentType } from "@/api/payment/type";
 import { getTodayYear, getTodayMonth } from "@/utils/date";
 import Select from "@/components/Select";
-import { usePaymentMessageList } from "@/api/payment/usePaymentQuery";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
 import ModalPaymentMessage from "@/components/modals/ModalPaymentMessage";
 import PaymentAddModal from "@/app/payment/_components/PaymentAddModal";
 import { MessageCircle, Bell, Plus } from "lucide-react";
+import { PaymentType } from "@/app/_types/type";
+import { usePaymentMessageList } from "@/app/_querys";
 
 // --- Styled Components ---
 const PageContainer = styled.div`

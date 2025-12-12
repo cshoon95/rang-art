@@ -19,10 +19,10 @@ import Holidays from "date-holidays";
 
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { MappedEvent, CalendarRow } from "@/api/calendar/type";
-import { useGetCalendarList } from "@/api/calendar/useCalendarQuery";
 import ModalCalendarAdd from "@/components/modals/ModalCalendarAdd";
 import CalendarSkeleton from "./CalendarSkeleton";
+import { useGetCalendarList } from "@/app/_querys";
+import { MappedEvent, CalendarRow } from "@/app/_types/type";
 
 // --- 1. 글로벌 스타일 (폰트 및 캘린더 커스텀) ---
 const GlobalStyle = createGlobalStyle`

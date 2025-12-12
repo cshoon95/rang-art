@@ -4,10 +4,8 @@ import React from "react";
 import styled from "styled-components";
 import { Star } from "lucide-react";
 import { usePathname } from "next/navigation";
-import {
-  useFavorites,
-  useToggleFavorite,
-} from "@/api/favorites/useFavoriteQuery";
+import { useFavorites, useToggleFavorite } from "@/app/_querys";
+
 interface Props {
   title: React.ReactNode;
 }

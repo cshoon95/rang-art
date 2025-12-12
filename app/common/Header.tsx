@@ -63,9 +63,9 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import {
   useFavorites,
-  useReorderFavorites,
   useToggleFavorite,
-} from "@/api/favorites/useFavoriteQuery";
+  useReorderFavorites,
+} from "../_querys";
 
 // ----------------------------------------------------------------------
 // ✅ 1. 메뉴 데이터 구조 (1뎁스 -> 2뎁스)

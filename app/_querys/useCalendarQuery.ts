@@ -1,14 +1,15 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { useToastStore } from "@/store/toastStore";
 import {
   getCalendarListAction,
   createCalendarAction,
   updateCalendarAction,
   deleteCalendarAction,
-} from "./actions";
-import { CalendarFormData } from "./type";
-import { useToastStore } from "@/store/toastStore";
+} from "../_actions/calendar";
+import { CalendarFormData } from "../_types/type";
 
 // 1. 캘린더 리스트 조회
 export const useGetCalendarList = (academyCode: string) => {

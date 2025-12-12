@@ -14,11 +14,11 @@ import {
   Layout,
 } from "lucide-react";
 import { useModalStore } from "@/store/modalStore";
-import { useGetPlanning } from "@/api/planning/usePlanningQuery";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
 import { getTodayYear, getTodayMonth } from "@/utils/date";
 import ModalPlanningManager from "./ModalPlanningManager";
 import PlanningSkeleton from "./PlanningSkeleton";
+import { useGetPlanning } from "@/app/_querys";
 
 interface Props {
   academyCode: string;

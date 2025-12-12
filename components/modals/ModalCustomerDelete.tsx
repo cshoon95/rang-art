@@ -1,4 +1,4 @@
-import { useDeleteCustomer } from "@/api/customers/useCustomersQuery";
+import { useDeleteCustomer } from "@/app/_querys";
 import { useToastStore } from "@/store/toastStore";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";

@@ -23,7 +23,7 @@ import {
 } from "date-fns";
 import { ko } from "date-fns/locale";
 import { createClient } from "@/utils/supabase/client";
-import { useGetStudentAttendanceHistory } from "@/api/attendance/useAttendanceQuery";
+import { useGetStudentAttendanceHistory } from "@/app/_querys";
 
 interface Props {
   isOpen: boolean;

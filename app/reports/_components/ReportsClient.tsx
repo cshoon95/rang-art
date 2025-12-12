@@ -40,9 +40,8 @@ import PageTitleWithStar from "@/components/PageTitleWithStar";
 import { replaceMoneyKr } from "@/utils/format";
 
 // Server Actions
-import { getMonthlyTotalAction } from "@/api/payment/server";
-import { getCustomerStatsAction } from "@/api/reports/actions";
 import ReportsSkeleton from "./ReportsSkeleton";
+import { getMonthlyTotalAction, getCustomerStatsAction } from "@/app/_actions";
 
 // [수정 1] 데이터 타입 인터페이스 정의
 interface ChartDataItem {

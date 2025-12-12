@@ -1,7 +1,7 @@
 import React from "react";
 import EmployeesClient from "./_components/EmployeesClient";
 import { cookies } from "next/headers";
-import { getEmployees } from "@/api/customers/server";
+import { getEmployees } from "../_actions";
 
 export default async function EmployeesPage() {
   const cookieStore = await cookies();

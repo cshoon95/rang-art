@@ -1,9 +1,9 @@
 "use client";
 
-import { PaymentType } from "@/api/payment/type";
-import { usePaymentTotal } from "@/api/payment/usePaymentQuery";
 import styled, { css } from "styled-components";
 import { TrendingUp, TrendingDown, Wallet } from "lucide-react"; // 아이콘 추가
+import { usePaymentTotal } from "@/app/_querys";
+import { PaymentType } from "@/app/_types/type";
 
 // --- Types ---
 // 데이터 타입을 명시하여 TS 에러 방지

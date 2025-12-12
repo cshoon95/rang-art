@@ -2,7 +2,7 @@ import React, { Suspense } from "react";
 import { cookies } from "next/headers";
 import MemoClient from "./_components/MemoClient";
 import MemoSkeleton from "./_components/MemoSkeleton";
-import { getMemosAction } from "@/api/favorites/actions";
+import { getMemosAction } from "../_actions";
 
 export default async function MemoPage() {
   const cookieStore = await cookies();

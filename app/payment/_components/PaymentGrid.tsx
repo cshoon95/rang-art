@@ -9,11 +9,6 @@ import {
   ChevronRight,
   Trash2,
 } from "lucide-react";
-import { PaymentType } from "@/api/payment/type";
-import {
-  usePaymentList,
-  useUpsertPayment,
-} from "@/api/payment/usePaymentQuery";
 import {
   extractInitialConsonants,
   replaceFirstPadZero,
@@ -22,6 +17,8 @@ import {
 import PaymentDeleteModal from "./PaymentDeleteModal";
 import { MessageCircle, Bell, Plus } from "lucide-react";
 import PaymentAddModal from "./PaymentAddModal";
+import { usePaymentList, useUpsertPayment } from "@/app/_querys";
+import { PaymentType } from "@/app/_types/type";
 
 // --- Styles ---
 const Toolbar = styled.div`

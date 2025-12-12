@@ -1,11 +1,12 @@
-import { getMonthlyTotalAction } from "@/api/payment/server";
-import { getCustomerStatsAction } from "@/api/reports/actions";
 import { Metadata } from "next";
 import { getServerSession } from "next-auth"; // [참고] 서버 컴포넌트 권장
 // import { authOptions } from "@/utils/auth"; // authOptions 경로에 맞게 수정 필요
 import ReportsClient from "./_components/ReportsClient";
-import { getServerCustomerList } from "@/api/customers/actions";
-
+import {
+  getMonthlyTotalAction,
+  getCustomerStatsAction,
+  getServerCustomerList,
+} from "../_actions";
 export const metadata: Metadata = {
   title: "통계 리포트 - 학원 관리",
 };

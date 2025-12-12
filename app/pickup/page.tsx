@@ -6,7 +6,7 @@ import PickupSkeleton from "./_components/PickupSkeleton";
 import {
   getServerPickupTimeList,
   getServerPickupDataList,
-} from "@/api/schedule/server";
+} from "../_actions/schedule";
 
 export default async function PickupPage() {
   const cookieStore = await cookies();

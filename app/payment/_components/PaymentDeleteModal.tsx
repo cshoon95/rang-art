@@ -3,11 +3,11 @@
 import React from "react";
 import styled from "styled-components";
 import { AlertCircle } from "lucide-react";
-import { PaymentType } from "@/api/payment/type";
 import {
   useDeletePaymentIncomeData,
   useDeletePaymentExpenditureData,
-} from "@/api/payment/usePaymentQuery";
+} from "@/app/_querys";
+import { PaymentType } from "@/app/_types/type";
 
 // --- Styles ---
 const Overlay = styled.div`
