@@ -364,16 +364,14 @@ export default function DashboardClient({ academyCode, userId }: Props) {
 const Container = styled.div`
   padding: 24px;
   background-color: #f4f6f8;
-  min-height: 90vh;
   display: flex;
   flex-direction: column;
   gap: 24px;
   padding-bottom: 100px;
 
   @media (max-width: 768px) {
-    padding: 16px;
+    padding: 0px;
     height: auto;
-    margin-bottom: 60px;
   }
 `;
 const TimeBox = styled.div`
@@ -602,6 +600,10 @@ const ClassCell = styled.div<{ $type: "D" | "M" }>`
   border-right: ${(props) =>
     props.$type === "M" ? "1px dashed #f0f0f0" : "none"};
   color: ${(props) => (props.children ? "#333" : "#d1d5db")};
+
+  @media (max-width: 768px) {
+    padding: 16px 6px;
+  }
 `;
 const EmptyDash = styled.span`
   color: #e5e7eb;

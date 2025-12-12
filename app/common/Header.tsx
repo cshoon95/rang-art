@@ -705,7 +705,7 @@ const BottomNavWrapper = styled.nav`
      - border-box 기준이므로, 전체 높이를 "60px + 안전영역"으로 설정해야
      - 안전영역을 제외한 순수 콘텐츠 영역이 60px로 확보됩니다.
   */
-  height: calc(60px + env(safe-area-inset-bottom));
+  height: calc(70px + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
 
   box-shadow: 0 -4px 20px rgba(122, 78, 78, 0.02);

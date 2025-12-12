@@ -128,7 +128,7 @@ export default function EmployeesClient({ initialData, academyCode }: Props) {
       } else if (window.innerWidth > 800) {
         setItemsPerPage(8);
       } else {
-        setItemsPerPage(4);
+        setItemsPerPage(3);
       }
     };
 

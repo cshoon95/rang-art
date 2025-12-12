@@ -148,7 +148,7 @@ export default function PaymentSummary({
             )}
           </IconBox>
           <TitleText>
-            {month}월 {type === "income" ? "총 수입" : "총 지출"}
+            {month}월 {type === "income" ? "수입" : "지출"}
           </TitleText>
         </TitleGroup>
 

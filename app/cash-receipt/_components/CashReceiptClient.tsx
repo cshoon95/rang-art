@@ -421,7 +421,7 @@ const SearchWrapper = styled.div`
   @media (max-width: 768px) {
     /* flex: 1; */
     width: auto;
-    min-width: 100%; /* flex 자식 오버플로우 방지 */
+    min-width: 90%; /* flex 자식 오버플로우 방지 */
   }
 
   &:focus-within {
