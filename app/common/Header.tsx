@@ -689,32 +689,52 @@ const PcName = styled.span`
 // 📱 Mobile/Tablet Bottom Nav (Existing)
 // ==========================================
 // Header.tsx 하단 스타일 정의 부분
-
 const BottomNavWrapper = styled.nav`
-  /* 1. 레이아웃 강제 노출 */
+  /* 1. 레이아웃 강제 노출 & 기본 설정 */
   display: flex !important;
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   background-color: #fff;
-
   border-top: 1px solid #f2f4f6;
   z-index: 100;
-
-  /* 2. 높이 계산 수정 (핵심!) 
-     - border-box 기준이므로, 전체 높이를 "60px + 안전영역"으로 설정해야
-     - 안전영역을 제외한 순수 콘텐츠 영역이 60px로 확보됩니다.
-  */
-  height: calc(90px + env(safe-area-inset-bottom));
-  padding-bottom: env(safe-area-inset-bottom);
-
   box-shadow: 0 -4px 20px rgba(122, 78, 78, 0.02);
   box-sizing: border-box;
 
-  /* 3. PC 화면(1025px 이상 & 마우스 환경)일 때만 숨김 */
+  /* 2. ✅ 기본 모바일 브라우저 환경 (사파리, 크롬 앱 내) */
+  /* 높이 70px 기준 */
+  height: calc(70px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+
+  /* 3. ✅ PWA (홈 화면에 추가 후 실행) 환경 */
+  /* 높이 90px 기준 (더 넉넉하게) */
+  @media (display-mode: standalone) {
+    height: calc(90px + env(safe-area-inset-bottom));
+  }
+
+  /* 4. PC 화면 숨김 처리 */
   @media (min-width: 1025px) and (hover: hover) {
     display: none !important;
+  }
+`;
+const BottomButton = styled.button<{ $active?: boolean }>`
+  flex: 1;
+  background: none;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: ${(props) => (props.$active ? "#3182f6" : "#b0b8c1")};
+  cursor: pointer;
+
+  /* ✅ 기본 모바일 브라우저: 패딩 없음 (중앙 정렬) */
+  padding-bottom: 0;
+
+  /* ✅ PWA 환경: 하단을 살짝 띄워줌 */
+  @media (display-mode: standalone) {
+    padding-bottom: 20px;
   }
 `;
 
@@ -725,21 +745,17 @@ const BottomLink = styled(Link)<{ $active?: boolean }>`
   align-items: center;
   justify-content: center;
   text-decoration: none;
-  padding-bottom: 20px;
   color: ${(props) => (props.$active ? "#3182f6" : "#b0b8c1")};
+
+  /* ✅ 기본 모바일 브라우저: 패딩 없음 */
+  padding-bottom: 0;
+
+  /* ✅ PWA 환경: 하단 띄움 */
+  @media (display-mode: standalone) {
+    padding-bottom: 20px;
+  }
 `;
-const BottomButton = styled.button<{ $active?: boolean }>`
-  flex: 1;
-  background: none;
-  border: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding-bottom: 20px;
-  color: ${(props) => (props.$active ? "#3182f6" : "#b0b8c1")};
-  cursor: pointer;
-`;
+
 const StyledIcon = styled.svg<{ $active?: boolean }>`
   width: 24px;
   height: 24px;
