@@ -66,6 +66,7 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
         pathname === "/signup" ||
         pathname === "/waiting"
       ) {
+        console.log("Redirecting to /home..."); // 로그 추가
         router.replace("/home");
         return;
       }

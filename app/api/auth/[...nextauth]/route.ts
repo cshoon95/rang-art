@@ -19,20 +19,31 @@ export const authOptions: NextAuthOptions = {
 
       // 2. DB 최신 동기화
       if (token.id) {
-        const supabase = await createClient();
-        const { data: dbUser } = await supabase
-          .from("users")
-          .select("state, academy_code, level, academy_name")
-          .eq("id", token.id)
-          .single();
+        try {
+          // 주의: 여기서 사용하는 createClient가 cookies()를 쓰면 에러가 날 수 있습니다.
+          // 만약 에러가 계속된다면, Supabase Admin Client(Service Role)를 사용해야 합니다.
+          const supabase = await createClient();
 
-        if (dbUser) {
-          // --- 수정된 부분: ?? "" (Null 병합 연산자) 추가 ---
-          // dbUser의 값이 null이면 빈 문자열로 처리하여 타입 에러 방지
-          token.state = dbUser.state ?? "";
-          token.academyCode = dbUser.academy_code ?? "";
-          token.academyName = dbUser.academy_name ?? "";
-          token.level = dbUser.level ?? "";
+          const { data: dbUser, error } = await supabase
+            .from("users")
+            .select("state, academy_code, level, academy_name")
+            .eq("id", token.id)
+            .single();
+
+          if (error) {
+            console.error("Supabase fetch error in JWT:", error);
+            // 에러나도 로그인은 유지되도록 그냥 넘어감 (값은 비워둠)
+          }
+
+          if (dbUser) {
+            token.state = dbUser.state ?? "";
+            token.academyCode = dbUser.academy_code ?? "";
+            token.academyName = dbUser.academy_name ?? "";
+            token.level = dbUser.level ?? "";
+          }
+        } catch (err) {
+          console.error("JWT Callback Unexpected Error:", err);
+          // 여기서 throw를 하면 로그인이 아예 안 되므로, catch만 하고 진행합니다.
         }
       }
 
