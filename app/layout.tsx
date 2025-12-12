@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "RANG ART - 아이들의 행복한 창작놀이터", // 카톡 등 SNS 공유 시 제목
     description: "선생님과 원장님을 위한 올인원 미술학원 관리 플랫폼", // SNS 공유 시 설명
-    url: "https://your-website-url.com", // 실제 서비스 URL로 변경해주세요
+    url: "https://cshoon95-rang-art.vercel.app/", // 실제 서비스 URL로 변경해주세요
     siteName: "RANG ART",
     images: [
       {
