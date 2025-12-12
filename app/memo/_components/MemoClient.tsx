@@ -84,7 +84,7 @@ export default function MemoClient({ initialData, academyCode }: Props) {
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth > 1180) {
-        setItemsPerPage(13);
+        setItemsPerPage(9);
       } else if (window.innerWidth > 800) {
         setItemsPerPage(7);
       } else {
@@ -186,7 +186,7 @@ export default function MemoClient({ initialData, academyCode }: Props) {
   return (
     <Container>
       <Header>
-        <PageTitleWithStar title={<Title>MEMO</Title>} />
+        <PageTitleWithStar title={<Title>노트</Title>} />
         <Controls>
           <SearchWrapper>
             <SearchIcon size={18} color="#94a3b8" />
@@ -302,12 +302,13 @@ export default function MemoClient({ initialData, academyCode }: Props) {
 // ... (Styled Components는 이전과 동일) ...
 const Container = styled.div`
   padding: 24px;
-  background-color: #f2f4f6;
-  min-height: 100vh;
+  background-color: white;
   display: flex;
   flex-direction: column;
   gap: 24px;
-  padding-bottom: 100px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(224, 224, 224, 0.4);
+  border-radius: 24px;
   @media (max-width: 768px) {
     padding: 20px;
     gap: 20px;

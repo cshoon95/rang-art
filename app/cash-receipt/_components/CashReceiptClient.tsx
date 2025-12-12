@@ -148,7 +148,7 @@ export default function CashReceiptClient({ academyCode, userId }: Props) {
       ) : (
         <Container>
           <Header>
-            <PageTitleWithStar title={<Title>현금영수증 관리</Title>} />
+            <PageTitleWithStar title={<Title>현금영수증</Title>} />
 
             <Controls>
               {/* 1. 연도 */}
@@ -363,10 +363,12 @@ export default function CashReceiptClient({ academyCode, userId }: Props) {
 
 const Container = styled.div`
   padding: 32px;
-  background-color: #f9f9fb;
-  min-height: 100vh;
   display: flex;
+  background-color: white;
   flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(224, 224, 224, 0.4);
+  border-radius: 24px;
   gap: 24px;
 
   @media (max-width: 600px) {

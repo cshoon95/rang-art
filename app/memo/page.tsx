@@ -12,7 +12,7 @@ export default async function MemoPage() {
 
   return (
     <Suspense fallback={<MemoSkeleton />}>
-      <MemoClient initialData={memos} academyCode={academyCode} />;
+      <MemoClient initialData={memos} academyCode={academyCode} />
     </Suspense>
   );
 }

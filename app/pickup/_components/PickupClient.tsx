@@ -115,7 +115,7 @@ export default function PickupClient({
           <PageTitleWithStar
             title={
               <Title>
-                <Highlight>PICKUP</Highlight> SCHEDULE
+                <Highlight>픽업</Highlight> 시간표
               </Title>
             }
           />
@@ -226,11 +226,15 @@ export default function PickupClient({
 const Container = styled.div`
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  background-color: white;
+
   padding: 24px;
-  background-color: #f2f4f6; // 기존 배경색 유지
   overflow: hidden;
   gap: 20px;
+
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(224, 224, 224, 0.4);
+  border-radius: 24px;
   @media (max-width: 768px) {
     padding: 16px;
     gap: 16px;

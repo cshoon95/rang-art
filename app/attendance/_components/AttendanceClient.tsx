@@ -425,12 +425,15 @@ const EditableCell = ({
 
 const Container = styled.div`
   padding: 24px;
-  background-color: #f8fafc;
+  background-color: white;
   height: 100vh;
   display: flex;
   flex-direction: column;
   gap: 20px;
   overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(224, 224, 224, 0.4);
+  border-radius: 24px;
 
   @media (max-width: 600px) {
     padding: 16px;

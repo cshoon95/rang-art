@@ -13,10 +13,8 @@ const MOCK_USER = {
 
 export default function PaymentPage() {
   return (
-    <main style={{ backgroundColor: "#f9f9fb", minHeight: "100vh" }}>
-      <Suspense fallback={<PaymentSkeleton />}>
-        <PaymentClient academyCode={"0"} userId={"ss"} />
-      </Suspense>
-    </main>
+    <Suspense fallback={<PaymentSkeleton />}>
+      <PaymentClient academyCode={"0"} userId={"ss"} />
+    </Suspense>
   );
 }

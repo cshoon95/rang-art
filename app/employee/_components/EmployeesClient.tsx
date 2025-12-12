@@ -238,7 +238,7 @@ export default function EmployeesClient({ initialData, academyCode }: Props) {
         <PageTitleWithStar
           title={
             <Title>
-              <Highlight>EMPLOYEE</Highlight> LIST
+              <Highlight>직원</Highlight> 목록
             </Title>
           }
         />
@@ -538,11 +538,13 @@ const StateBadge = styled.span<{ $state: string }>`
 
 const Container = styled.div`
   padding: 24px;
-  background-color: #f2f4f6;
-  min-height: 100vh;
+  background-color: white;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(224, 224, 224, 0.4);
+  border-radius: 24px;
   @media (max-width: 768px) {
     padding: 16px;
     padding-bottom: 80px;

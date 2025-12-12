@@ -13,6 +13,7 @@ import { useModalStore } from "@/store/modalStore";
 import ModalBranchManager from "@/components/modals/ModalBranchManager";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
 import { useBranchList, useDeleteBranch } from "@/app/_querys";
+import BranchSkeleton from "./BranchSkeleton";
 interface Props {
   initialData: any[];
 }
@@ -21,7 +22,7 @@ export default function BranchClient() {
   const [searchText, setSearchText] = useState("");
   const { openModal } = useModalStore();
   const { mutate: deleteBranch } = useDeleteBranch();
-  const { data: initialData } = useBranchList();
+  const { data: initialData, isLoading } = useBranchList();
 
   // 필터링
   const filteredData = useMemo(() => {
@@ -61,120 +62,132 @@ export default function BranchClient() {
   };
 
   return (
-    <Container>
-      <Header>
-        <PageTitleWithStar
-          title={
-            <Title>
-              <Highlight>BRANCH</Highlight> LIST
-            </Title>
-          }
-        />
-        <Controls>
-          <SearchWrapper>
-            <SearchIcon style={{ color: "#94a3b8" }} />
-            <SearchInput
-              placeholder="지점명, 코드 검색..."
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
+    <>
+      {isLoading ? (
+        <BranchSkeleton />
+      ) : (
+        <Container>
+          <Header>
+            <PageTitleWithStar
+              title={
+                <Title>
+                  <Highlight>지점</Highlight> 목록
+                </Title>
+              }
             />
-          </SearchWrapper>
-          <AddButton onClick={handleAdd}>
-            <AddIcon />
-          </AddButton>
-        </Controls>
-      </Header>
+            <Controls>
+              <SearchWrapper>
+                <SearchIcon style={{ color: "#94a3b8" }} />
+                <SearchInput
+                  placeholder="지점명, 코드 검색..."
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                />
+              </SearchWrapper>
+              <AddButton onClick={handleAdd}>
+                <AddIcon />
+              </AddButton>
+            </Controls>
+          </Header>
 
-      <ListContainer>
-        {/* PC Table View */}
-        <TableScrollWrapper>
-          <TableView>
-            <thead>
-              <tr>
-                <th style={{ minWidth: "60px" }}>코드</th>
-                <th style={{ minWidth: "120px" }}>지점명</th>
-                <th style={{ minWidth: "100px" }}>지점장</th>
-                <th style={{ minWidth: "120px" }}>연락처</th>
-                <th style={{ minWidth: "120px" }}>사업장번호</th>
-                <th style={{ minWidth: "200px" }}>주소</th>
-                <th style={{ minWidth: "50px" }}></th>
-              </tr>
-            </thead>
-            <tbody>
+          <ListContainer>
+            {/* PC Table View */}
+            <TableScrollWrapper>
+              <TableView>
+                <thead>
+                  <tr>
+                    <th style={{ minWidth: "60px" }}>코드</th>
+                    <th style={{ minWidth: "120px" }}>지점명</th>
+                    <th style={{ minWidth: "100px" }}>지점장</th>
+                    <th style={{ minWidth: "120px" }}>연락처</th>
+                    <th style={{ minWidth: "120px" }}>사업장번호</th>
+                    <th style={{ minWidth: "200px" }}>주소</th>
+                    <th style={{ minWidth: "50px" }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredData?.map((item) => (
+                    <tr key={item.code} onClick={() => handleEdit(item)}>
+                      <td style={{ fontWeight: 700, color: "#3182f6" }}>
+                        {item.code}
+                      </td>
+                      <td style={{ fontWeight: 700 }}>{item.name}</td>
+                      <td>{item.owner || "-"}</td>
+                      <td>{item.tel || "-"}</td>
+                      <td>{item.business_no || "-"}</td>
+                      <td style={{ color: "#6b7684", fontSize: "14px" }}>
+                        {/* ✅ 기본 주소 + 상세 주소 연결해서 보여주기 */}
+                        {item.address}
+                        {item.detail_address}
+                      </td>
+                      <td onClick={(e) => handleDeleteCheck(e, item.code)}>
+                        <MoreBtnWrapper>
+                          <MoreIcon />
+                        </MoreBtnWrapper>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </TableView>
+            </TableScrollWrapper>
+
+            {/* Mobile Card View */}
+            <CardView>
               {filteredData?.map((item) => (
-                <tr key={item.code} onClick={() => handleEdit(item)}>
-                  <td style={{ fontWeight: 700, color: "#3182f6" }}>
-                    {item.code}
-                  </td>
-                  <td style={{ fontWeight: 700 }}>{item.name}</td>
-                  <td>{item.owner || "-"}</td>
-                  <td>{item.tel || "-"}</td>
-                  <td>{item.business_no || "-"}</td>
-                  <td style={{ color: "#6b7684", fontSize: "14px" }}>
-                    {/* ✅ 기본 주소 + 상세 주소 연결해서 보여주기 */}
-                    {item.address}
-                    {item.detail_address}
-                  </td>
-                  <td onClick={(e) => handleDeleteCheck(e, item.code)}>
-                    <MoreBtnWrapper>
+                <Card key={item.code} onClick={() => handleEdit(item)}>
+                  <CardHeader>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                      }}
+                    >
+                      <Avatar>{item.name.charAt(0)}</Avatar>
+                      <NameArea>
+                        <Name>{item.name}</Name>
+                        <SubText>
+                          코드: {item.code} | 지점장: {item.owner || "미정"}
+                        </SubText>
+                        <SubText>사업장번호: {item.business_no}</SubText>
+                      </NameArea>
+                    </div>
+                    <MoreBtnWrapper
+                      onClick={(e) => handleDeleteCheck(e, item.code)}
+                    >
                       <MoreIcon />
                     </MoreBtnWrapper>
-                  </td>
-                </tr>
+                  </CardHeader>
+                  <CardBody>
+                    <InfoRow>
+                      <StoreIcon fontSize="small" />
+                      <span>
+                        {/* ✅ 모바일에서도 동일하게 적용 */}
+                        {item.address} <br />
+                        {item.detail_address}
+                      </span>
+                    </InfoRow>
+                  </CardBody>
+                </Card>
               ))}
-            </tbody>
-          </TableView>
-        </TableScrollWrapper>
-
-        {/* Mobile Card View */}
-        <CardView>
-          {filteredData?.map((item) => (
-            <Card key={item.code} onClick={() => handleEdit(item)}>
-              <CardHeader>
-                <div
-                  style={{ display: "flex", alignItems: "center", gap: "12px" }}
-                >
-                  <Avatar>{item.name.charAt(0)}</Avatar>
-                  <NameArea>
-                    <Name>{item.name}</Name>
-                    <SubText>
-                      코드: {item.code} | 지점장: {item.owner || "미정"}
-                    </SubText>
-                    <SubText>사업장번호: {item.business_no}</SubText>
-                  </NameArea>
-                </div>
-                <MoreBtnWrapper
-                  onClick={(e) => handleDeleteCheck(e, item.code)}
-                >
-                  <MoreIcon />
-                </MoreBtnWrapper>
-              </CardHeader>
-              <CardBody>
-                <InfoRow>
-                  <StoreIcon fontSize="small" />
-                  <span>
-                    {/* ✅ 모바일에서도 동일하게 적용 */}
-                    {item.address} <br />
-                    {item.detail_address}
-                  </span>
-                </InfoRow>
-              </CardBody>
-            </Card>
-          ))}
-        </CardView>
-      </ListContainer>
-    </Container>
+            </CardView>
+          </ListContainer>
+        </Container>
+      )}
+    </>
   );
 }
 
 // --- Styles (Employee와 동일) ---
 const Container = styled.div`
   padding: 24px;
-  background-color: #f2f4f6;
-  min-height: 100vh;
+  background-color: white;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(224, 224, 224, 0.4);
+  border-radius: 24px;
   @media (max-width: 768px) {
     padding: 16px;
     padding-bottom: 80px;

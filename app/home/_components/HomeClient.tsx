@@ -369,6 +369,7 @@ const Container = styled.div`
   flex-direction: column;
   gap: 24px;
   padding-bottom: 100px;
+
   @media (max-width: 768px) {
     padding: 16px;
     height: auto;

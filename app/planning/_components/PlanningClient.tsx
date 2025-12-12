@@ -208,12 +208,14 @@ const fadeIn = keyframes`
 
 const Container = styled.div`
   width: 100%;
-  min-height: 100vh;
-  background-color: #f8fafc;
+  background-color: white;
   display: flex;
   flex-direction: column;
   padding: 24px;
   gap: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(224, 224, 224, 0.4);
+  border-radius: 24px;
 
   @media (max-width: 768px) {
     padding: 16px;
@@ -362,6 +364,7 @@ const CoverImageWrapper = styled.div`
 const CoverImage = styled.img`
   width: 100%;
   height: 100%;
+  padding: 20px 0;
   object-fit: contain; /* 이미지가 잘리지 않고 다 보이게 */
   /* 꽉 채우고 싶으면 object-fit: cover; 로 변경 */
 `;

@@ -14,20 +14,142 @@ import { MessageCircle, Bell, Plus } from "lucide-react";
 import { PaymentType } from "@/app/_types/type";
 import { usePaymentMessageList } from "@/app/_querys";
 
+interface Props {
+  academyCode: string;
+  userId: string;
+}
+
+export default function PaymentClient({ academyCode, userId }: Props) {
+  const [tabValue, setTabValue] = useState<PaymentType>("income");
+  const [year, setYear] = useState(getTodayYear());
+  const [month, setMonth] = useState(getTodayMonth());
+  const [isMsgModalOpen, setIsMsgModalOpen] = useState(false);
+  // 🌟 [추가] 부모 컴포넌트에서 데이터 미리 로드 (인원수 확인용)
+  const { data: messageList = [], isLoading: messageLoading } =
+    usePaymentMessageList(academyCode);
+
+  const msgCount = messageList.length;
+
+  const yearOptions = Array.from({ length: 5 }, (_, i) => {
+    const y = String(Number(getTodayYear()) - i);
+    return { label: `${y}년`, value: y };
+  });
+
+  const monthOptions = Array.from({ length: 12 }, (_, i) => {
+    const m = String(i + 1).padStart(2, "0");
+    return { label: `${m}월`, value: m };
+  });
+
+  return (
+    <PageContainer>
+      <HeaderSection>
+        <TitleGroup>
+          {/* 텍스트는 세로로 쌓이게 TextColumn으로 감쌈 */}
+          <TextColumn>
+            <PageTitleWithStar title={<Title>출납 관리</Title>} />
+          </TextColumn>
+
+          {/* 버튼은 텍스트 우측에 배치 */}
+          {msgCount > 0 && (
+            <TopRightArea>
+              <MsgButton
+                onClick={() => setIsMsgModalOpen(true)}
+                $hasCount={msgCount > 0}
+              >
+                {msgCount > 0 ? (
+                  <Bell size={16} fill="#e11d48" />
+                ) : (
+                  <MessageCircle size={16} />
+                )}
+                결제 알림
+                {msgCount > 0 && <CountBadge> {msgCount}명</CountBadge>}
+              </MsgButton>
+            </TopRightArea>
+          )}
+        </TitleGroup>
+        <HeaderControls>
+          <SegmentedControl>
+            <SegmentButton
+              $active={tabValue === "income"}
+              onClick={() => setTabValue("income")}
+            >
+              수입
+            </SegmentButton>
+            <SegmentButton
+              $active={tabValue === "expenditure"}
+              onClick={() => setTabValue("expenditure")}
+            >
+              지출
+            </SegmentButton>
+          </SegmentedControl>
+
+          <Divider />
+
+          <SelectGroup>
+            <Select
+              options={yearOptions}
+              value={year}
+              onChange={setYear}
+              width="90px"
+            />
+            <Select
+              options={monthOptions}
+              value={month}
+              onChange={setMonth}
+              width="80px"
+            />
+          </SelectGroup>
+        </HeaderControls>
+      </HeaderSection>
+
+      <ContentLayout>
+        <MainCard>
+          <PaymentGrid
+            year={year}
+            month={month}
+            type={tabValue}
+            academyCode={academyCode}
+            userId={userId}
+          />
+        </MainCard>
+
+        <SidePanel>
+          <PaymentSummary
+            year={year}
+            month={month}
+            type={tabValue}
+            academyCode={academyCode}
+          />
+        </SidePanel>
+      </ContentLayout>
+
+      {isMsgModalOpen && (
+        <ModalPaymentMessage
+          messageList={messageList}
+          isLoading={messageLoading}
+          onClose={() => setIsMsgModalOpen(false)}
+          academyCode={academyCode} // 🌟 추가
+          userId={userId} // 🌟 추가
+        />
+      )}
+    </PageContainer>
+  );
+}
+
 // --- Styled Components ---
 const PageContainer = styled.div`
-  padding: 32px 24px;
-  max-width: 1200px;
-  margin: 0 auto;
+  padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 24px;
-  background-color: #f9f9fb;
-  min-height: 100vh;
+  background-color: white;
+
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(224, 224, 224, 0.4);
+  border-radius: 24px;
+  font-family: "CustomFont";
 
   @media (max-width: 600px) {
-    padding: 20px 16px;
-    margin-bottom: 20px;
   }
 `;
 
@@ -195,7 +317,7 @@ const MainCard = styled.div`
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  max-height: 580px;
+
   width: 100%;
   @media (max-width: 600px) {
     padding: 16px;
@@ -214,125 +336,3 @@ const SidePanel = styled.div`
     position: static;
   }
 `;
-
-interface Props {
-  academyCode: string;
-  userId: string;
-}
-
-export default function PaymentClient({ academyCode, userId }: Props) {
-  const [tabValue, setTabValue] = useState<PaymentType>("income");
-  const [year, setYear] = useState(getTodayYear());
-  const [month, setMonth] = useState(getTodayMonth());
-  const [isMsgModalOpen, setIsMsgModalOpen] = useState(false);
-  // 🌟 [추가] 부모 컴포넌트에서 데이터 미리 로드 (인원수 확인용)
-  const { data: messageList = [], isLoading: messageLoading } =
-    usePaymentMessageList(academyCode);
-
-  const msgCount = messageList.length;
-
-  const yearOptions = Array.from({ length: 5 }, (_, i) => {
-    const y = String(Number(getTodayYear()) - i);
-    return { label: `${y}년`, value: y };
-  });
-
-  const monthOptions = Array.from({ length: 12 }, (_, i) => {
-    const m = String(i + 1).padStart(2, "0");
-    return { label: `${m}월`, value: m };
-  });
-
-  return (
-    <PageContainer>
-      <HeaderSection>
-        <TitleGroup>
-          {/* 텍스트는 세로로 쌓이게 TextColumn으로 감쌈 */}
-          <TextColumn>
-            <PageTitleWithStar title={<Title>출납 관리</Title>} />
-          </TextColumn>
-
-          {/* 버튼은 텍스트 우측에 배치 */}
-          {msgCount > 0 && (
-            <TopRightArea>
-              <MsgButton
-                onClick={() => setIsMsgModalOpen(true)}
-                $hasCount={msgCount > 0}
-              >
-                {msgCount > 0 ? (
-                  <Bell size={16} fill="#e11d48" />
-                ) : (
-                  <MessageCircle size={16} />
-                )}
-                결제 알림
-                {msgCount > 0 && <CountBadge> {msgCount}명</CountBadge>}
-              </MsgButton>
-            </TopRightArea>
-          )}
-        </TitleGroup>
-        <HeaderControls>
-          <SegmentedControl>
-            <SegmentButton
-              $active={tabValue === "income"}
-              onClick={() => setTabValue("income")}
-            >
-              수입
-            </SegmentButton>
-            <SegmentButton
-              $active={tabValue === "expenditure"}
-              onClick={() => setTabValue("expenditure")}
-            >
-              지출
-            </SegmentButton>
-          </SegmentedControl>
-
-          <Divider />
-
-          <SelectGroup>
-            <Select
-              options={yearOptions}
-              value={year}
-              onChange={setYear}
-              width="90px"
-            />
-            <Select
-              options={monthOptions}
-              value={month}
-              onChange={setMonth}
-              width="80px"
-            />
-          </SelectGroup>
-        </HeaderControls>
-      </HeaderSection>
-
-      <ContentLayout>
-        <MainCard>
-          <PaymentGrid
-            year={year}
-            month={month}
-            type={tabValue}
-            academyCode={academyCode}
-            userId={userId}
-          />
-        </MainCard>
-
-        <SidePanel>
-          <PaymentSummary
-            year={year}
-            month={month}
-            type={tabValue}
-            academyCode={academyCode}
-          />
-        </SidePanel>
-      </ContentLayout>
-
-      {isMsgModalOpen && (
-        <ModalPaymentMessage
-          messageList={messageList}
-          isLoading={messageLoading}
-          onClose={() => setIsMsgModalOpen(false)}
-          academyCode={academyCode} // 🌟 추가
-          userId={userId} // 🌟 추가
-        />
-      )}
-    </PageContainer>
-  );
-}

@@ -916,11 +916,13 @@ export default function ReportsClient({
 // --------------------------------------------------------------------------
 const Container = styled.div`
   padding: 24px;
-  background-color: #f2f4f6;
-  min-height: 100vh;
+  background-color: white;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(224, 224, 224, 0.4);
+  border-radius: 24px;
   @media (max-width: 768px) {
     padding: 16px;
     margin-bottom: 60px;
@@ -963,13 +965,13 @@ const Controls = styled.div`
     gap: 16px;
   }
 `;
-
 const YearSelector = styled.div`
   display: flex;
   align-items: center;
-  background: white;
+  background: #f3f4f6; /* ✅ 연한 회색으로 변경 */
   border-radius: 12px;
   padding: 0 4px;
+  /* 배경이 회색이므로 그림자는 살짝 줄이거나 유지해도 됩니다 */
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   height: 40px;
   flex-shrink: 0;
@@ -980,7 +982,6 @@ const YearSelector = styled.div`
     border-radius: 14px;
   }
 `;
-
 const YearButton = styled.button`
   width: 32px;
   height: 100%;

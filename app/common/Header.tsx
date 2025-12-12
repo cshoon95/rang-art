@@ -6,20 +6,17 @@ import React, { useState, useEffect, useMemo } from "react";
 import { signOut, useSession } from "next-auth/react";
 import styled, { css } from "styled-components";
 import {
-  // 공통
   Menu,
   X,
-  ChevronDown, // 아코디언 화살표
+  ChevronDown,
   ChevronRight,
   LogOut,
   Star,
   Bookmark,
-  // 1뎁스 아이콘
   CalendarDays,
   Settings,
   Briefcase,
   Wallet,
-  // 2뎁스 아이콘
   CalendarClock,
   Car,
   CalendarRange,
@@ -32,11 +29,7 @@ import {
   FileSignature,
   Calendar,
   Home,
-  TrendingUp,
   ClipboardCheck,
-  ChartBar,
-  UserCheck,
-  FileCheck,
   ChartPie,
   BookOpen,
 } from "lucide-react";
@@ -68,7 +61,7 @@ import {
 } from "../_querys";
 
 // ----------------------------------------------------------------------
-// ✅ 1. 메뉴 데이터 구조 (1뎁스 -> 2뎁스)
+// ✅ 1. 메뉴 데이터 구조
 // ----------------------------------------------------------------------
 type UserLevel = "원장" | "부원장" | "선생님" | string;
 
@@ -84,17 +77,17 @@ interface MenuItem {
 
 interface MenuSection {
   title: string;
-  icon: any; // 1뎁스 아이콘
+  icon: any;
   items: MenuItem[];
 }
 
 const MENU_STRUCTURE: MenuSection[] = [
   {
-    title: "시간표", // 1뎁스
+    title: "시간표",
     icon: CalendarDays,
     items: [
       {
-        label: "수업", // 2뎁스
+        label: "수업",
         path: "/schedule",
         type: "link",
         icon: CalendarClock,
@@ -117,7 +110,41 @@ const MENU_STRUCTURE: MenuSection[] = [
     ],
   },
   {
-    title: "관리", // 1뎁스
+    title: "업무",
+    icon: Briefcase,
+    items: [
+      {
+        label: "출석부",
+        path: "/attendance",
+        type: "link",
+        icon: ClipboardCheck,
+        color: "#f0fdf4",
+      },
+      {
+        label: "일정",
+        path: "/calendar",
+        type: "link",
+        icon: Calendar,
+        color: "#eef2ff",
+      },
+      {
+        label: "계획안",
+        path: "/planning",
+        type: "link",
+        icon: BookOpen,
+        color: "#eef2ff",
+      },
+      {
+        label: "노트",
+        path: "/memo",
+        type: "link",
+        icon: StickyNote,
+        color: "#fff1f2",
+      },
+    ],
+  },
+  {
+    title: "관리",
     icon: Settings,
     items: [
       {
@@ -146,7 +173,7 @@ const MENU_STRUCTURE: MenuSection[] = [
     ],
   },
   {
-    title: "재무", // 1뎁스 (나머지 그룹화)
+    title: "재무",
     icon: Wallet,
     items: [
       {
@@ -180,40 +207,6 @@ const MENU_STRUCTURE: MenuSection[] = [
         icon: ChartPie,
         color: "#f5f3ff",
         allowedLevels: ["원장"],
-      },
-    ],
-  },
-  {
-    title: "업무", // 1뎁스 (나머지 그룹화)
-    icon: Briefcase,
-    items: [
-      {
-        label: "출석부",
-        path: "/attendance",
-        type: "link",
-        icon: ClipboardCheck,
-        color: "#f0fdf4",
-      },
-      {
-        label: "일정",
-        path: "/calendar",
-        type: "link",
-        icon: Calendar,
-        color: "#eef2ff",
-      },
-      {
-        label: "계획안",
-        path: "/planning",
-        type: "link",
-        icon: BookOpen,
-        color: "#eef2ff",
-      },
-      {
-        label: "노트",
-        path: "/memo",
-        type: "link",
-        icon: StickyNote,
-        color: "#fff1f2",
       },
     ],
   },
@@ -274,15 +267,11 @@ export const Header = () => {
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
-
-  // 아코디언 상태 (기본적으로 모두 펼쳐둠 or 접어둠)
   const [openSections, setOpenSections] = useState<number[]>([0, 1, 2, 3]);
 
   // --- Data & Mutation ---
   const { data: favoriteData = [] } = useFavorites();
-  const { mutate: toggleFavorite } = useToggleFavorite();
   const { mutate: reorderFavorites } = useReorderFavorites();
-
   const [orderedFavorites, setOrderedFavorites] = useState<any[]>([]);
 
   useEffect(() => {
@@ -299,32 +288,16 @@ export const Header = () => {
         ) {
           return null;
         }
-        return {
-          ...menuItem,
-          dbId: fav.id,
-          path: fav.path,
-        };
+        return { ...menuItem, dbId: fav.id, path: fav.path };
       })
       .filter(Boolean);
 
     setOrderedFavorites(mapped);
   }, [favoriteData, userLevel]);
 
-  const currentMenuItem = useMemo(() => {
-    const allItems = MENU_STRUCTURE.flatMap((section) => section.items);
-    return allItems.find((item) => item.path === pathname);
-  }, [pathname]);
-
-  const isCurrentPageFavorite = useMemo(() => {
-    if (!currentMenuItem) return false;
-    return favoriteData.some((f: any) => f.path === currentMenuItem.path);
-  }, [currentMenuItem, favoriteData]);
-
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -361,13 +334,6 @@ export const Header = () => {
     setIsMenuOpen(false);
   };
 
-  const handleToggleCurrentPage = () => {
-    if (currentMenuItem) {
-      // path가 빈 문자열("")이고 id가 undefined이면 최종 결과가 undefined가 되어 에러 발생
-      // toggleFavorite(currentMenuItem.path || currentMenuItem.id);
-    }
-  };
-
   const handleLogout = async () => {
     await clearAcademySession();
     await signOut({ callbackUrl: "/login" });
@@ -382,43 +348,76 @@ export const Header = () => {
   const isActive = (path: string) =>
     path === "/home" ? pathname === "/home" : pathname.startsWith(path);
 
+  // if (!isHiddenHeaderTitlePage(pathname)) return null;
+
   return (
     <>
-      {/* {!isHiddenHeaderTitlePage(pathname) && (
-        <HeaderWrapper>
-          <HeaderContainer>
-            <Logo href="/">
-              MONEY <LogoHighlight>STAR</LogoHighlight>
+      {/* 🖥️ PC Header (마우스가 있고 화면이 클 때만 보임) */}
+      <PcHeaderWrapper>
+        <PcHeaderContainer>
+          <PcLeft>
+            <Logo
+              href="/home"
+              style={{ fontSize: "24px", marginRight: "40px" }}
+            >
+              RANG <LogoHighlight>ART</LogoHighlight>
             </Logo>
-            {currentMenuItem && (
-              <HeaderStarBtn onClick={handleToggleCurrentPage}>
-                <Star
-                  size={24}
-                  fill={isCurrentPageFavorite ? "#FFD700" : "transparent"}
-                  color={isCurrentPageFavorite ? "#FFD700" : "#b0b8c1"}
-                  strokeWidth={isCurrentPageFavorite ? 0 : 2}
-                />
-              </HeaderStarBtn>
-            )}
-          </HeaderContainer>
-        </HeaderWrapper>
-      )} */}
-      {/* Bottom Nav */}
+            <PcNavList>
+              <PcNavLink href="/home" $active={isActive("/home")}>
+                홈
+              </PcNavLink>
+              <PcNavLink href="/attendance" $active={isActive("/attendance")}>
+                출석부
+              </PcNavLink>
+              <PcNavLink href="/schedule" $active={isActive("/schedule")}>
+                수업 시간표
+              </PcNavLink>
+              <PcNavLink href="/pickup" $active={isActive("/pickup")}>
+                픽업 시간표
+              </PcNavLink>
+              {["admin", "manager", "원장"].includes(userLevel) && (
+                <PcNavLink href="/payment" $active={isActive("/payment")}>
+                  출납부
+                </PcNavLink>
+              )}
+              <PcNavLink href="/memo" $active={isActive("/memo")}>
+                노트
+              </PcNavLink>
+              <PcNavLink href="/calendar" $active={isActive("/calendar")}>
+                일정
+              </PcNavLink>
+              <PcNavLink href="/planning" $active={isActive("/planning")}>
+                계획안
+              </PcNavLink>
+              <PcNavLink href="/customers" $active={isActive("/customers")}>
+                회원 관리
+              </PcNavLink>
+            </PcNavList>
+          </PcLeft>
+
+          <PcRight>
+            <PcProfileBtn onClick={() => setIsMenuOpen(true)}>
+              <PcAvatar>{session?.user?.name?.[0] || "U"}</PcAvatar>
+              <PcName>{session?.user?.name} 님</PcName>
+              <Menu size={20} color="#4b5563" style={{ marginLeft: 8 }} />
+            </PcProfileBtn>
+          </PcRight>
+        </PcHeaderContainer>
+      </PcHeaderWrapper>
+
+      {/* 📱 Mobile & Tablet Bottom Nav (PC 조건이 아닐 때만 보임) */}
       <BottomNavWrapper>
-        {/* 1. 홈 */}
         <BottomLink href="/home" $active={isActive("/home")}>
           <StyledIcon as={Home} $active={isActive("/home")} />
           <Label $active={isActive("/home")}>홈</Label>
         </BottomLink>
 
-        {/* 2. 출석부 (아이콘 변경: CalendarDays -> ClipboardCheck) */}
         <BottomLink href="/attendance" $active={isActive("/attendance")}>
           <StyledIcon as={ClipboardCheck} $active={isActive("/attendance")} />
           <Label $active={isActive("/attendance")}>출석부</Label>
         </BottomLink>
 
-        {/* 3. 조건부 렌더링: 관리자(admin/manager) ? 출납부 : 시간표 */}
-        {["admin", "manager"].includes(userLevel) ? (
+        {["admin", "manager", "원장"].includes(userLevel) ? (
           <BottomLink href="/payment" $active={isActive("/payment")}>
             <StyledIcon as={CreditCard} $active={isActive("/payment")} />
             <Label $active={isActive("/payment")}>출납부</Label>
@@ -430,13 +429,13 @@ export const Header = () => {
           </BottomLink>
         )}
 
-        {/* 4. 전체 메뉴 */}
         <BottomButton onClick={() => setIsMenuOpen(true)} $active={isMenuOpen}>
           <StyledIcon as={Menu} $active={isMenuOpen} />
           <Label $active={isMenuOpen}>전체</Label>
         </BottomButton>
       </BottomNavWrapper>
-      {/* Drawer */}
+
+      {/* 🗄️ Common Drawer */}
       <DrawerOverlay $isOpen={isMenuOpen} onClick={() => setIsMenuOpen(false)}>
         <DrawerContainer
           $isOpen={isMenuOpen}
@@ -450,7 +449,6 @@ export const Header = () => {
           </DrawerHeader>
 
           <DrawerContent>
-            {/* 프로필 카드 */}
             <ProfileCard>
               <ProfileInfo>
                 <ProfileAvatar>{session?.user?.name?.[0] || "U"}</ProfileAvatar>
@@ -467,7 +465,6 @@ export const Header = () => {
               </LogoutMiniBtn>
             </ProfileCard>
 
-            {/* 즐겨찾기 섹션 */}
             {orderedFavorites.length > 0 && (
               <FavoriteSection>
                 <SectionLabel>
@@ -479,7 +476,6 @@ export const Header = () => {
                   </div>
                   <DragHint>꾹! 눌러서 순서 변경 가능</DragHint>
                 </SectionLabel>
-
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}
@@ -503,7 +499,6 @@ export const Header = () => {
               </FavoriteSection>
             )}
 
-            {/* 전체 메뉴 (아코디언 스타일) */}
             <MenuGrid>
               {MENU_STRUCTURE.map((section, idx) => {
                 const visibleItems = section.items.filter((item) => {
@@ -516,7 +511,6 @@ export const Header = () => {
 
                 return (
                   <AccordionSection key={idx}>
-                    {/* 1뎁스 (클릭 시 토글) */}
                     <AccordionHeader onClick={() => toggleSection(idx)}>
                       <HeaderLeft>
                         <section.icon size={18} color="#4b5563" />
@@ -532,7 +526,6 @@ export const Header = () => {
                       />
                     </AccordionHeader>
 
-                    {/* 2뎁스 (리스트) */}
                     <AccordionContent $isOpen={isOpen}>
                       {visibleItems.map((item, itemIdx) => (
                         <MenuRow
@@ -557,11 +550,12 @@ export const Header = () => {
             <VersionInfo>
               RangArt Service v1.0.0
               <br />
-              문의: help@rangart.com
+              문의: cshoon950@naver.com
             </VersionInfo>
           </DrawerContent>
         </DrawerContainer>
       </DrawerOverlay>
+
       {/* Logout Modal */}
       {isLogoutModalOpen && (
         <ModalOverlay style={{ zIndex: 11000 }}>
@@ -585,29 +579,6 @@ export const Header = () => {
 // ✅ 4. Styles
 // ----------------------------------------------------------------------
 
-const HeaderWrapper = styled.header`
-  position: sticky;
-  top: 0;
-  z-index: 900;
-  background-color: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid #f0f0f0;
-  height: 56px;
-`;
-const HeaderContainer = styled.div`
-  max-width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-`;
-const HeaderStarBtn = styled.button`
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-`;
 const Logo = styled(Link)`
   font-size: 20px;
   font-weight: 900;
@@ -618,20 +589,134 @@ const LogoHighlight = styled.span`
   color: #3182f6;
 `;
 
-// Bottom Nav
-const BottomNavWrapper = styled.nav`
+// ==========================================
+// 🖥️ PC Header Styles (New Addition)
+// ==========================================
+const PcHeaderWrapper = styled.header`
+  display: none;
+
+  @media (min-width: 1025px) and (hover: hover) {
+    display: block;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background-color: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid #e5e7eb;
+    height: 64px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+`;
+
+const PcHeaderContainer = styled.div`
+  width: 100%;
+  height: 100%;
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  /* ✅ 핵심: 레이아웃과 동일한 규격 적용 */
+  max-width: 1400px; /* 최대 너비 제한 */
+  margin: 0 auto; /* 중앙 정렬 */
+  padding: 0 40px; /* 좌우 여백 (레이아웃과 동일하게 맞춤) */
+`;
+const PcLeft = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: left;
+`;
+const PcNavList = styled.nav`
+  display: flex;
+  gap: 16px;
+  margin-left: 20px;
+`;
+const PcNavLink = styled(Link)<{ $active?: boolean }>`
+  font-size: 16px;
+  font-weight: ${(props) => (props.$active ? "700" : "500")};
+  color: ${(props) => (props.$active ? "#3182f6" : "#4b5563")};
+  padding: 8px 16px;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.2s;
+  background-color: ${(props) => (props.$active ? "#eff6ff" : "transparent")};
+
+  &:hover {
+    background-color: ${(props) => (props.$active ? "#eff6ff" : "#f9fafb")};
+    color: ${(props) => (props.$active ? "#3182f6" : "#111827")};
+  }
+`;
+const PcRight = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: end;
+`;
+const PcProfileBtn = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  padding: 6px 16px 6px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  &:hover {
+    border-color: #d1d5db;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+  }
+`;
+const PcAvatar = styled.div`
+  width: 34px;
+  height: 34px;
+  background-color: #3182f6;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+`;
+const PcName = styled.span`
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+`;
+
+// ==========================================
+// 📱 Mobile/Tablet Bottom Nav (Existing)
+// ==========================================
+// Header.tsx 하단 스타일 정의 부분
+
+const BottomNavWrapper = styled.nav`
+  /* 1. 레이아웃 강제 노출 */
+  display: flex !important;
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   background-color: #fff;
   border-top: 1px solid #f2f4f6;
-  z-index: 1000;
+  z-index: 100;
+
+  /* 2. 높이 계산 수정 (핵심!) 
+     - border-box 기준이므로, 전체 높이를 "60px + 안전영역"으로 설정해야
+     - 안전영역을 제외한 순수 콘텐츠 영역이 60px로 확보됩니다.
+  */
+  height: calc(60px + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
-  height: 60px;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.02);
+
+  box-shadow: 0 -4px 20px rgba(122, 78, 78, 0.02);
+  box-sizing: border-box;
+
+  /* 3. PC 화면(1025px 이상 & 마우스 환경)일 때만 숨김 */
+  @media (min-width: 1025px) and (hover: hover) {
+    display: none !important;
+  }
 `;
+
 const BottomLink = styled(Link)<{ $active?: boolean }>`
   flex: 1;
   display: flex;

@@ -121,7 +121,7 @@ export default function TempScheduleClient({
           <PageTitleWithStar
             title={
               <Title>
-                <Highlight>TEMP</Highlight> SCHEDULE
+                <Highlight>임시</Highlight> 시간표
               </Title>
             }
           />
@@ -237,11 +237,13 @@ export default function TempScheduleClient({
 const Container = styled.div`
   display: flex;
   flex-direction: column;
-  height: 100vh;
   padding: 24px;
-  background-color: #f2f4f6;
+  background-color: white;
   overflow: hidden;
   gap: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(224, 224, 224, 0.4);
+  border-radius: 24px;
   @media (max-width: 768px) {
     padding: 16px;
     gap: 16px;

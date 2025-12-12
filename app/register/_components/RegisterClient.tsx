@@ -50,7 +50,7 @@ export default function RegisterClient({ academyCode }: Props) {
       // 1024px보다 크면 (데스크탑) -> 10개
       // 1024px 이하이면 (아이패드, 태블릿, 모바일) -> 8개
       if (window.innerWidth > 1180) {
-        setItemsPerPage(11);
+        setItemsPerPage(10);
       } else {
         setItemsPerPage(8);
       }
@@ -335,11 +335,14 @@ export default function RegisterClient({ academyCode }: Props) {
 
 const Container = styled.div`
   padding: 24px;
-  background-color: #f2f4f6;
-  min-height: 100vh;
+  background-color: white;
+
   display: flex;
   flex-direction: column;
   gap: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(224, 224, 224, 0.4);
+  border-radius: 24px;
   @media (max-width: 768px) {
     padding: 16px;
     margin-bottom: 50px;

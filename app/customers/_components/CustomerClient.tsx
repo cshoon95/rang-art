@@ -147,7 +147,7 @@ export default function CustomersClient({
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth > 1180) {
-        setItemsPerPage(10);
+        setItemsPerPage(8);
       } else if (window.innerWidth > 800) {
         setItemsPerPage(8);
       } else {
@@ -229,7 +229,7 @@ export default function CustomersClient({
         <PageTitleWithStar
           title={
             <Title>
-              <Highlight>MEMBER</Highlight> LIST
+              <Highlight>회원</Highlight> 목록
             </Title>
           }
         />
@@ -465,11 +465,13 @@ export default function CustomersClient({
 
 const Container = styled.div`
   padding: 24px;
-  background-color: #f2f4f6;
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background-color: white;
   gap: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(224, 224, 224, 0.4);
+  border-radius: 24px;
   @media (max-width: 768px) {
     padding: 16px;
     padding-bottom: 80px;

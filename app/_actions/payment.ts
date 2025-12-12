@@ -24,7 +24,6 @@ export async function getPaymentMessageListAction(academyCode: string) {
     return [];
   }
 
-  console.log(customers);
   // 2. 'L'(Last day) 표시가 있는 출석 기록 가져오기
   // 🌟 날짜 내림차순(DESC) 정렬이 핵심! (가장 최신 날짜가 먼저 옴)
   const { data: attendanceData, error: attError } = await supabase
@@ -34,7 +33,6 @@ export async function getPaymentMessageListAction(academyCode: string) {
     .like("content", "%L%") // 'L' 포함
     .order("date", { ascending: false });
 
-  console.log(attendanceData);
   if (attError || !attendanceData) {
     return [];
   }
@@ -68,7 +66,6 @@ export async function getPaymentMessageListAction(academyCode: string) {
     }
   });
 
-  console.log(resultMap);
   // 4. 이름순 정렬하여 반환
   const result = Array.from(resultMap.values()).sort((a: any, b: any) =>
     a.name.localeCompare(b.name)
@@ -115,14 +112,6 @@ export async function updatePaymentStatusBatchAction(
 ) {
   const supabase = await createClient();
 
-  // 1. 값 확인용 로그 (서버 콘솔에서 확인)
-  console.log("🛠️ [Batch Update Start]", {
-    targetIds,
-    key,
-    value,
-    academyCode,
-  });
-
   const { data, error } = await supabase
     .from("customers")
     .update({
@@ -149,7 +138,6 @@ export async function updatePaymentStatusBatchAction(
     };
   }
 
-  console.log(`✅ ${data.length}건 업데이트 성공!`);
   return { success: true };
 }
 

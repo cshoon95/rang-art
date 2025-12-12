@@ -19,6 +19,388 @@ import { MessageCircle, Bell, Plus } from "lucide-react";
 import PaymentAddModal from "./PaymentAddModal";
 import { usePaymentList, useUpsertPayment } from "@/app/_querys";
 import { PaymentType } from "@/app/_types/type";
+import PaymentGridSkeleton from "./PaymentGridSkeleton";
+
+// --- Logic ---
+interface Props {
+  year: string;
+  month: string;
+  type: PaymentType;
+  academyCode: string;
+  userId: string;
+}
+
+export default function PaymentGrid({
+  year,
+  month,
+  type,
+  academyCode,
+  userId,
+}: Props) {
+  const [searchText, setSearchText] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false); // 🌟 추가 모달 상태
+
+  const { data: rows = [], isLoading } = usePaymentList(
+    year,
+    month,
+    type,
+    academyCode
+  );
+  const { mutate: upsertPayment } = useUpsertPayment(type);
+
+  // 화면 크기에 따른 페이지당 아이템 수 조절
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setItemsPerPage(5);
+      } else {
+        setItemsPerPage(9);
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // 검색어 변경 시 1페이지로
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchText, year, month, type, itemsPerPage]);
+
+  const filteredRows = useMemo(() => {
+    if (!searchText) return rows;
+    return rows.filter((row: any) => {
+      const targetName = type === "income" ? row.name : row.item;
+      if (!targetName) return false;
+      return (
+        targetName.includes(searchText) ||
+        extractInitialConsonants(targetName).includes(searchText)
+      );
+    });
+  }, [rows, searchText, type]);
+
+  const totalPages = Math.ceil(filteredRows.length / itemsPerPage);
+  const paginatedRows = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    return filteredRows.slice(start, end);
+  }, [filteredRows, currentPage, itemsPerPage]);
+
+  // 🌟 [수정] onBlur 핸들러: 값 비교 및 포맷 제거 후 저장
+  const handleBlur = (
+    id: number,
+    field: string,
+    value: string,
+    originalValue: any
+  ) => {
+    let rawValue = value;
+    let rawOriginal = String(originalValue);
+
+    // 금액과 날짜는 포맷을 제거하고 숫자만 비교
+    if (field === "fee" || field === "amount") {
+      rawValue = replaceOnlyNum(value);
+      rawOriginal = replaceOnlyNum(String(originalValue));
+    } else if (field === "day") {
+      rawValue = replaceFirstPadZero(replaceOnlyNum(value));
+      rawOriginal = replaceFirstPadZero(replaceOnlyNum(String(originalValue)));
+    }
+
+    if (rawValue === rawOriginal) return;
+
+    const payload: any = {
+      id,
+      year,
+      month,
+      day: field === "day" ? rawValue : undefined,
+      academy_code: academyCode,
+      updater_id: userId,
+      [field]: rawValue,
+    };
+
+    upsertPayment(payload);
+  };
+
+  const toggleRegister = (row: any) => {
+    const newVal = row.register === "Y" ? "N" : "Y";
+    upsertPayment({
+      id: row.id,
+      year,
+      month,
+      day: row.day,
+      academy_code: academyCode,
+      updater_id: userId,
+      register: newVal,
+    });
+  };
+
+  const formatDateDisplay = (day: string) => {
+    if (!day) return "";
+    const cleanDay = replaceFirstPadZero(day);
+    const cleanMonth = replaceFirstPadZero(month);
+    return `${cleanMonth}월 ${cleanDay}일`;
+  };
+
+  const formatCurrency = (val: number | string | undefined) => {
+    if (!val) return "";
+    const num = Number(replaceOnlyNum(String(val)));
+    if (isNaN(num)) return "";
+    return num.toLocaleString() + "원";
+  };
+
+  if (isLoading) {
+    return <PaymentGridSkeleton />;
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <Toolbar>
+        <LeftGroup>
+          <SectionTitle>
+            {type === "income" ? "수입 목록" : "지출 목록"}
+          </SectionTitle>
+          <AddButton onClick={() => setIsAddModalOpen(true)} title="내역 추가">
+            <Plus size={18} />
+          </AddButton>
+        </LeftGroup>
+
+        <SearchInputWrapper>
+          <SearchInput
+            placeholder={type === "income" ? "이름 검색" : "내역 검색"}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
+          <SearchIconWrapper onClick={() => setSearchText("")}>
+            {searchText ? <XIcon size={16} /> : <Search size={16} />}
+          </SearchIconWrapper>
+        </SearchInputWrapper>
+      </Toolbar>
+
+      <TableContainer>
+        <Table>
+          <Thead>
+            <tr>
+              <Th $isFirst style={{ width: "100px" }}>
+                날짜
+              </Th>
+              {type === "income" ? (
+                <>
+                  <Th style={{ width: "100px" }}>이름</Th>
+                  <Th style={{ width: "120px", textAlign: "right" }}>금액</Th>
+                  <Th style={{ width: "100px", textAlign: "center" }}>
+                    현금영수증
+                  </Th>
+                  <Th style={{ width: "100px" }}>결제수단</Th>
+                  <Th style={{ minWidth: "150px" }}>비고</Th>
+                </>
+              ) : (
+                <>
+                  <Th style={{ width: "150px" }}>지출 내역</Th>
+                  <Th style={{ width: "120px", textAlign: "right" }}>금액</Th>
+                  <Th style={{ width: "100px" }}>분류</Th>
+                  <Th style={{ minWidth: "150px" }}>비고</Th>
+                </>
+              )}
+              <Th style={{ width: "50px" }}></Th>
+            </tr>
+          </Thead>
+          <tbody>
+            {paginatedRows.length === 0 ? (
+              <tr>
+                <Td
+                  colSpan={7}
+                  style={{
+                    textAlign: "center",
+                    padding: "60px 0",
+                    color: "#8b95a1",
+                  }}
+                >
+                  {searchText ? "검색 결과가 없습니다." : "데이터가 없습니다."}
+                </Td>
+              </tr>
+            ) : (
+              paginatedRows.map((row: any) => (
+                <Tr key={row.id}>
+                  {/* 🌟 Key Prop 추가로 갱신 보장 */}
+                  <Td $isFirst>
+                    <CellInput
+                      key={`day-${row.id}-${row.day}`}
+                      defaultValue={formatDateDisplay(row.day)}
+                      onFocus={(e) => (e.target.value = row.day)}
+                      onBlur={(e) => {
+                        const val = e.target.value;
+                        handleBlur(row.id, "day", val, row.day);
+                        e.target.value = formatDateDisplay(
+                          replaceFirstPadZero(replaceOnlyNum(val))
+                        );
+                      }}
+                      placeholder={formatDateDisplay(row.day)}
+                    />
+                  </Td>
+
+                  {type === "income" ? (
+                    <>
+                      <Td>
+                        <CellInput
+                          key={`name-${row.id}-${row.name}`}
+                          defaultValue={row.name}
+                          onBlur={(e) =>
+                            handleBlur(row.id, "name", e.target.value, row.name)
+                          }
+                          style={{ fontWeight: 600 }}
+                        />
+                      </Td>
+                      <Td style={{ textAlign: "right" }}>
+                        <CellInput
+                          key={`fee-${row.id}-${row.fee}`}
+                          $align="right"
+                          defaultValue={formatCurrency(row.fee)}
+                          placeholder="0원"
+                          onFocus={(e) =>
+                            (e.target.value = row.fee ? String(row.fee) : "")
+                          }
+                          onBlur={(e) => {
+                            const val = e.target.value;
+                            handleBlur(row.id, "fee", val, row.fee);
+                            e.target.value = formatCurrency(
+                              Number(replaceOnlyNum(val))
+                            );
+                          }}
+                          style={{ color: "#3182f6", fontWeight: 700 }}
+                        />
+                      </Td>
+                      <Td style={{ textAlign: "center" }}>
+                        <Badge
+                          $type={row.register || "N"}
+                          onClick={() => toggleRegister(row)}
+                        >
+                          {row.register === "Y" ? "발행완료" : "미발행"}
+                        </Badge>
+                      </Td>
+                      <Td>
+                        <CellInput
+                          key={`card-${row.id}-${row.card}`}
+                          defaultValue={row.card}
+                          placeholder="-"
+                          onBlur={(e) =>
+                            handleBlur(row.id, "card", e.target.value, row.card)
+                          }
+                        />
+                      </Td>
+                    </>
+                  ) : (
+                    <>
+                      <Td>
+                        <CellInput
+                          key={`item-${row.id}-${row.item}`}
+                          defaultValue={row.item}
+                          onBlur={(e) =>
+                            handleBlur(row.id, "item", e.target.value, row.item)
+                          }
+                          style={{ fontWeight: 600 }}
+                        />
+                      </Td>
+                      <Td style={{ textAlign: "right" }}>
+                        <CellInput
+                          key={`amount-${row.id}-${row.amount}`}
+                          $align="right"
+                          defaultValue={formatCurrency(row.amount)}
+                          placeholder="0원"
+                          onFocus={(e) =>
+                            (e.target.value = row.amount
+                              ? String(row.amount)
+                              : "")
+                          }
+                          onBlur={(e) => {
+                            const val = e.target.value;
+                            handleBlur(row.id, "amount", val, row.amount);
+                            e.target.value = formatCurrency(
+                              Number(replaceOnlyNum(val))
+                            );
+                          }}
+                          style={{ color: "#e11d48", fontWeight: 700 }}
+                        />
+                      </Td>
+                      <Td>
+                        <CellInput
+                          key={`kind-${row.id}-${row.kind}`}
+                          defaultValue={row.kind}
+                          placeholder="-"
+                          onBlur={(e) =>
+                            handleBlur(row.id, "kind", e.target.value, row.kind)
+                          }
+                        />
+                      </Td>
+                    </>
+                  )}
+
+                  <Td>
+                    <CellInput
+                      key={`note-${row.id}-${row.note}`}
+                      defaultValue={row.note}
+                      placeholder="메모 입력"
+                      onBlur={(e) =>
+                        handleBlur(row.id, "note", e.target.value, row.note)
+                      }
+                      style={{ color: "#8b95a1" }}
+                    />
+                  </Td>
+
+                  {/* 삭제 버튼 */}
+                  <Td style={{ textAlign: "center" }}>
+                    <DeleteButton onClick={() => setDeleteTargetId(row.id)}>
+                      <Trash2 size={16} />
+                    </DeleteButton>
+                  </Td>
+                </Tr>
+              ))
+            )}
+          </tbody>
+        </Table>
+      </TableContainer>
+
+      {filteredRows.length > 0 && (
+        <PaginationWrapper>
+          <PageButton
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft size={16} />
+          </PageButton>
+          <span style={{ fontSize: "14px", fontWeight: 500, color: "#666" }}>
+            {currentPage} / {totalPages}
+          </span>
+          <PageButton
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            <ChevronRight size={16} />
+          </PageButton>
+        </PaginationWrapper>
+      )}
+
+      {/* 삭제 모달 */}
+      {deleteTargetId && (
+        <PaymentDeleteModal
+          id={deleteTargetId}
+          type={type}
+          academyCode={academyCode}
+          onClose={() => setDeleteTargetId(null)}
+        />
+      )}
+
+      {isAddModalOpen && (
+        <PaymentAddModal
+          type={type}
+          academyCode={academyCode}
+          userId={userId}
+          onClose={() => setIsAddModalOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
 
 // --- Styles ---
 const Toolbar = styled.div`
@@ -277,381 +659,3 @@ const PageButton = styled.button<{ $active?: boolean }>`
     background-color: #f2f4f6;
   }
 `;
-
-// --- Logic ---
-interface Props {
-  year: string;
-  month: string;
-  type: PaymentType;
-  academyCode: string;
-  userId: string;
-}
-
-export default function PaymentGrid({
-  year,
-  month,
-  type,
-  academyCode,
-  userId,
-}: Props) {
-  const [searchText, setSearchText] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false); // 🌟 추가 모달 상태
-
-  const { data: rows = [], isLoading } = usePaymentList(
-    year,
-    month,
-    type,
-    academyCode
-  );
-  const { mutate: upsertPayment } = useUpsertPayment(type);
-
-  // 화면 크기에 따른 페이지당 아이템 수 조절
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 768) {
-        setItemsPerPage(5);
-      } else {
-        setItemsPerPage(10);
-      }
-    };
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  // 검색어 변경 시 1페이지로
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchText, year, month, type, itemsPerPage]);
-
-  const filteredRows = useMemo(() => {
-    if (!searchText) return rows;
-    return rows.filter((row: any) => {
-      const targetName = type === "income" ? row.name : row.item;
-      if (!targetName) return false;
-      return (
-        targetName.includes(searchText) ||
-        extractInitialConsonants(targetName).includes(searchText)
-      );
-    });
-  }, [rows, searchText, type]);
-
-  const totalPages = Math.ceil(filteredRows.length / itemsPerPage);
-  const paginatedRows = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    const end = start + itemsPerPage;
-    return filteredRows.slice(start, end);
-  }, [filteredRows, currentPage, itemsPerPage]);
-
-  // 🌟 [수정] onBlur 핸들러: 값 비교 및 포맷 제거 후 저장
-  const handleBlur = (
-    id: number,
-    field: string,
-    value: string,
-    originalValue: any
-  ) => {
-    let rawValue = value;
-    let rawOriginal = String(originalValue);
-
-    // 금액과 날짜는 포맷을 제거하고 숫자만 비교
-    if (field === "fee" || field === "amount") {
-      rawValue = replaceOnlyNum(value);
-      rawOriginal = replaceOnlyNum(String(originalValue));
-    } else if (field === "day") {
-      rawValue = replaceFirstPadZero(replaceOnlyNum(value));
-      rawOriginal = replaceFirstPadZero(replaceOnlyNum(String(originalValue)));
-    }
-
-    if (rawValue === rawOriginal) return;
-
-    const payload: any = {
-      id,
-      year,
-      month,
-      day: field === "day" ? rawValue : undefined,
-      academy_code: academyCode,
-      updater_id: userId,
-      [field]: rawValue,
-    };
-
-    upsertPayment(payload);
-  };
-
-  const toggleRegister = (row: any) => {
-    const newVal = row.register === "Y" ? "N" : "Y";
-    upsertPayment({
-      id: row.id,
-      year,
-      month,
-      day: row.day,
-      academy_code: academyCode,
-      updater_id: userId,
-      register: newVal,
-    });
-  };
-
-  const formatDateDisplay = (day: string) => {
-    if (!day) return "";
-    const cleanDay = replaceFirstPadZero(day);
-    const cleanMonth = replaceFirstPadZero(month);
-    return `${cleanMonth}월 ${cleanDay}일`;
-  };
-
-  const formatCurrency = (val: number | string | undefined) => {
-    if (!val) return "";
-    const num = Number(replaceOnlyNum(String(val)));
-    if (isNaN(num)) return "";
-    return num.toLocaleString() + "원";
-  };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <Toolbar>
-        <LeftGroup>
-          <SectionTitle>
-            {type === "income" ? "수입 목록" : "지출 목록"}
-          </SectionTitle>
-          <AddButton onClick={() => setIsAddModalOpen(true)} title="내역 추가">
-            <Plus size={18} />
-          </AddButton>
-        </LeftGroup>
-
-        <SearchInputWrapper>
-          <SearchInput
-            placeholder={type === "income" ? "이름 검색" : "내역 검색"}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-          />
-          <SearchIconWrapper onClick={() => setSearchText("")}>
-            {searchText ? <XIcon size={16} /> : <Search size={16} />}
-          </SearchIconWrapper>
-        </SearchInputWrapper>
-      </Toolbar>
-
-      <TableContainer>
-        <Table>
-          <Thead>
-            <tr>
-              <Th $isFirst style={{ width: "100px" }}>
-                날짜
-              </Th>
-              {type === "income" ? (
-                <>
-                  <Th style={{ width: "100px" }}>이름</Th>
-                  <Th style={{ width: "120px", textAlign: "right" }}>금액</Th>
-                  <Th style={{ width: "100px", textAlign: "center" }}>
-                    현금영수증
-                  </Th>
-                  <Th style={{ width: "100px" }}>결제수단</Th>
-                  <Th style={{ minWidth: "150px" }}>비고</Th>
-                </>
-              ) : (
-                <>
-                  <Th style={{ width: "150px" }}>지출 내역</Th>
-                  <Th style={{ width: "120px", textAlign: "right" }}>금액</Th>
-                  <Th style={{ width: "100px" }}>분류</Th>
-                  <Th style={{ minWidth: "150px" }}>비고</Th>
-                </>
-              )}
-              <Th style={{ width: "50px" }}></Th>
-            </tr>
-          </Thead>
-          <tbody>
-            {paginatedRows.length === 0 ? (
-              <tr>
-                <Td
-                  colSpan={7}
-                  style={{
-                    textAlign: "center",
-                    padding: "60px 0",
-                    color: "#8b95a1",
-                  }}
-                >
-                  {searchText ? "검색 결과가 없습니다." : "데이터가 없습니다."}
-                </Td>
-              </tr>
-            ) : (
-              paginatedRows.map((row: any) => (
-                <Tr key={row.id}>
-                  {/* 🌟 Key Prop 추가로 갱신 보장 */}
-                  <Td $isFirst>
-                    <CellInput
-                      key={`day-${row.id}-${row.day}`}
-                      defaultValue={formatDateDisplay(row.day)}
-                      onFocus={(e) => (e.target.value = row.day)}
-                      onBlur={(e) => {
-                        const val = e.target.value;
-                        handleBlur(row.id, "day", val, row.day);
-                        e.target.value = formatDateDisplay(
-                          replaceFirstPadZero(replaceOnlyNum(val))
-                        );
-                      }}
-                      placeholder={formatDateDisplay(row.day)}
-                    />
-                  </Td>
-
-                  {type === "income" ? (
-                    <>
-                      <Td>
-                        <CellInput
-                          key={`name-${row.id}-${row.name}`}
-                          defaultValue={row.name}
-                          onBlur={(e) =>
-                            handleBlur(row.id, "name", e.target.value, row.name)
-                          }
-                          style={{ fontWeight: 600 }}
-                        />
-                      </Td>
-                      <Td style={{ textAlign: "right" }}>
-                        <CellInput
-                          key={`fee-${row.id}-${row.fee}`}
-                          $align="right"
-                          defaultValue={formatCurrency(row.fee)}
-                          placeholder="0원"
-                          onFocus={(e) =>
-                            (e.target.value = row.fee ? String(row.fee) : "")
-                          }
-                          onBlur={(e) => {
-                            const val = e.target.value;
-                            handleBlur(row.id, "fee", val, row.fee);
-                            e.target.value = formatCurrency(
-                              Number(replaceOnlyNum(val))
-                            );
-                          }}
-                          style={{ color: "#3182f6", fontWeight: 700 }}
-                        />
-                      </Td>
-                      <Td style={{ textAlign: "center" }}>
-                        <Badge
-                          $type={row.register || "N"}
-                          onClick={() => toggleRegister(row)}
-                        >
-                          {row.register === "Y" ? "발행완료" : "미발행"}
-                        </Badge>
-                      </Td>
-                      <Td>
-                        <CellInput
-                          key={`card-${row.id}-${row.card}`}
-                          defaultValue={row.card}
-                          placeholder="-"
-                          onBlur={(e) =>
-                            handleBlur(row.id, "card", e.target.value, row.card)
-                          }
-                        />
-                      </Td>
-                    </>
-                  ) : (
-                    <>
-                      <Td>
-                        <CellInput
-                          key={`item-${row.id}-${row.item}`}
-                          defaultValue={row.item}
-                          onBlur={(e) =>
-                            handleBlur(row.id, "item", e.target.value, row.item)
-                          }
-                          style={{ fontWeight: 600 }}
-                        />
-                      </Td>
-                      <Td style={{ textAlign: "right" }}>
-                        <CellInput
-                          key={`amount-${row.id}-${row.amount}`}
-                          $align="right"
-                          defaultValue={formatCurrency(row.amount)}
-                          placeholder="0원"
-                          onFocus={(e) =>
-                            (e.target.value = row.amount
-                              ? String(row.amount)
-                              : "")
-                          }
-                          onBlur={(e) => {
-                            const val = e.target.value;
-                            handleBlur(row.id, "amount", val, row.amount);
-                            e.target.value = formatCurrency(
-                              Number(replaceOnlyNum(val))
-                            );
-                          }}
-                          style={{ color: "#e11d48", fontWeight: 700 }}
-                        />
-                      </Td>
-                      <Td>
-                        <CellInput
-                          key={`kind-${row.id}-${row.kind}`}
-                          defaultValue={row.kind}
-                          placeholder="-"
-                          onBlur={(e) =>
-                            handleBlur(row.id, "kind", e.target.value, row.kind)
-                          }
-                        />
-                      </Td>
-                    </>
-                  )}
-
-                  <Td>
-                    <CellInput
-                      key={`note-${row.id}-${row.note}`}
-                      defaultValue={row.note}
-                      placeholder="메모 입력"
-                      onBlur={(e) =>
-                        handleBlur(row.id, "note", e.target.value, row.note)
-                      }
-                      style={{ color: "#8b95a1" }}
-                    />
-                  </Td>
-
-                  {/* 삭제 버튼 */}
-                  <Td style={{ textAlign: "center" }}>
-                    <DeleteButton onClick={() => setDeleteTargetId(row.id)}>
-                      <Trash2 size={16} />
-                    </DeleteButton>
-                  </Td>
-                </Tr>
-              ))
-            )}
-          </tbody>
-        </Table>
-      </TableContainer>
-
-      {filteredRows.length > 0 && (
-        <PaginationWrapper>
-          <PageButton
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-          >
-            <ChevronLeft size={16} />
-          </PageButton>
-          <span style={{ fontSize: "14px", fontWeight: 500, color: "#666" }}>
-            {currentPage} / {totalPages}
-          </span>
-          <PageButton
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-          >
-            <ChevronRight size={16} />
-          </PageButton>
-        </PaginationWrapper>
-      )}
-
-      {/* 삭제 모달 */}
-      {deleteTargetId && (
-        <PaymentDeleteModal
-          id={deleteTargetId}
-          type={type}
-          academyCode={academyCode}
-          onClose={() => setDeleteTargetId(null)}
-        />
-      )}
-
-      {isAddModalOpen && (
-        <PaymentAddModal
-          type={type}
-          academyCode={academyCode}
-          userId={userId}
-          onClose={() => setIsAddModalOpen(false)}
-        />
-      )}
-    </div>
-  );
-}
