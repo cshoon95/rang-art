@@ -698,6 +698,7 @@ const BottomNavWrapper = styled.nav`
   left: 0;
   right: 0;
   background-color: #fff;
+
   border-top: 1px solid #f2f4f6;
   z-index: 100;
 
@@ -705,7 +706,7 @@ const BottomNavWrapper = styled.nav`
      - border-box 기준이므로, 전체 높이를 "60px + 안전영역"으로 설정해야
      - 안전영역을 제외한 순수 콘텐츠 영역이 60px로 확보됩니다.
   */
-  height: calc(70px + env(safe-area-inset-bottom));
+  height: calc(90px + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
 
   box-shadow: 0 -4px 20px rgba(122, 78, 78, 0.02);
@@ -724,6 +725,7 @@ const BottomLink = styled(Link)<{ $active?: boolean }>`
   align-items: center;
   justify-content: center;
   text-decoration: none;
+  padding-bottom: 20px;
   color: ${(props) => (props.$active ? "#3182f6" : "#b0b8c1")};
 `;
 const BottomButton = styled.button<{ $active?: boolean }>`
@@ -734,6 +736,7 @@ const BottomButton = styled.button<{ $active?: boolean }>`
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  padding-bottom: 20px;
   color: ${(props) => (props.$active ? "#3182f6" : "#b0b8c1")};
   cursor: pointer;
 `;
