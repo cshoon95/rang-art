@@ -20,9 +20,7 @@ export const Providers = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SessionProvider>
         <StyledComponentsRegistry>{children}</StyledComponentsRegistry>
-      </SessionProvider>
     </QueryClientProvider>
   );
 };
