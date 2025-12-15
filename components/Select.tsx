@@ -11,7 +11,11 @@ interface Option {
 interface Props {
   options: Option[];
   value: string;
-  onChange: (value: string) => void;
+  // onChange의 첫 번째 인자 타입을 좀 더 유연하게 any로 받거나, 이벤트를 무시할 수 있게 처리
+  onChange: (
+    e?: any, // ✅ ChangeEvent 대신 any로 변경하여 MouseEvent 호환성 확보
+    value?: string
+  ) => void;
   width?: string;
 }
 
@@ -39,14 +43,24 @@ export default function Select({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSelect = (val: string) => {
-    onChange(val);
+  // ✅ handleSelect의 이벤트 타입 수정 (MouseEvent 허용)
+  const handleSelect = (
+    e: React.MouseEvent<HTMLLIElement> | React.ChangeEvent<any>,
+    val: string
+  ) => {
+    // 부모에게 전달할 때는 이벤트 객체(e)를 그대로 넘겨줍니다.
+    // 부모 쪽에서 e.target을 안 쓰거나, 커스텀 로직으로 처리하므로 any로 넘겨도 무방합니다.
+    onChange(e, val);
     setIsOpen(false);
   };
 
   return (
     <SelectWrapper ref={wrapperRef} style={{ width }}>
-      <SelectTrigger $isOpen={isOpen} onClick={() => setIsOpen(!isOpen)}>
+      <SelectTrigger
+        $isOpen={isOpen}
+        onClick={() => setIsOpen(!isOpen)}
+        type="button"
+      >
         <SelectedText>
           {selectedOption ? selectedOption.label : "선택"}
         </SelectedText>
@@ -68,7 +82,8 @@ export default function Select({
             <DropdownItem
               key={opt.value}
               $isSelected={opt.value === value}
-              onClick={() => handleSelect(opt.value)}
+              // ✅ 이제 handleSelect가 MouseEvent를 받을 수 있으므로 에러가 사라집니다.
+              onClick={(e) => handleSelect(e, opt.value)}
             >
               {opt.label}
             </DropdownItem>
@@ -79,7 +94,7 @@ export default function Select({
   );
 }
 
-// --- Styles ---
+// ... (스타일 코드는 기존과 동일하게 유지)
 const SelectWrapper = styled.div`
   position: relative;
   @media (max-width: 768px) {
@@ -87,8 +102,14 @@ const SelectWrapper = styled.div`
   }
 `;
 
-const SelectTrigger = styled.div<{ $isOpen: boolean }>`
-  height: 42px;
+// ... (나머지 스타일들)
+const SelectTrigger = styled.button<{ $isOpen: boolean }>`
+  /* div 대신 button으로 바꾸는 것이 웹 접근성 및 탭 이동에 좋습니다 */
+  width: 100%;
+
+  /* ✅ [수정 1] PC & 아이패드(태블릿) 기본 높이 */
+  height: 44px;
+
   padding: 0 12px;
   background: white;
   border-radius: 12px;
@@ -98,13 +119,20 @@ const SelectTrigger = styled.div<{ $isOpen: boolean }>`
   align-items: center;
   cursor: pointer;
   transition: all 0.2s;
+  text-align: left;
   box-shadow: ${({ $isOpen }) =>
     $isOpen
       ? "0 0 0 3px rgba(49, 130, 246, 0.1)"
       : "0 1px 2px rgba(0, 0, 0, 0.04)"};
+
   &:hover {
     background-color: #f9fafb;
     border-color: ${({ $isOpen }) => ($isOpen ? "#3182f6" : "#d1d6db")};
+  }
+
+  /* ✅ [수정 2] 모바일(휴대폰) 환경에서 높이 조정 */
+  @media (max-width: 768px) {
+    height: 42px;
   }
 `;
 
@@ -143,6 +171,7 @@ const DropdownList = styled.ul`
   overflow-y: auto;
   list-style: none;
   margin: 0;
+  box-sizing: border-box; /* 추가 */
 `;
 
 const DropdownItem = styled.li<{ $isSelected: boolean }>`

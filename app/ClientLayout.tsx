@@ -2,7 +2,6 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
-import { SessionProvider } from "next-auth/react";
 import styled from "styled-components";
 import { Header } from "./common/Header";
 import { SplashScreen } from "./common/SplashScreen";
@@ -18,7 +17,7 @@ export default function ClientLayout({
   const isLoginPage = hideHeaderPath.includes(pathname);
 
   return (
-    <SessionProvider>
+    <>
       {!isLoginPage && <Header />}
       <SplashScreen />
 
@@ -29,7 +28,7 @@ export default function ClientLayout({
       </ContentWrapper>
 
       {!isLoginPage && <Footer />}
-    </SessionProvider>
+    </>
   );
 }
 

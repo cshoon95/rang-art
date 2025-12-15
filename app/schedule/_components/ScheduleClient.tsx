@@ -73,6 +73,7 @@ export default function ScheduleClient({
       type: "SIMPLE",
       title: "시간 추가",
       content: <ModalTimeManager mode="add" target="schedule" />,
+      hideFooter: true,
     });
   };
 
@@ -87,6 +88,7 @@ export default function ScheduleClient({
           target="schedule"
         />
       ),
+      hideFooter: true,
     });
   };
 

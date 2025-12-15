@@ -167,9 +167,9 @@ export default function ModalCalendarAdd({
                 title="학원 휴일로 지정"
               >
                 {formData.isHoliday ? (
-                  <CheckCircle2 size={18} />
+                  <CheckCircle2 size={24} />
                 ) : (
-                  <Circle size={18} />
+                  <Circle size={24} />
                 )}
                 <span>휴일</span>
               </HolidayButton>
@@ -472,14 +472,25 @@ const HolidayButton = styled.button<{ $active: boolean }>`
   border: 1px solid ${({ $active }) => ($active ? "#fda4af" : "#e5e8eb")};
   background-color: ${({ $active }) => ($active ? "#fff0f0" : "#f9fafb")};
   color: ${({ $active }) => ($active ? "#e11d48" : "#6b7684")};
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
+
+  /* ✅ [PC & 아이패드] 기본 설정 (조금 더 크게) */
   min-width: 50px;
-  height: 52px;
+  width: 52px;
+  height: 52px; /* 버튼 비율 유지를 위해 높이도 맞춤 */
+
   &:hover {
     background-color: ${({ $active }) => ($active ? "#fee2e2" : "#f2f4f6")};
+  }
+
+  /* ✅ [모바일] 휴대폰 기기 (작게) */
+  @media (max-width: 768px) {
+    min-width: 46px;
+    width: 46px;
+    height: 46px;
   }
 `;
 

@@ -57,6 +57,7 @@ export default function MemoClient({ initialData, academyCode }: Props) {
       title: "메모 작성",
       content: <ModalMemoManager mode="add" academyCode={academyCode} />,
       type: "SIMPLE",
+      hideFooter: true,
     });
   };
 
@@ -71,6 +72,7 @@ export default function MemoClient({ initialData, academyCode }: Props) {
         />
       ),
       type: "SIMPLE",
+      hideFooter: true,
     });
   };
 

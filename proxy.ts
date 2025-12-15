@@ -65,7 +65,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - login (로그인 페이지)
+     * - manifest.webmanifest, manifest.json (PWA 설정 파일) ✅ 추가됨
      */
-    "/((?!api|_next/static|_next/image|favicon.ico|login).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|login|manifest.webmanifest|manifest.json).*)",
   ],
 };

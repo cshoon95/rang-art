@@ -12,7 +12,8 @@ export default function BranchSkeleton() {
         {/* 컨트롤(검색+버튼) 영역 */}
         <Controls>
           <SearchWrapper>
-            <SkeletonBox width="100%" height="100%" borderRadius="12px" />
+            {/* ✅ Fix: Use $borderRadius */}
+            <SkeletonBox width="100%" height="100%" $borderRadius="12px" />
           </SearchWrapper>
           <AddButtonSkeleton />
         </Controls>
@@ -115,10 +116,11 @@ export default function BranchSkeleton() {
                     />
                   </td>
                   <td>
+                    {/* ✅ Fix: Use $borderRadius */}
                     <SkeletonBox
                       width="24px"
                       height="24px"
-                      borderRadius="50%"
+                      $borderRadius="50%"
                       style={{ margin: "0 auto" }}
                     />
                   </td>
@@ -142,11 +144,12 @@ export default function BranchSkeleton() {
                   }}
                 >
                   {/* 아바타 스켈레톤 */}
+                  {/* ✅ Fix: Use $borderRadius and $flexShrink */}
                   <SkeletonBox
                     width="44px"
                     height="44px"
-                    borderRadius="50%"
-                    flexShrink={0}
+                    $borderRadius="50%"
+                    $flexShrink={0}
                   />
                   <div
                     style={{
@@ -194,20 +197,22 @@ const shimmer = keyframes`
 `;
 
 // --- Skeleton Base Component ---
+// ✅ Fix: Updated interface keys to have $ prefix
 const SkeletonBox = styled.div<{
   width?: string;
   height?: string;
-  borderRadius?: string;
-  flexShrink?: number;
+  $borderRadius?: string;
+  $flexShrink?: number;
 }>`
   width: ${(props) => props.width || "100%"};
   height: ${(props) => props.height || "20px"};
-  border-radius: ${(props) => props.borderRadius || "6px"};
-  flex-shrink: ${(props) => props.flexShrink ?? 1};
+  /* ✅ Fix: Read from $ props */
+  border-radius: ${(props) => props.$borderRadius || "6px"};
+  flex-shrink: ${(props) => props.$flexShrink ?? 1};
   animation: ${shimmer} 1.5s infinite ease-in-out;
 `;
 
-// --- Layout Styles (Original에서 가져옴 + 스켈레톤용 수정) ---
+// --- Layout Styles ---
 const Container = styled.div`
   padding: 24px;
   background-color: white;
@@ -254,7 +259,7 @@ const SearchWrapper = styled.div`
 const AddButtonSkeleton = styled(SkeletonBox)`
   width: 42px;
   height: 42px;
-  border-radius: 12px;
+  border-radius: 12px; /* This is CSS, so standard property name is fine here */
 `;
 
 const ListContainer = styled.div`

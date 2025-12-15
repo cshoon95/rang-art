@@ -70,15 +70,16 @@ export default function PickupClient({
   const handleAddTime = () => {
     openModal({
       type: "SIMPLE",
-      title: "픽업 시간 추가",
+      title: "시간 추가",
       content: <ModalTimeManager mode="add" target="pickup" />,
+      hideFooter: true,
     });
   };
 
   const handleManageTime = (timeValue: string) => {
     openModal({
       type: "SIMPLE",
-      title: "픽업 시간 관리",
+      title: "시간 관리",
       content: (
         <ModalTimeManager
           mode="delete"
@@ -86,6 +87,7 @@ export default function PickupClient({
           target="pickup"
         />
       ),
+      hideFooter: true,
     });
   };
 

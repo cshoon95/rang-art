@@ -1,7 +1,6 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import React from "react";
 import styled, { keyframes } from "styled-components";
 import Image from "next/image"; // ✅ next/image 사용
 import logoImg from "@/assets/icon.png"; // ✅ 이미지 import (경로 확인 필요)
@@ -16,7 +15,6 @@ export default function LoginPage() {
       <Card>
         <LogoWrapper>
           <IconCircle>
-            {/* ✅ 아이콘 대신 이미지 적용 */}
             <Image
               src={logoImg}
               alt="Rang Art Logo"

@@ -6,6 +6,9 @@ import { Upload, Trash2, Check, Image as ImageIcon } from "lucide-react";
 import { useModalStore } from "@/store/modalStore";
 import { useUpsertPlanning, useDeletePlanning } from "@/app/_querys";
 
+// 🚨 [추가 1] 최대 용량 설정 (Vercel 제한 고려하여 4MB로 설정)
+const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
+
 interface Props {
   initialData?: any;
   year: number;
@@ -23,7 +26,8 @@ export default function ModalPlanningManager({
   academyCode,
   userId,
 }: Props) {
-  const { closeModal } = useModalStore();
+  // ✅ [추가 2] 알림창을 띄우기 위해 openModal 추가
+  const { openModal, closeModal } = useModalStore();
 
   const [title, setTitle] = useState(initialData?.title || "");
   const [content, setContent] = useState(initialData?.content || "");
@@ -38,13 +42,37 @@ export default function ModalPlanningManager({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
+
     if (selectedFile) {
+      // 🚨 [추가 3] 용량 체크 로직
+      if (selectedFile.size > MAX_FILE_SIZE) {
+        openModal({
+          title: "용량 초과",
+          content: "이미지 크기는 4MB 이하로 해주세요.\n(서버 전송 제한)",
+          type: "ALERT",
+        });
+
+        // 선택된 파일 초기화 (같은 파일 다시 선택 가능하도록 value 비움)
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+
       setFile(selectedFile);
       setPreviewSrc(URL.createObjectURL(selectedFile));
     }
   };
 
   const handleSave = () => {
+    // 저장 전 한 번 더 체크 (선택사항)
+    if (file && file.size > MAX_FILE_SIZE) {
+      openModal({
+        title: "용량 초과",
+        content: "이미지 크기가 4MB를 초과하여 저장할 수 없습니다.",
+        type: "ALERT",
+      });
+      return;
+    }
+
     const formData = new FormData();
     if (initialData?.id) formData.append("id", initialData.id);
     formData.append("academyCode", academyCode);
@@ -61,9 +89,15 @@ export default function ModalPlanningManager({
   };
 
   const handleDelete = () => {
-    if (confirm("정말 삭제하시겠습니까?")) {
-      deleteMutation.mutate(initialData.id);
-    }
+    // 삭제 확인 모달 사용
+    openModal({
+      title: "삭제 확인",
+      content: "정말 삭제하시겠습니까?",
+      type: "CONFIRM",
+      onConfirm: () => {
+        deleteMutation.mutate(initialData.id);
+      },
+    });
   };
 
   return (
@@ -82,7 +116,8 @@ export default function ModalPlanningManager({
                   <Upload size={20} />
                 </IconCircle>
                 <span className="text">이미지를 등록해주세요</span>
-                <span className="sub">클릭하여 업로드 (10MB 제한)</span>
+                {/* 문구 수정 */}
+                <span className="sub">클릭하여 업로드 (4MB 제한)</span>
               </UploadPlaceholder>
             )}
             <input
@@ -95,7 +130,7 @@ export default function ModalPlanningManager({
           </ImageUploadBox>
         </Section>
 
-        {/* 입력 필드 */}
+        {/* ... (나머지 입력 필드들 기존과 동일) ... */}
         <Section>
           <Label>제목</Label>
           <Input
@@ -123,7 +158,7 @@ export default function ModalPlanningManager({
             <Trash2 size={18} />
           </DeleteBtn>
         ) : (
-          <div /> /* 빈 공간 확보 */
+          <div />
         )}
 
         <SaveBtn onClick={handleSave} disabled={upsertMutation.isPending}>
@@ -140,16 +175,15 @@ export default function ModalPlanningManager({
   );
 }
 
-// --------------------------------------------------------------------------
-// ✨ Styles
-// --------------------------------------------------------------------------
-
+// ... (스타일 코드는 기존과 동일하므로 생략 가능, ImageUploadBox 내부 텍스트만 10MB -> 4MB로 변경된 것 확인) ...
+// 스타일 하단에 기존 스타일 그대로 유지해주세요.
 const Wrapper = styled.div`
   display: flex;
   flex-direction: column;
-  height: 100%; /* 부모(ModalBody) 높이를 꽉 채움 */
-  overflow: hidden; /* Wrapper 자체는 스크롤 없음 */
+  height: 100%;
+  overflow: hidden;
 `;
+// ... (나머지 스타일들) ...
 
 const ScrollContent = styled.div`
   flex: 1; /* 남은 공간 모두 차지 */

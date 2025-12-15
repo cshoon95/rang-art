@@ -32,7 +32,7 @@ export async function getActiveStudentsAction(academyCode: string) {
     .from("customers")
     .select("id, name, state, count, fee_yn, msg_yn")
     .eq("academy_code", academyCode)
-    .neq("state", "2") // 퇴원생 제외 (필요 시 조정)
+    .eq("state", "0") // 재원생만 조회
     .order("name", { ascending: true });
 
   if (error) {
@@ -44,27 +44,43 @@ export async function getActiveStudentsAction(academyCode: string) {
 
 // 3. 출석 입력/수정 (Upsert)
 // 예시: upsertAttendanceAction
+// app/_actions.ts (또는 해당 파일)
+
 export async function upsertAttendanceAction({
   academyCode,
   studentId,
   date,
   content,
-  name, // ✅ 이 파라미터를 받아서
+  name, // ✅ 파라미터 추가
 }: any) {
   const supabase = await createClient();
 
+  // 1. 내용이 없으면(빈 문자열 or 공백) -> 데이터 삭제 (DELETE)
+  if (!content || content.trim() === "") {
+    const { error } = await supabase.from("attendance").delete().match({
+      academy_code: academyCode,
+      student_id: studentId,
+      date: date,
+    });
+
+    if (error) throw error;
+    return { status: "DELETED" };
+  }
+
+  // 2. 내용이 있으면 -> 데이터 등록/수정 (UPSERT)
   const { error } = await supabase.from("attendance").upsert(
     {
       academy_code: academyCode,
       student_id: studentId,
       date: date,
       content: content,
-      name: name, // ✅ DB에 같이 저장해야 함
+      name: name, // ✅ DB에 이름도 함께 저장
     },
-    { onConflict: "student_id, date" }
-  ); // PK 설정에 따라 다름
+    { onConflict: "student_id, date" } // PK 충돌 시 업데이트
+  );
 
   if (error) throw error;
+  return { status: "UPSERTED" };
 }
 
 // ✅ [New] 전월 마지막 출석 기록 조회 (일괄 조회 최적화)
@@ -142,4 +158,21 @@ export async function getStudentAttendanceHistoryAction(
     console.error("Server Action Error:", error);
     return [];
   }
+}
+
+export async function getInActiveStudentsAction(academyCode: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("customers")
+    .select("id, name, state, count, fee_yn, msg_yn")
+    .eq("academy_code", academyCode)
+    .eq("state", "2") // 퇴원생만 조회
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("Fetch Students Error:", error);
+    return [];
+  }
+  return data;
 }

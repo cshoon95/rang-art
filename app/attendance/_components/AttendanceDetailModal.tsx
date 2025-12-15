@@ -39,9 +39,21 @@ interface Props {
 // ✅ 컨텐츠 파싱 함수
 const parseAttendanceContent = (content: string) => {
   const clean = content.trim();
-  if (clean.toUpperCase().includes("L"))
-    return { type: "LAST", badge: "종료", text: "마지막 수업", raw: clean };
+  const upperClean = clean.toUpperCase();
+
+  // 1. [최우선] '보'로 시작하면 무조건 MAKEUP 타입으로 분류 (보강 탭 노출)
   if (clean.startsWith("보")) {
+    // 1-1. '보'이면서 'L'이 포함된 경우 (예: "보L") -> 보강 종료
+    if (upperClean.includes("L")) {
+      return {
+        type: "MAKEUP", // 👈 핵심: 타입을 MAKEUP으로 지정
+        badge: "보강종료",
+        text: "보강 마지막 수업",
+        raw: clean,
+      };
+    }
+
+    // 1-2. 일반 보강 (예: "보1")
     const num = clean.replace("보", "");
     return {
       type: "MAKEUP",
@@ -50,15 +62,33 @@ const parseAttendanceContent = (content: string) => {
       raw: clean,
     };
   }
-  if (clean === "/" || clean.includes("결") || clean.includes("무"))
+
+  // 2. [차선] 'L'이 포함되면 일반 종료 (LAST)
+  if (upperClean.includes("L")) {
+    return {
+      type: "LAST",
+      badge: "종료",
+      text: "마지막 수업",
+      raw: clean,
+    };
+  }
+
+  // 3. 결석
+  if (clean === "/" || clean.includes("결") || clean.includes("무")) {
     return { type: "ABSENT", badge: "결석", text: "결석", raw: clean };
-  if (!isNaN(Number(clean)))
+  }
+
+  // 4. 일반 출석 (숫자만 있는 경우)
+  if (!isNaN(Number(clean))) {
     return {
       type: "ATTENDANCE",
       badge: "출석",
       text: `${clean}회차 수업`,
       raw: clean,
     };
+  }
+
+  // 5. 기타
   return { type: "ETC", badge: "기타", text: clean, raw: clean };
 };
 

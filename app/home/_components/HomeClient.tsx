@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   ArrowLeftRight,
   CalendarOff,
+  PlusCircle, // 추가 아이콘
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ModalCalendarAdd from "@/components/modals/ModalCalendarAdd";
@@ -30,8 +31,6 @@ import {
 } from "@/app/_querys";
 import { MappedEvent } from "@/app/_types/type";
 
-// ✅ [추가] 스켈레톤 컴포넌트 import (경로를 실제 파일 위치에 맞게 수정해주세요)
-
 interface Props {
   academyCode: string;
   userId: string;
@@ -45,18 +44,24 @@ export default function DashboardClient({ academyCode, userId }: Props) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<MappedEvent | null>(null);
 
+  // ✅ 주말 여부 상태 추가
+  const [isWeekend, setIsWeekend] = useState(false);
+
   // 현재 시간 및 요일 업데이트
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      const jsDay = now.getDay();
+      const jsDay = now.getDay(); // 0(일) ~ 6(토)
 
-      let dbDay = jsDay - 1;
-      if (dbDay < 0 || dbDay > 4) {
-        dbDay = 0;
+      // ✅ [수정] 주말 처리 로직 개선
+      if (jsDay === 0 || jsDay === 6) {
+        setIsWeekend(true);
+        setCurrentDay("99"); // 주말용 임의 코드 (쿼리에서 데이터 안 가져오게)
+      } else {
+        setIsWeekend(false);
+        // 월(1) -> 0, 화(2) -> 1, ..., 금(5) -> 4
+        setCurrentDay(String(jsDay - 1));
       }
-
-      setCurrentDay(String(dbDay));
 
       const hours = now.getHours();
       const minutes = now.getMinutes();
@@ -187,58 +192,77 @@ export default function DashboardClient({ academyCode, userId }: Props) {
               router.push(isTempView ? "/temp-schedule" : "schedule")
             }
           >
-            <ScheduleTableHeader>
-              <div style={{ width: 60, textAlign: "center" }}>TIME</div>
-              <div
-                style={{
-                  flex: 1.5,
-                  paddingLeft: 16,
-                  justifyContent: "center",
-                  display: "flex",
-                }}
+            {/* ✅ [수정] 주말이면 테이블 헤더 숨기고 안내 메시지 */}
+            {isWeekend ? (
+              <EmptyState
+                style={{ height: "100%", flexDirection: "column", gap: "10px" }}
               >
-                <Hammer size={14} color="#f59e0b" style={{ marginRight: 4 }} />
-                만들기
-              </div>
-              <div
-                style={{
-                  flex: 1.5,
-                  paddingLeft: 16,
-                  justifyContent: "center",
-                  display: "flex",
-                }}
-              >
-                <Palette size={14} color="#ec4899" style={{ marginRight: 4 }} />
-                드로잉
-              </div>
-            </ScheduleTableHeader>
-
-            {/* ✅ [수정] 스켈레톤 적용 */}
-            {isScheduleLoading ? (
-              <ScheduleListSkeleton />
-            ) : currentSchedules.length > 0 ? (
-              <ScheduleList>
-                {currentSchedules.map((item: any, idx: number) => (
-                  <ScheduleRow key={idx}>
-                    <TimeWrapper>
-                      <ScheduleTime>{formatTime(item.time)}</ScheduleTime>
-                      <ScheduleLine />
-                    </TimeWrapper>
-                    <ClassCell $type="M">
-                      {renderNameChips(item.M, "blue")}
-                    </ClassCell>
-                    <ClassCell $type="D">
-                      {renderNameChips(item.D, "blue")}
-                    </ClassCell>
-                  </ScheduleRow>
-                ))}
-              </ScheduleList>
-            ) : (
-              <EmptyState>
-                {isTempView
-                  ? "등록된 임시 시간표가 없습니다."
-                  : "오늘 예정된 수업이 없습니다."}
+                <span style={{ fontSize: "40px" }}>🏖️</span>
+                <span>주말은 수업이 없습니다. 푹 쉬세요!</span>
               </EmptyState>
+            ) : (
+              <>
+                <ScheduleTableHeader>
+                  <div style={{ width: 60, textAlign: "center" }}>TIME</div>
+                  <div
+                    style={{
+                      flex: 1.5,
+                      paddingLeft: 16,
+                      justifyContent: "center",
+                      display: "flex",
+                    }}
+                  >
+                    <Hammer
+                      size={14}
+                      color="#f59e0b"
+                      style={{ marginRight: 4 }}
+                    />
+                    만들기
+                  </div>
+                  <div
+                    style={{
+                      flex: 1.5,
+                      paddingLeft: 16,
+                      justifyContent: "center",
+                      display: "flex",
+                    }}
+                  >
+                    <Palette
+                      size={14}
+                      color="#ec4899"
+                      style={{ marginRight: 4 }}
+                    />
+                    드로잉
+                  </div>
+                </ScheduleTableHeader>
+
+                {isScheduleLoading ? (
+                  <ScheduleListSkeleton />
+                ) : currentSchedules.length > 0 ? (
+                  <ScheduleList>
+                    {currentSchedules.map((item: any, idx: number) => (
+                      <ScheduleRow key={idx}>
+                        <TimeWrapper>
+                          <ScheduleTime>{formatTime(item.time)}</ScheduleTime>
+                          <ScheduleLine />
+                        </TimeWrapper>
+                        <ClassCell $type="M">
+                          {renderNameChips(item.M, "blue")}
+                        </ClassCell>
+                        <ClassCell $type="D">
+                          {renderNameChips(item.D, "blue")}
+                        </ClassCell>
+                      </ScheduleRow>
+                    ))}
+                  </ScheduleList>
+                ) : (
+                  <EmptyState>
+                    {isTempView
+                      ? "등록된 임시 시간표가 없습니다."
+                      : "오늘 예정된 수업이 없습니다."}
+                  </EmptyState>
+                )}
+              </>
             )}
           </ScrollContent>
         </ScheduleCard>
@@ -264,8 +288,10 @@ export default function DashboardClient({ academyCode, userId }: Props) {
             </CardHeader>
 
             <ScrollContent>
-              {/* ✅ [수정] 스켈레톤 적용 */}
-              {isPickupLoading ? (
+              {/* ✅ [수정] 주말 처리 */}
+              {isWeekend ? (
+                <EmptyState>주말은 픽업 운행이 없습니다.</EmptyState>
+              ) : isPickupLoading ? (
                 <PickupListSkeleton />
               ) : pickupData ? (
                 <PickupList>
@@ -302,10 +328,9 @@ export default function DashboardClient({ academyCode, userId }: Props) {
             </CardHeader>
 
             <EventContent>
-              {/* ✅ [수정] 스켈레톤 적용 */}
               {isEventLoading ? (
                 <EventListSkeleton />
-              ) : eventData ? (
+              ) : eventData && eventData.length > 0 ? (
                 <EventList>
                   {eventData?.map((event: any, idx: number) => {
                     const isHoliday = event.type === "school_holiday";
@@ -335,7 +360,19 @@ export default function DashboardClient({ academyCode, userId }: Props) {
                   })}
                 </EventList>
               ) : (
-                <EmptyState>오늘 예정된 일정이 없습니다.</EmptyState>
+                // ✅ [수정] 일정 없을 때 친근한 문구 및 등록 버튼 추가
+                <EmptyStateWrapper>
+                  <EmptyIcon>🍃</EmptyIcon>
+                  <EmptyText>
+                    오늘은 예정된 일정이 없어요.
+                    <br />
+                    새로운 일정을 등록하시겠어요?
+                  </EmptyText>
+                  <AddEventButton onClick={handleAddEvent}>
+                    <PlusCircle size={16} />
+                    일정 등록하기
+                  </AddEventButton>
+                </EmptyStateWrapper>
               )}
             </EventContent>
           </CalendarCard>
@@ -471,6 +508,7 @@ const EmptyState = styled.div`
   height: 150px;
   color: #b0b8c1;
   font-size: 14px;
+  font-weight: 500;
 `;
 const ScheduleCard = styled(CardBase)`
   min-height: 700px;
@@ -686,7 +724,7 @@ const PickupLine = styled.div`
   }
 `;
 const PickupContent = styled.div`
-  margin-left: 36px;
+  margin-left: 30px;
   flex: 1;
 `;
 const CalendarCard = styled(CardBase)`
@@ -756,5 +794,45 @@ const HeaderRight = styled.div`
   gap: 12px;
   @media (max-width: 768px) {
     gap: 8px;
+  }
+`;
+
+// ✅ [추가] 일정이 없을 때 보여줄 커스텀 스타일
+const EmptyStateWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 16px;
+  text-align: center;
+`;
+
+const EmptyIcon = styled.div`
+  font-size: 32px;
+`;
+
+const EmptyText = styled.p`
+  font-size: 14px;
+  color: #8b95a1;
+  line-height: 1.5;
+`;
+
+const AddEventButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background-color: #e8f3ff;
+  color: #3182f6;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: #dbeafe;
   }
 `;

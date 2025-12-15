@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import styled from "styled-components";
-// ✅ MUI 아이콘 제거 -> Lucide 아이콘으로 변경
 import {
   Search,
   Plus,
@@ -23,91 +22,21 @@ import {
 import { getDDay } from "@/utils/date";
 import { ModalCustomerDelete } from "@/components/modals/ModalCustomerDelete";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
+// ✅ 공통 Select 컴포넌트 import (경로 확인 필요)
+import Select from "@/components/Select";
 
 interface Props {
   initialData: any[];
   academyCode: string;
 }
 
-// --- [신규] 필터용 커스텀 셀렉트 컴포넌트 ---
-function FilterSelect({ value, options, onChange }: any) {
-  const [isOpen, setIsOpen] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-
-  const selectedOption = options.find((opt: any) => opt.value === value);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleSelect = (val: string) => {
-    onChange(val);
-    setIsOpen(false);
-  };
-
-  return (
-    <SelectWrapper ref={wrapperRef}>
-      <SelectTrigger $isOpen={isOpen} onClick={() => setIsOpen(!isOpen)}>
-        <SelectedText>
-          {selectedOption ? selectedOption.label : "선택"}
-        </SelectedText>
-        <ArrowIcon $isOpen={isOpen}>
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 12 12"
-            fill="none"
-            style={{ width: "100%", height: "100%" }}
-          >
-            <path
-              d="M2.5 4.5L6 8L9.5 4.5"
-              stroke={isOpen ? "#3182f6" : "#8B95A1"}
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </ArrowIcon>
-      </SelectTrigger>
-
-      {isOpen && (
-        <DropdownList>
-          {options.map((opt: any) => (
-            <DropdownItem
-              key={opt.value}
-              $isSelected={opt.value === value}
-              onClick={() => handleSelect(opt.value)}
-            >
-              {opt.label}
-            </DropdownItem>
-          ))}
-        </DropdownList>
-      )}
-    </SelectWrapper>
-  );
-}
-
 const DEFAULT_ITEMS_PER_PAGE = 8;
 
-export default function CustomersClient({
-  initialData,
-  academyCode,
-  userRole,
-}: Props) {
+export default function CustomersClient({ initialData, academyCode }: Props) {
   const [searchText, setSearchText] = useState("");
   const [filterState, setFilterState] = useState("all");
   const [filterCount, setFilterCount] = useState("all");
 
-  // [페이지네이션 1] 상태 추가
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
 
@@ -139,7 +68,6 @@ export default function CustomersClient({
     });
   }, [initialData, searchText, filterState, filterCount]);
 
-  // [페이지네이션 2] 필터가 바뀌면 1페이지로 초기화
   useEffect(() => {
     setCurrentPage(1);
   }, [searchText, filterState, filterCount]);
@@ -151,19 +79,14 @@ export default function CustomersClient({
       } else if (window.innerWidth > 800) {
         setItemsPerPage(8);
       } else {
-        setItemsPerPage(3);
+        setItemsPerPage(10);
       }
     };
-
-    // 초기 실행
     handleResize();
-
-    // 리사이즈 이벤트 등록
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // [페이지네이션 3] 현재 페이지 데이터 계산
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredAndSortedData.slice(
@@ -172,10 +95,8 @@ export default function CustomersClient({
   );
   const totalPages = Math.ceil(filteredAndSortedData.length / itemsPerPage);
 
-  // [페이지네이션 4] 페이지 변경 핸들러
   const handlePageChange = (pageNumber: number) => {
     setCurrentPage(pageNumber);
-    // 스크롤을 맨 위로 (선택사항)
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -183,7 +104,8 @@ export default function CustomersClient({
     openModal({
       title: "원생 등록",
       content: <ModalCustomerManager mode="add" academyCode={academyCode} />,
-      type: "SIMPLE",
+      type: "BOTTOM",
+      hideFooter: true,
     });
   };
 
@@ -197,7 +119,8 @@ export default function CustomersClient({
           initialData={customer}
         />
       ),
-      type: "SIMPLE",
+      hideFooter: true,
+      type: "BOTTOM",
     });
   };
 
@@ -213,6 +136,7 @@ export default function CustomersClient({
           onClose={closeModal}
         />
       ),
+      hideFooter: true,
       type: "SIMPLE",
     });
   };
@@ -220,6 +144,15 @@ export default function CustomersClient({
   const formatPhoneNumber = (phone: string) => {
     if (!phone || phone === "010") return "-";
     return replaceHyphenFormat(phone, "phone");
+  };
+
+  // ✅ Select 컴포넌트 핸들러 어댑터
+  const handleStateChange = (_: any, value?: string) => {
+    if (value) setFilterState(value);
+  };
+
+  const handleCountChange = (_: any, value?: string) => {
+    if (value) setFilterCount(value);
   };
 
   return (
@@ -234,20 +167,22 @@ export default function CustomersClient({
         />
         <Controls>
           <FilterGroup>
-            <FilterSelect
+            {/* ✅ FilterSelect -> 공통 Select로 교체 */}
+            <Select
+              width="130px"
               value={filterState}
               options={STATE_FILTER_OPTIONS}
-              onChange={setFilterState}
+              onChange={handleStateChange}
             />
-            <FilterSelect
+            <Select
+              width="130px"
               value={filterCount}
               options={COUNT_FILTER_OPTIONS}
-              onChange={setFilterCount}
+              onChange={handleCountChange}
             />
           </FilterGroup>
 
           <SearchWrapper>
-            {/* ✅ MUI SearchIcon -> Lucide Search */}
             <Search size={20} color="#94a3b8" />
             <SearchInput
               placeholder="이름 검색..."
@@ -256,7 +191,6 @@ export default function CustomersClient({
             />
           </SearchWrapper>
           <AddButton onClick={handleAdd}>
-            {/* ✅ MUI AddIcon -> Lucide Plus */}
             <Plus size={24} />
           </AddButton>
         </Controls>
@@ -365,7 +299,6 @@ export default function CustomersClient({
                     style={{ cursor: "pointer" }}
                   >
                     <MoreBtnWrapper>
-                      {/* ✅ Lucide MoreVertical */}
                       <MoreIcon />
                     </MoreBtnWrapper>
                   </td>
@@ -412,7 +345,6 @@ export default function CustomersClient({
               </CardHeader>
               <CardBody>
                 <InfoRow>
-                  {/* ✅ MUI PhoneIcon -> Lucide Smartphone */}
                   <Smartphone size={16} color="#b0b8c1" />
                   <span>
                     {formatPhoneNumber(item.tel) === "-"
@@ -434,7 +366,6 @@ export default function CustomersClient({
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
           >
-            {/* ✅ MUI ChevronLeft -> Lucide ChevronLeft */}
             <ChevronLeft size={20} />
           </PageButton>
 
@@ -452,7 +383,6 @@ export default function CustomersClient({
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
           >
-            {/* ✅ MUI ChevronRight -> Lucide ChevronRight */}
             <ChevronRight size={20} />
           </PageButton>
         </PaginationContainer>
@@ -529,7 +459,7 @@ const SearchWrapper = styled.div`
   padding: 0 12px;
   border-radius: 12px;
   width: 200px;
-  height: 42px;
+  height: 44px; /* Select 높이와 맞춤 (44px) */
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   border: 1px solid #e5e8eb;
   transition: all 0.2s;
@@ -542,6 +472,7 @@ const SearchWrapper = styled.div`
   @media (max-width: 768px) {
     flex: 1;
     min-width: 150px;
+    height: 44px; /* 모바일 높이 통일 */
   }
 `;
 
@@ -558,8 +489,8 @@ const SearchInput = styled.input`
 `;
 
 const AddButton = styled.button`
-  width: 42px;
-  height: 42px;
+  width: 44px; /* Select 높이와 통일 */
+  height: 44px;
   border-radius: 12px;
   background: #3182f6;
   color: white;
@@ -781,7 +712,6 @@ const MoreBtnWrapper = styled.div`
   }
 `;
 
-// ✅ Styled Component with Lucide Icon
 const MoreIcon = styled(MoreVertical)`
   color: #d1d6db;
   width: 20px;
@@ -821,120 +751,5 @@ const PageButton = styled.button<{ $active?: boolean }>`
     opacity: 0.5;
     cursor: not-allowed;
     background-color: #f9fafb;
-  }
-`;
-
-const SelectWrapper = styled.div`
-  position: relative;
-  width: 130px;
-
-  @media (max-width: 768px) {
-    width: 100%;
-  }
-`;
-
-const SelectTrigger = styled.div<{ $isOpen: boolean }>`
-  height: 42px;
-  padding: 0 12px;
-  background: white;
-  border-radius: 12px;
-  border: 1px solid ${({ $isOpen }) => ($isOpen ? "#3182f6" : "#e5e8eb")};
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: ${({ $isOpen }) =>
-    $isOpen
-      ? "0 0 0 3px rgba(49, 130, 246, 0.1)"
-      : "0 1px 2px rgba(0, 0, 0, 0.04)"};
-
-  &:hover {
-    background-color: #f9fafb;
-    border-color: ${({ $isOpen }) => ($isOpen ? "#3182f6" : "#d1d6db")};
-  }
-
-  @media (max-width: 768px) {
-    height: 38px;
-    padding: 0 10px;
-    border-radius: 10px;
-  }
-`;
-
-const SelectedText = styled.span`
-  font-size: 14px;
-  font-weight: 600;
-  color: #4e5968;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  @media (max-width: 768px) {
-    font-size: 13px;
-  }
-`;
-
-const ArrowIcon = styled.div<{ $isOpen: boolean }>`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 12px;
-  height: 12px;
-  transform: ${({ $isOpen }) => ($isOpen ? "rotate(180deg)" : "rotate(0deg)")};
-  transition: transform 0.2s ease;
-  margin-left: 8px;
-  flex-shrink: 0;
-
-  @media (max-width: 768px) {
-    width: 10px;
-    height: 10px;
-    margin-left: 6px;
-  }
-`;
-
-const DropdownList = styled.ul`
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  width: 100%;
-  padding: 6px;
-  background: white;
-  border-radius: 12px;
-  border: 1px solid #e5e8eb;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  z-index: 100;
-  max-height: 240px;
-  overflow-y: auto;
-  list-style: none;
-  box-sizing: border-box;
-
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-  &::-webkit-scrollbar-thumb {
-    background-color: #ddd;
-    border-radius: 4px;
-  }
-`;
-
-const DropdownItem = styled.li<{ $isSelected: boolean }>`
-  padding: 10px 12px;
-  border-radius: 8px;
-  font-size: 14px;
-  color: ${({ $isSelected }) => ($isSelected ? "#3182f6" : "#333d4b")};
-  font-weight: ${({ $isSelected }) => ($isSelected ? "700" : "500")};
-  background-color: ${({ $isSelected }) =>
-    $isSelected ? "#e8f3ff" : "transparent"};
-  cursor: pointer;
-  transition: background-color 0.1s;
-
-  &:hover {
-    background-color: ${({ $isSelected }) =>
-      $isSelected ? "#e8f3ff" : "#f2f4f6"};
-  }
-
-  @media (max-width: 768px) {
-    font-size: 13px;
-    padding: 8px 10px;
   }
 `;

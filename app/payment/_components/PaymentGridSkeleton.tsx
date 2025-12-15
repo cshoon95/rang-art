@@ -10,12 +10,14 @@ export default function PaymentGridSkeleton() {
           {/* 타이틀 */}
           <SkeletonBox width="100px" height="24px" />
           {/* 추가 버튼 */}
-          <SkeletonBox width="32px" height="32px" borderRadius="8px" />
+          {/* ✅ borderRadius -> $borderRadius */}
+          <SkeletonBox width="32px" height="32px" $borderRadius="8px" />
         </LeftGroup>
 
         <SearchInputWrapper>
           {/* 검색창 */}
-          <SkeletonBox width="100%" height="40px" borderRadius="12px" />
+          {/* ✅ borderRadius -> $borderRadius */}
+          <SkeletonBox width="100%" height="40px" $borderRadius="12px" />
         </SearchInputWrapper>
       </Toolbar>
 
@@ -67,7 +69,7 @@ export default function PaymentGridSkeleton() {
                   <SkeletonBox
                     width="50px"
                     height="24px"
-                    borderRadius="6px"
+                    $borderRadius="6px"
                     style={{ margin: "0 auto" }}
                   />
                 </Td>
@@ -81,7 +83,7 @@ export default function PaymentGridSkeleton() {
                   <SkeletonBox
                     width="24px"
                     height="24px"
-                    borderRadius="4px"
+                    $borderRadius="4px"
                     style={{ margin: "0 auto" }}
                   />
                 </Td>
@@ -93,9 +95,9 @@ export default function PaymentGridSkeleton() {
 
       {/* 3. 페이지네이션 영역 */}
       <PaginationWrapper>
-        <SkeletonBox width="32px" height="32px" borderRadius="8px" />
+        <SkeletonBox width="32px" height="32px" $borderRadius="8px" />
         <SkeletonBox width="40px" height="20px" />
-        <SkeletonBox width="32px" height="32px" borderRadius="8px" />
+        <SkeletonBox width="32px" height="32px" $borderRadius="8px" />
       </PaginationWrapper>
     </div>
   );
@@ -112,11 +114,12 @@ const shimmer = keyframes`
 const SkeletonBox = styled.div<{
   width?: string;
   height?: string;
-  borderRadius?: string;
+  $borderRadius?: string; // ✅ $를 붙여서 정의
 }>`
   width: ${(props) => props.width || "100%"};
   height: ${(props) => props.height || "20px"};
-  border-radius: ${(props) => props.borderRadius || "4px"};
+  /* ✅ props.$borderRadius로 접근 */
+  border-radius: ${(props) => props.$borderRadius || "4px"};
   animation: ${shimmer} 1.5s infinite ease-in-out;
 `;
 

@@ -4,13 +4,22 @@ import {
   getAttendanceListAction,
   upsertAttendanceAction,
   getStudentAttendanceHistoryAction,
+  getInActiveStudentsAction,
 } from "../_actions/attendance";
 
-// 학생 목록
+// 학생 목록 (재원)
 export const useGetStudents = (academyCode: string) => {
   return useQuery({
     queryKey: ["attendance-students", academyCode],
     queryFn: () => getActiveStudentsAction(academyCode),
+  });
+};
+
+// 학생 목록 (퇴원)
+export const useGetInActiveStudents = (academyCode: string) => {
+  return useQuery({
+    queryKey: ["in-active-attendance-students", academyCode],
+    queryFn: () => getInActiveStudentsAction(academyCode),
   });
 };
 

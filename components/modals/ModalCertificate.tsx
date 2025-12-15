@@ -175,7 +175,7 @@ const CaptureTarget = styled.div`
 `;
 
 const Footer = styled.div`
-  padding: 16px 0px 8px 0px; /* 좌우 패딩 20px로 통일 */
+  padding: 16px 16px 8px 16px; /* 좌우 패딩 20px로 통일 */
   background: white;
   border-top: 1px solid #e5e8eb;
 

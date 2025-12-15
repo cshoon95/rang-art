@@ -214,6 +214,7 @@ export default function EmployeesClient({ initialData, academyCode }: Props) {
         />
       ),
       type: "SIMPLE",
+      hideFooter: true,
     });
   };
 

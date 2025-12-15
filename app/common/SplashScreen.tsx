@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import styled, { keyframes } from "styled-components";
 import Image from "next/image"; // Next.js Image 컴포넌트 사용
+import Icon from "../../public/icon.png";
 
 export const SplashScreen = () => {
   const [isVisible, setIsVisible] = useState(true);
@@ -73,7 +74,7 @@ export const SplashScreen = () => {
         {/* 텍스트 대신 이미지 사용 */}
         <ImageWrapper>
           <Image
-            src="/icon.png" // public 폴더 기준 경로
+            src={Icon} // public 폴더 기준 경로
             alt="RANG ART Logo"
             width={180} // 적절한 크기로 조절해주세요
             height={180}
@@ -136,13 +137,12 @@ const LogoContainer = styled.div`
 // 이미지를 감싸고 애니메이션을 적용할 래퍼
 const ImageWrapper = styled.div`
   animation: ${pulse} 2s infinite ease-in-out;
-  margin-bottom: 20px; // 텍스트와의 간격
+  margin-bottom: 4px; // 텍스트와의 간격
 `;
 
 const LoadingText = styled.p`
   font-size: 16px;
   color: #555;
-  margin-top: 16px;
   font-weight: 600;
   word-break: keep-all;
   line-height: 1.5;

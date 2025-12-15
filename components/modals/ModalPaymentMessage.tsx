@@ -396,7 +396,7 @@ export default function ModalPaymentMessage({
             <Title>결제 알림 전송</Title>
             <SubTitle>
               총 <strong style={{ color: "#3182f6" }}>{rows.length}명</strong>의
-              미납 내역이 조회되었습니다.
+              미발신 내역이 조회되었습니다.
             </SubTitle>
           </TitleGroup>
           <CloseButton onClick={onClose}>

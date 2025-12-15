@@ -74,6 +74,7 @@ export default function TempScheduleClient({
       type: "SIMPLE",
       title: "시간 추가",
       content: <ModalTimeManager mode="add" target="temp-schedule" />,
+      hideFooter: true,
     });
   };
 
@@ -88,6 +89,7 @@ export default function TempScheduleClient({
           target="temp-schedule"
         />
       ),
+      hideFooter: true,
     });
   };
 
