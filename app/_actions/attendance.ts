@@ -12,7 +12,7 @@ export async function getAttendanceListAction(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("attendance")
-    .select("*")
+    .select("student_id, date, content")
     .eq("academy_code", academyCode)
     .gte("date", startDate)
     .lte("date", endDate);
@@ -90,31 +90,38 @@ export async function getPrevMonthLastDataAction(
 ) {
   const supabase = await createClient();
 
-  // 로직: 각 학생별로 prevMonthEnd 이전 날짜 중 가장 최신 기록 1개를 가져옴
-  // Supabase(Postgres)의 DISTINCT ON을 활용
+  // 🚀 최적화 전략: "전월 말일" 기준 데이터이므로, 너무 먼 과거 데이터(1년 전 등)는 필요 없을 확률이 높습니다.
+  // 성능을 위해 검색 범위를 '전월 말일 기준 최근 2~3달'로 좁히는 것이 좋습니다.
+  // 만약 3달 이상 결석했다면 '전월 데이터'를 보여줄 필요가 없거나 '-'로 표시해도 무방하다면 아래 로직 사용.
+
+  const searchLimitDate = format(
+    subMonths(new Date(prevMonthEnd), 3),
+    "yyyy-MM-dd"
+  );
+
   const { data, error } = await supabase
     .from("attendance")
     .select("student_id, content, date")
     .eq("academy_code", academyCode)
-    .lte("date", prevMonthEnd)
-    .order("student_id", { ascending: true })
-    .order("date", { ascending: false }); // 날짜 내림차순 정렬
+    .lte("date", prevMonthEnd) // 전월 말일보다 작거나 같고
+    .gte("date", searchLimitDate) // 💥 추가: 너무 옛날 데이터는 제외 (속도 향상 핵심)
+    .order("date", { ascending: false }); // 최신순 정렬
 
   if (error) {
     console.error(error);
-    return [];
+    return {};
   }
 
-  // 중복 제거 (학생별 가장 최신 1개만 남김) -> JS에서 처리 or SQL DISTINCT ON 사용
-  // 여기선 간단히 JS Map으로 처리
+  // JS Map을 이용한 중복 제거 (최신 1건만 유지)
   const map = new Map();
-  data.forEach((item) => {
+  // data는 이미 최신순(date desc)으로 정렬되어 있으므로, 먼저 나오는게 최신 데이터입니다.
+  for (const item of data) {
     if (!map.has(item.student_id)) {
       map.set(item.student_id, item.content);
     }
-  });
+  }
 
-  return Object.fromEntries(map); // { student_id: 'L', ... }
+  return Object.fromEntries(map);
 }
 
 // ✅ [New] 원생 상태 업데이트 (원비, 메시지 상태)
@@ -142,7 +149,7 @@ export async function getStudentAttendanceHistoryAction(
   try {
     const { data, error } = await supabase
       .from("attendance")
-      .select("*")
+      .select("student_id, content, date")
       .eq("academy_code", academyCode)
       .eq("name", name)
       .gte("date", sixMonthsAgo)

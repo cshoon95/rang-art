@@ -1,6 +1,4 @@
-import React from "react";
 import PlanningClient from "./_components/PlanningClient";
-import { getSession } from "next-auth/react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
@@ -14,5 +12,5 @@ export default async function PlanningPage() {
   const academyCode = user?.academyCode;
   const userId = user?.id;
 
-  return <PlanningClient academyCode={academyCode} userId={""} />;
+  return <PlanningClient academyCode={academyCode} userId={userId} />;
 }

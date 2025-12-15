@@ -494,7 +494,7 @@ const ErrorMessage = styled.span`
 
 const Footer = styled.div`
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 8px;
   margin-top: 12px;
   padding-top: 20px;

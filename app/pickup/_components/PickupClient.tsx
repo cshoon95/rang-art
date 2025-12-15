@@ -1,10 +1,16 @@
 "use client";
 
-import React, { useState, useEffect, useTransition } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useTransition,
+} from "react";
 import styled, { css } from "styled-components";
+import dynamic from "next/dynamic";
 import { extractInitialConsonants } from "@/utils/common";
 import { useModalStore } from "@/store/modalStore";
-import ModalTimeManager from "@/components/modals/ModalTimeManager";
 import {
   Search as SearchIcon,
   Add as AddIcon,
@@ -16,99 +22,171 @@ import { WEEKDAY_LIST } from "@/utils/list";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
 import { useUpsertPickup } from "@/app/_querys";
 
+// 모달 동적 로딩
+const ModalTimeManager = dynamic(
+  () => import("@/components/modals/ModalTimeManager"),
+  { ssr: false }
+);
+
 interface Props {
   initialTimeList: any[];
   initialDataList: any[];
 }
+
+// --------------------------------------------------------------------------
+// 🧩 Memoized Cell Component (셀 단위 최적화)
+// --------------------------------------------------------------------------
+const PickupCell = React.memo(
+  ({
+    id,
+    content,
+    isHighlighted,
+    isVisible,
+    onBlur,
+  }: {
+    id: string;
+    content: string;
+    isHighlighted: boolean;
+    isVisible: boolean;
+    onBlur: React.FocusEventHandler<HTMLDivElement>;
+  }) => {
+    return (
+      <Td
+        id={id}
+        onBlur={onBlur}
+        contentEditable={true}
+        suppressContentEditableWarning={true}
+        $isHighlighted={isHighlighted}
+        $isVisible={isVisible}
+        $isDayEnd={true} // 픽업은 1열이라 항상 끝
+        data-original={content}
+      >
+        {content}
+      </Td>
+    );
+  },
+  (prev, next) => {
+    return (
+      prev.content === next.content &&
+      prev.isVisible === next.isVisible &&
+      prev.isHighlighted === next.isHighlighted
+    );
+  }
+);
+PickupCell.displayName = "PickupCell";
+
+// --------------------------------------------------------------------------
+// 🧩 Main Component
+// --------------------------------------------------------------------------
 
 export default function PickupClient({
   initialTimeList,
   initialDataList,
 }: Props) {
   const [searchText, setSearchText] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState(""); // 디바운스
   const [activeDay, setActiveDay] = useState(0);
   const [isAllView, setIsAllView] = useState(false);
-  const [isPending, startTransition] = useTransition(); // Server Action용
+  const [isPending, startTransition] = useTransition();
 
   const openModal = useModalStore((state) => state.openModal);
-  // ✅ Upsert Mutation 사용
   const { mutate: mutateUpsertPickup } = useUpsertPickup();
 
   useEffect(() => {
     const today = new Date().getDay();
-    if (today >= 1 && today <= 5) {
-      setActiveDay(today - 1);
-    } else {
-      setActiveDay(0);
-    }
+    setActiveDay(today >= 1 && today <= 5 ? today - 1 : 0);
   }, []);
 
-  // ✅ Blur 이벤트 핸들러: 내용 변경 시 저장 (Server Action 사용)
-  const handleOnBlur: React.FocusEventHandler<HTMLDivElement> = (e) => {
-    const text = e.currentTarget.innerText.trim();
-    const refId = e.currentTarget.id.split("-");
-    const time = refId[0];
-    const day = refId[1];
-    const originalContent = e.currentTarget.getAttribute("data-original");
+  // 검색어 디바운싱
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchText);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchText]);
 
-    if (text === originalContent) return;
+  // 데이터 가공 최적화 (useMemo)
+  const rows = useMemo(() => {
+    return initialTimeList?.map((item: any) => {
+      const obj: any = { days: WEEKDAY_LIST, time: item.time };
+      const filterList =
+        initialDataList?.filter((d: any) => d.time === item.time) || [];
 
-    mutateUpsertPickup({
-      content: text,
-      time,
-      day,
-      academyCode: "2",
-      registerID: "admin",
-      type: "",
+      for (let i = 0; i < 5; i++) {
+        let contents = "";
+        if (filterList.length > 0) {
+          const data = filterList.find((d: any) => {
+            return WEEKDAY_LIST[i].value === Number(d.day);
+          });
+          contents = data?.content || "";
+        }
+        obj["contents" + String(i)] = contents;
+      }
+      return obj;
     });
-  };
+  }, [initialTimeList, initialDataList]);
 
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchText(event.target.value.toLowerCase());
-  };
+  // 핸들러 최적화 (useCallback)
+  const handleOnBlur = useCallback<React.FocusEventHandler<HTMLDivElement>>(
+    (e) => {
+      const text = e.currentTarget.innerText.trim();
+      const originalContent = e.currentTarget.getAttribute("data-original");
 
-  const handleAddTime = () => {
+      if (text === originalContent) return;
+
+      const refId = e.currentTarget.id.split("-");
+      const time = refId[0];
+      const day = refId[1];
+
+      mutateUpsertPickup({
+        content: text,
+        time,
+        day,
+        academyCode: "2",
+        registerID: "admin",
+        type: "",
+      });
+    },
+    [mutateUpsertPickup]
+  );
+
+  const handleSearchChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setSearchText(event.target.value.toLowerCase());
+    },
+    []
+  );
+
+  const handleAddTime = useCallback(() => {
     openModal({
       type: "SIMPLE",
       title: "시간 추가",
       content: <ModalTimeManager mode="add" target="pickup" />,
       hideFooter: true,
     });
-  };
+  }, [openModal]);
 
-  const handleManageTime = (timeValue: string) => {
-    openModal({
-      type: "SIMPLE",
-      title: "시간 관리",
-      content: (
-        <ModalTimeManager
-          mode="delete"
-          initialTime={replaceTimePattern(timeValue)}
-          target="pickup"
-        />
-      ),
-      hideFooter: true,
-    });
-  };
+  const handleManageTime = useCallback(
+    (timeValue: string) => {
+      openModal({
+        type: "SIMPLE",
+        title: "시간 관리",
+        content: (
+          <ModalTimeManager
+            mode="delete"
+            initialTime={replaceTimePattern(timeValue)}
+            target="pickup"
+          />
+        ),
+        hideFooter: true,
+      });
+    },
+    [openModal]
+  );
 
-  // 데이터 가공 (5일 * 1컬럼)
-  const rows = initialTimeList?.map((item: any) => {
-    const obj: any = { days: WEEKDAY_LIST, time: item.time };
-    const filterList =
-      initialDataList?.filter((d: any) => d.time === item.time) || [];
-
-    for (let i = 0; i < 5; i++) {
-      let contents = "";
-      if (filterList.length > 0) {
-        const data = filterList.find((d: any) => {
-          return WEEKDAY_LIST[i].value === Number(d.day);
-        });
-        contents = data?.content || "";
-      }
-      obj["contents" + String(i)] = contents;
-    }
-    return obj;
-  });
+  const toggleAllView = useCallback(() => {
+    setIsAllView((prev) => !prev);
+  }, []);
 
   return (
     <Container>
@@ -151,10 +229,7 @@ export default function PickupClient({
             </TabList>
           )}
 
-          <ViewToggleButton
-            onClick={() => setIsAllView(!isAllView)}
-            $isAllView={isAllView}
-          >
+          <ViewToggleButton onClick={toggleAllView} $isAllView={isAllView}>
             {isAllView ? <ViewDayIcon /> : <GridViewIcon />}
             <span>{isAllView ? "요일별" : "한 눈에"}</span>
           </ViewToggleButton>
@@ -169,7 +244,7 @@ export default function PickupClient({
               {WEEKDAY_LIST.map((day) => (
                 <ThStickyTop
                   key={day.value}
-                  colSpan={1} // 픽업은 하루에 1열
+                  colSpan={1}
                   $isVisible={isAllView || day.value === activeDay}
                 >
                   {day.label}
@@ -178,8 +253,8 @@ export default function PickupClient({
             </tr>
           </Thead>
           <tbody>
-            {rows.map((row: any) => (
-              <tr key={row.time}>
+            {rows.map((row: any, idx: number) => (
+              <tr key={row.time + "-" + idx}>
                 <ThStickyLeft onClick={() => handleManageTime(row.time)}>
                   {replaceTimeFormat(row.time)}
                 </ThStickyLeft>
@@ -191,25 +266,22 @@ export default function PickupClient({
                   const content = row[contentKey] ?? "";
 
                   const isHighlighted =
-                    searchText &&
+                    debouncedSearch &&
                     content &&
-                    (content.toLowerCase().includes(searchText) ||
-                      extractInitialConsonants(content).includes(searchText));
+                    (content.toLowerCase().includes(debouncedSearch) ||
+                      extractInitialConsonants(content).includes(
+                        debouncedSearch
+                      ));
 
                   return (
-                    <Td
+                    <PickupCell
                       key={id}
                       id={id}
+                      content={content}
+                      isHighlighted={!!isHighlighted}
+                      isVisible={isAllView || dayIndex === activeDay}
                       onBlur={handleOnBlur}
-                      contentEditable={true}
-                      suppressContentEditableWarning={true}
-                      $isHighlighted={!!isHighlighted}
-                      $isVisible={isAllView || dayIndex === activeDay}
-                      $isDayEnd={true} // 모든 칸이 요일의 끝임 (1열 구조이므로)
-                      data-original={content}
-                    >
-                      {content}
-                    </Td>
+                    />
                   );
                 })}
               </tr>
@@ -222,7 +294,7 @@ export default function PickupClient({
 }
 
 // --------------------------------------------------------------------------
-// ✨ Styled Components (제공해주신 코드와 동일 스타일, 색상만 오렌지 테마 적용)
+// ✨ Styled Components (변경 없음)
 // --------------------------------------------------------------------------
 
 const Container = styled.div`

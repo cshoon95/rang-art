@@ -1,13 +1,18 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, {
+  useState,
+  useMemo,
+  useRef,
+  useEffect,
+  useCallback,
+} from "react";
 import styled from "styled-components";
 import {
   Search as SearchIcon,
   PhoneIphone as PhoneIcon,
   MoreVert as MoreVertIcon,
 } from "@mui/icons-material";
-// ✅ [New] 페이지네이션용 아이콘 추가
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { useModalStore } from "@/store/modalStore";
@@ -21,7 +26,7 @@ interface Props {
   academyCode: string;
 }
 
-// --- 상수 및 옵션 ---
+// --- Constants ---
 const LEVEL_FILTER_OPTIONS = [
   { value: "all", label: "모든 직급" },
   { value: "1", label: "원장님" },
@@ -36,7 +41,6 @@ const STATE_FILTER_OPTIONS = [
   { value: "X", label: "퇴사" },
 ];
 
-// 정렬 순서
 const LEVEL_ORDER: { [key: string]: number } = {
   원장님: 1,
   부원장님: 2,
@@ -44,8 +48,10 @@ const LEVEL_ORDER: { [key: string]: number } = {
   스탭: 4,
 };
 
-// --- 커스텀 필터 셀렉트 ---
-function FilterSelect({ value, options, onChange }: any) {
+// --- Sub Components ---
+
+// 1. 커스텀 필터 셀렉트 (React.memo 적용)
+const FilterSelect = React.memo(({ value, options, onChange }: any) => {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const selectedOption = options.find((opt: any) => opt.value === value);
@@ -75,13 +81,7 @@ function FilterSelect({ value, options, onChange }: any) {
           {selectedOption ? selectedOption.label : "선택"}
         </SelectedText>
         <ArrowIcon $isOpen={isOpen}>
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 12 12"
-            fill="none"
-            style={{ width: "100%", height: "100%" }}
-          >
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
             <path
               d="M2.5 4.5L6 8L9.5 4.5"
               stroke={isOpen ? "#3182f6" : "#8B95A1"}
@@ -107,52 +107,192 @@ function FilterSelect({ value, options, onChange }: any) {
       )}
     </SelectWrapper>
   );
-}
+});
+FilterSelect.displayName = "FilterSelect";
+
+// 2. 직원 테이블 컴포넌트
+const EmployeesTable = React.memo(
+  ({ data, startIndex, onDetail, onDelete }: any) => {
+    return (
+      <TableView>
+        <thead>
+          <tr>
+            <th
+              style={{
+                minWidth: "50px",
+                position: "sticky",
+                left: 0,
+                zIndex: 10,
+              }}
+            >
+              No
+            </th>
+            <th
+              style={{
+                minWidth: "80px",
+                position: "sticky",
+                left: "50px",
+                zIndex: 10,
+              }}
+            >
+              이름
+            </th>
+            <th style={{ minWidth: "80px" }}>직급</th>
+            <th style={{ minWidth: "80px" }}>승인 여부</th>
+            <th style={{ minWidth: "120px" }}>연락처</th>
+            <th style={{ minWidth: "100px" }}>생년월일</th>
+            <th style={{ minWidth: "100px" }}>입사일</th>
+            <th style={{ minWidth: "100px" }}>급여</th>
+            <th style={{ minWidth: "150px" }}>계좌번호</th>
+            <th style={{ minWidth: "200px" }}>비고</th>
+            <th style={{ minWidth: "50px" }}></th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((item: any, index: number) => (
+            <tr key={item.IDX} onClick={() => onDetail(item)}>
+              <td
+                style={{
+                  position: "sticky",
+                  left: 0,
+                  zIndex: 5,
+                  backgroundColor: "#fff",
+                }}
+              >
+                {startIndex + index + 1}
+              </td>
+              <td
+                style={{
+                  fontWeight: 700,
+                  position: "sticky",
+                  left: "50px",
+                  zIndex: 5,
+                  backgroundColor: "#fff",
+                }}
+              >
+                {item.NAME}
+              </td>
+              <td>
+                <LevelBadge $level={item.LEVEL}>{item.LEVEL}</LevelBadge>
+              </td>
+              <td>
+                <StateBadge $state={item.STATE}>
+                  {item.STATE === "O" ? "O" : "X"}
+                </StateBadge>
+              </td>
+              <td>{item.TEL || "-"}</td>
+              <td>{item.BIRTH}</td>
+              <td>{item.DATE}</td>
+              <td>{item.SALARY ? item.SALARY : "-"}</td>
+              <td>{item.ACCOUNT || "-"}</td>
+              <td style={{ color: "#8b95a1", fontSize: "13px" }}>
+                {item.NOTE || "-"}
+              </td>
+              <td
+                onClick={(e) => onDelete(e, item.ID)}
+                style={{ cursor: "pointer" }}
+              >
+                <MoreBtnWrapper>
+                  <MoreIcon />
+                </MoreBtnWrapper>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </TableView>
+    );
+  }
+);
+EmployeesTable.displayName = "EmployeesTable";
+
+// 3. 직원 카드 리스트 컴포넌트
+const EmployeesCardList = React.memo(({ data, onDetail, onDelete }: any) => {
+  return (
+    <CardView>
+      {data.map((item: any) => (
+        <Card key={item.IDX} onClick={() => onDetail(item)}>
+          <CardHeader>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <Avatar>{(item.NAME || "").charAt(0)}</Avatar>
+              <NameArea>
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                >
+                  <Name>{item.NAME}</Name>
+                  <StateBadge $state={item.STATE}>
+                    {item.STATE === "O" ? "재직" : "퇴사"}
+                  </StateBadge>
+                </div>
+                <SubText>
+                  {item.LEVEL} | {item.TENURE}
+                </SubText>
+              </NameArea>
+            </div>
+            <MoreBtnWrapper
+              onClick={(e) => onDelete(e, item.ID)}
+              style={{ marginRight: "-8px" }}
+            >
+              <MoreIcon />
+            </MoreBtnWrapper>
+          </CardHeader>
+          <CardBody>
+            <InfoRow>
+              <PhoneIcon fontSize="small" />
+              <span>{item.TEL || "연락처 없음"}</span>
+            </InfoRow>
+            {item.NOTE && <NoteRow>📢 {item.NOTE}</NoteRow>}
+          </CardBody>
+        </Card>
+      ))}
+    </CardView>
+  );
+});
+EmployeesCardList.displayName = "EmployeesCardList";
+
+// --- Main Component ---
 
 export default function EmployeesClient({ initialData, academyCode }: Props) {
+  // State
   const [searchText, setSearchText] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState(""); // 디바운스 적용
   const [filterLevel, setFilterLevel] = useState("all");
   const [filterState, setFilterState] = useState("all");
-
-  // ✅ [New] 페이지네이션 상태
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10); // 기본값
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const { openModal, closeModal } = useModalStore();
 
-  // ✅ [New] 반응형 itemsPerPage 설정
+  // 1. 검색어 디바운싱
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchText), 300);
+    return () => clearTimeout(timer);
+  }, [searchText]);
+
+  // 2. 반응형 아이템 개수 설정
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth > 1180) {
-        setItemsPerPage(10);
-      } else if (window.innerWidth > 800) {
-        setItemsPerPage(8);
-      } else {
-        setItemsPerPage(3);
-      }
+      if (window.innerWidth > 1180) setItemsPerPage(10);
+      else if (window.innerWidth > 800) setItemsPerPage(8);
+      else setItemsPerPage(3);
     };
-
-    // 초기 실행
     handleResize();
-
-    // 리사이즈 이벤트 등록
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // ✅ 검색어/필터 변경 시 1페이지로 리셋
+  // 3. 필터 변경 시 페이지 리셋
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchText, filterLevel, filterState]);
+  }, [debouncedSearch, filterLevel, filterState]);
 
-  // 데이터 필터링 및 정렬
-  const filteredAndSortedData = useMemo(() => {
+  // 4. 데이터 가공 (useMemo)
+  const processedData = useMemo(() => {
     const filtered = initialData.filter((item) => {
       const name = item.NAME || "";
       const matchesSearch =
-        !searchText ||
-        name.includes(searchText) ||
-        extractInitialConsonants(name).includes(searchText);
+        !debouncedSearch ||
+        name.includes(debouncedSearch) ||
+        extractInitialConsonants(name).includes(debouncedSearch);
 
       const matchesLevel =
         filterLevel === "all" || item.LEVEL_CD === filterLevel;
@@ -163,24 +303,23 @@ export default function EmployeesClient({ initialData, academyCode }: Props) {
 
     return filtered.sort((a, b) => {
       if (a.STATE !== b.STATE) return a.STATE === "O" ? -1 : 1;
-
       const orderA = LEVEL_ORDER[a.LEVEL] || 99;
       const orderB = LEVEL_ORDER[b.LEVEL] || 99;
       if (orderA !== orderB) return orderA - orderB;
-
       return (a.NAME || "").localeCompare(b.NAME || "");
     });
-  }, [initialData, searchText, filterLevel, filterState]);
+  }, [initialData, debouncedSearch, filterLevel, filterState]);
 
-  // ✅ [New] 페이지네이션 데이터 슬라이싱
-  const totalPages = Math.ceil(filteredAndSortedData.length / itemsPerPage);
-  const paginatedData = useMemo(() => {
+  // 5. 페이지네이션 데이터
+  const currentItems = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredAndSortedData.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredAndSortedData, currentPage, itemsPerPage]);
+    return processedData.slice(startIndex, startIndex + itemsPerPage);
+  }, [processedData, currentPage, itemsPerPage]);
 
-  // ✅ [New] 페이지 번호 배열 생성 함수
-  const getPageNumbers = () => {
+  const totalPages = Math.ceil(processedData.length / itemsPerPage);
+
+  // 6. 페이지 번호 생성 함수
+  const getPageNumbers = useCallback(() => {
     const pageNumbers = [];
     let startPage = Math.max(1, currentPage - 2);
     let endPage = Math.min(totalPages, startPage + 4);
@@ -193,45 +332,52 @@ export default function EmployeesClient({ initialData, academyCode }: Props) {
       pageNumbers.push(i);
     }
     return pageNumbers;
-  };
+  }, [currentPage, totalPages]);
 
-  const handleAdd = () => {
+  // Handlers (useCallback)
+  const handleAdd = useCallback(() => {
     openModal({
       title: "직원 등록",
       content: <ModalEmployeeManager mode="add" academyCode={academyCode} />,
       type: "SIMPLE",
     });
-  };
+  }, [openModal, academyCode]);
 
-  const handleDetail = (employee: any) => {
-    openModal({
-      title: "직원 정보 수정",
-      content: (
-        <ModalEmployeeManager
-          mode="edit"
-          academyCode={academyCode}
-          initialData={employee}
-        />
-      ),
-      type: "SIMPLE",
-      hideFooter: true,
-    });
-  };
+  const handleDetail = useCallback(
+    (employee: any) => {
+      openModal({
+        title: "직원 정보 수정",
+        content: (
+          <ModalEmployeeManager
+            mode="edit"
+            academyCode={academyCode}
+            initialData={employee}
+          />
+        ),
+        type: "SIMPLE",
+        hideFooter: true,
+      });
+    },
+    [openModal, academyCode]
+  );
 
-  const handleDeleteCheck = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    openModal({
-      title: "직원 삭제",
-      content: (
-        <ModalEmployeeDelete
-          id={id}
-          academyCode={academyCode}
-          onClose={closeModal}
-        />
-      ),
-      type: "SIMPLE",
-    });
-  };
+  const handleDeleteCheck = useCallback(
+    (e: React.MouseEvent, id: string) => {
+      e.stopPropagation();
+      openModal({
+        title: "직원 삭제",
+        content: (
+          <ModalEmployeeDelete
+            id={id}
+            academyCode={academyCode}
+            onClose={closeModal}
+          />
+        ),
+        type: "SIMPLE",
+      });
+    },
+    [openModal, closeModal, academyCode]
+  );
 
   return (
     <Container>
@@ -256,7 +402,6 @@ export default function EmployeesClient({ initialData, academyCode }: Props) {
               onChange={setFilterState}
             />
           </FilterGroup>
-
           <SearchWrapper>
             <SearchIcon style={{ color: "#94a3b8" }} />
             <SearchInput
@@ -271,144 +416,24 @@ export default function EmployeesClient({ initialData, academyCode }: Props) {
       <ListContainer>
         {/* PC View */}
         <TableScrollWrapper>
-          <TableView>
-            <thead>
-              <tr>
-                <th
-                  style={{
-                    minWidth: "50px",
-                    position: "sticky",
-                    left: 0,
-                    zIndex: 10,
-                  }}
-                >
-                  No
-                </th>
-                <th
-                  style={{
-                    minWidth: "80px",
-                    position: "sticky",
-                    left: "50px",
-                    zIndex: 10,
-                  }}
-                >
-                  이름
-                </th>
-                <th style={{ minWidth: "80px" }}>직급</th>
-                <th style={{ minWidth: "80px" }}>승인 여부</th>
-                <th style={{ minWidth: "120px" }}>연락처</th>
-                <th style={{ minWidth: "100px" }}>생년월일</th>
-                <th style={{ minWidth: "100px" }}>입사일</th>
-                <th style={{ minWidth: "100px" }}>급여</th>
-                <th style={{ minWidth: "150px" }}>계좌번호</th>
-                <th style={{ minWidth: "200px" }}>비고</th>
-                <th style={{ minWidth: "50px" }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {/* ✅ filteredAndSortedData 대신 paginatedData 사용 */}
-              {paginatedData.map((item, index) => (
-                <tr key={item.IDX} onClick={() => handleDetail(item)}>
-                  <td
-                    style={{
-                      position: "sticky",
-                      left: 0,
-                      zIndex: 5,
-                      backgroundColor: "#fff",
-                    }}
-                  >
-                    {(currentPage - 1) * itemsPerPage + index + 1}
-                  </td>
-                  <td
-                    style={{
-                      fontWeight: 700,
-                      position: "sticky",
-                      left: "50px",
-                      zIndex: 5,
-                      backgroundColor: "#fff",
-                    }}
-                  >
-                    {item.NAME}
-                  </td>
-                  <td>
-                    <LevelBadge $level={item.LEVEL}>{item.LEVEL}</LevelBadge>
-                  </td>
-                  <td>
-                    <StateBadge $state={item.STATE}>
-                      {item.STATE === "O" ? "O" : "X"}
-                    </StateBadge>
-                  </td>
-                  <td>{item.TEL || "-"}</td>
-                  <td>{item.BIRTH}</td>
-                  <td>{item.DATE}</td>
-                  <td>{item.SALARY ? item.SALARY : "-"}</td>
-                  <td>{item.ACCOUNT || "-"}</td>
-                  <td style={{ color: "#8b95a1", fontSize: "13px" }}>
-                    {item.NOTE || "-"}
-                  </td>
-                  <td
-                    onClick={(e) => handleDeleteCheck(e, item.ID)}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <MoreBtnWrapper>
-                      <MoreIcon />
-                    </MoreBtnWrapper>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </TableView>
+          <EmployeesTable
+            data={currentItems}
+            startIndex={(currentPage - 1) * itemsPerPage}
+            onDetail={handleDetail}
+            onDelete={handleDeleteCheck}
+          />
         </TableScrollWrapper>
 
         {/* Mobile View */}
-        <CardView>
-          {/* ✅ filteredAndSortedData 대신 paginatedData 사용 */}
-          {paginatedData.map((item) => (
-            <Card key={item.IDX} onClick={() => handleDetail(item)}>
-              <CardHeader>
-                <div
-                  style={{ display: "flex", alignItems: "center", gap: "12px" }}
-                >
-                  <Avatar>{(item.NAME || "").charAt(0)}</Avatar>
-                  <NameArea>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                      }}
-                    >
-                      <Name>{item.NAME}</Name>
-                      <StateBadge $state={item.STATE}>
-                        {item.STATE === "O" ? "재직" : "퇴사"}
-                      </StateBadge>
-                    </div>
-                    <SubText>
-                      {item.LEVEL} | {item.TENURE}
-                    </SubText>
-                  </NameArea>
-                </div>
-                <MoreBtnWrapper
-                  onClick={(e) => handleDeleteCheck(e, item.ID)}
-                  style={{ marginRight: "-8px" }}
-                >
-                  <MoreIcon />
-                </MoreBtnWrapper>
-              </CardHeader>
-              <CardBody>
-                <InfoRow>
-                  <PhoneIcon fontSize="small" />
-                  <span>{item.TEL || "연락처 없음"}</span>
-                </InfoRow>
-                {item.NOTE && <NoteRow>📢 {item.NOTE}</NoteRow>}
-              </CardBody>
-            </Card>
-          ))}
-        </CardView>
+        <EmployeesCardList
+          data={currentItems}
+          onDetail={handleDetail}
+          onDelete={handleDeleteCheck}
+        />
       </ListContainer>
 
-      {/* ✅ [New] 페이지네이션 UI */}
-      {filteredAndSortedData.length > 0 && (
+      {/* Pagination */}
+      {processedData.length > 0 && (
         <PaginationWrapper>
           <PageButton
             onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
@@ -416,7 +441,6 @@ export default function EmployeesClient({ initialData, academyCode }: Props) {
           >
             <ChevronLeft size={16} />
           </PageButton>
-
           {getPageNumbers().map((pageNum) => (
             <PageNumber
               key={pageNum}
@@ -426,7 +450,6 @@ export default function EmployeesClient({ initialData, academyCode }: Props) {
               {pageNum}
             </PageNumber>
           ))}
-
           <PageButton
             onClick={() =>
               setCurrentPage((prev) => Math.min(prev + 1, totalPages))
@@ -441,76 +464,10 @@ export default function EmployeesClient({ initialData, academyCode }: Props) {
   );
 }
 
-// ... (기존 스타일 코드들: LevelBadge, StateBadge, Container, Header ... 등 동일) ...
+// --------------------------------------------------------------------------
+// ✨ Styles (기존과 동일)
+// --------------------------------------------------------------------------
 
-// ✅ [New] 페이지네이션 스타일 추가
-const PaginationWrapper = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 6px;
-  padding-bottom: 20px;
-  margin-top: auto; /* 리스트가 짧을 때도 하단에 위치하도록 */
-`;
-
-const PageButton = styled.button`
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #e5e8eb;
-  background-color: white;
-  border-radius: 8px;
-  cursor: pointer;
-  color: #333;
-  transition: all 0.2s;
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    background-color: #f9fafb;
-  }
-
-  &:hover:not(:disabled) {
-    background-color: #f2f4f6;
-    border-color: #d1d5db;
-  }
-`;
-
-const PageNumber = styled.button<{ $active?: boolean }>`
-  min-width: 32px;
-  height: 32px;
-  padding: 0 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: ${(props) => (props.$active ? "700" : "500")};
-  cursor: pointer;
-  border: ${(props) => (props.$active ? "none" : "1px solid #e5e8eb")};
-  background-color: ${(props) => (props.$active ? "#3182f6" : "white")};
-  color: ${(props) => (props.$active ? "white" : "#333")};
-  transition: all 0.2s;
-
-  &:hover {
-    ${(props) =>
-      !props.$active &&
-      `
-        background-color: #f2f4f6;
-        border-color: #d1d5db;
-      `}
-  }
-`;
-
-// [아래는 기존에 있던 스타일 코드들입니다. 생략하지 않고 그대로 사용하시면 됩니다.]
-// (LevelBadge, StateBadge, Container, Header, Title, Highlight, Controls, FilterGroup...)
-// (SelectWrapper, SelectTrigger, SelectedText, ArrowIcon, DropdownList, DropdownItem...)
-// (SearchWrapper, SearchInput, AddButton, ListContainer, TableScrollWrapper, TableView...)
-// (CardView, Card, CardHeader, Avatar, NameArea, Name, SubText, CardBody, InfoRow, NoteRow, MoreBtnWrapper, MoreIcon...)
-
-// --- 기존 스타일 (참고용 - 실제 코드엔 위에서 생략된 부분도 모두 포함해야 함) ---
 const LevelBadge = styled.span<{ $level: string }>`
   padding: 4px 8px;
   border-radius: 6px;
@@ -532,7 +489,7 @@ const StateBadge = styled.span<{ $state: string }>`
   font-size: 11px;
   font-weight: 600;
   ${({ $state }) =>
-    $state === "O"
+    $state === "O" || $state === "재직"
       ? "background: #dcfce7; color: #15803d;"
       : "background: #ffebee; color: #ef4444;"}
 `;
@@ -862,4 +819,58 @@ const MoreBtnWrapper = styled.div`
 const MoreIcon = styled(MoreVertIcon)`
   color: #d1d6db;
   font-size: 20px;
+`;
+const PaginationWrapper = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 20px;
+  margin-top: auto;
+`;
+const PageButton = styled.button`
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e5e8eb;
+  background-color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #333;
+  transition: all 0.2s;
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #f9fafb;
+  }
+  &:hover:not(:disabled) {
+    background-color: #f2f4f6;
+    border-color: #d1d5db;
+  }
+`;
+const PageNumber = styled.button<{ $active?: boolean }>`
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: ${(props) => (props.$active ? "700" : "500")};
+  cursor: pointer;
+  border: ${(props) => (props.$active ? "none" : "1px solid #e5e8eb")};
+  background-color: ${(props) => (props.$active ? "#3182f6" : "white")};
+  color: ${(props) => (props.$active ? "white" : "#333")};
+  transition: all 0.2s;
+  &:hover {
+    ${(props) =>
+      !props.$active &&
+      `
+        background-color: #f2f4f6;
+        border-color: #d1d5db;
+      `}
+  }
 `;

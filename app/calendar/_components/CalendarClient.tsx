@@ -1,8 +1,14 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import styled, { createGlobalStyle } from "styled-components";
-import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
+import {
+  Calendar,
+  dateFnsLocalizer,
+  Views,
+  ToolbarProps,
+  EventPropGetter,
+} from "react-big-calendar";
 import {
   format,
   parse,
@@ -24,7 +30,7 @@ import CalendarSkeleton from "./CalendarSkeleton";
 import { useGetCalendarList } from "@/app/_querys";
 import { MappedEvent, CalendarRow } from "@/app/_types/type";
 
-// --- 1. 글로벌 스타일 (폰트 및 캘린더 커스텀) ---
+// --- 1. Global Styles ---
 const GlobalStyle = createGlobalStyle`
   @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
 
@@ -33,24 +39,22 @@ const GlobalStyle = createGlobalStyle`
     -webkit-font-smoothing: antialiased;
   }
 
-  /* 일요일 (첫 번째 칸) - 빨간색 */
-  .rbc-row .rbc-date-cell:first-child {
-    color: #ef4444 !important;
-    font-weight: 700;
-  }
-  
-  /* 토요일 (마지막 칸) - 파란색 */
-  .rbc-row .rbc-date-cell:last-child {
-    color: #3b82f6 !important;
-    font-weight: 700;
-  }
-
-  /* 캘린더 헤더 요일 색상 */
+  /* 일요일 빨간색 */
+  .rbc-row .rbc-date-cell:first-child { color: #ef4444 !important; font-weight: 700; }
   .rbc-header:first-child { color: #ef4444 !important; }
+  
+  /* 토요일 파란색 */
+  .rbc-row .rbc-date-cell:last-child { color: #3b82f6 !important; font-weight: 700; }
   .rbc-header:last-child { color: #3b82f6 !important; }
+
+  /* 이벤트 바 포인터 설정 */
+  .rbc-event {
+    pointer-events: auto; 
+    cursor: pointer;
+  }
 `;
 
-// --- 2. Setup ---
+// --- 2. Localizer Setup ---
 const locales = { ko: ko };
 const localizer = dateFnsLocalizer({
   format,
@@ -68,19 +72,16 @@ interface Props {
 }
 
 export default function CalendarClient({ academyCode, userId }: Props) {
+  // State
   const [currentDate, setCurrentDate] = useState(new Date());
-
-  // 현재 보고 있는 달력의 연/월 (API 파라미터용)
-  const currentYearMonth = format(currentDate, "yyyy-MM");
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<MappedEvent | null>(null);
   const [initialDate, setInitialDate] = useState<Date>(new Date());
 
-  // API 훅: 현재 월 데이터 조회
+  // React Query
   const { data: rawEvents, isLoading } = useGetCalendarList(academyCode);
 
-  // --- Events Calculation (공휴일 + DB데이터) ---
+  // --- 3. Events Calculation (Memoized) ---
   const events: MappedEvent[] = useMemo(() => {
     const dbEvents = rawEvents
       ? rawEvents.map((item: CalendarRow) => ({
@@ -218,70 +219,84 @@ export default function CalendarClient({ academyCode, userId }: Props) {
     return [...dbEvents, ...holidayEvents];
   }, [rawEvents, currentDate]);
 
-  // --- Handlers ---
+  // --- 4. Handlers (Callback) ---
 
-  // ✅ [핵심] 빈 날짜 슬롯(배경) 클릭 시 실행
-  const handleSelectSlot = ({ start }: { start: Date; end: Date }) => {
-    setSelectedEvent(null); // 신규 등록 모드
-    setInitialDate(start); // 클릭한 날짜를 초기값으로
-    setIsModalOpen(true); // 모달 열기
-  };
+  const handleSelectSlot = useCallback(
+    ({ start }: { start: Date; end: Date }) => {
+      setSelectedEvent(null);
+      setInitialDate(start);
+      setIsModalOpen(true);
+    },
+    []
+  );
 
-  // 기존 이벤트 클릭 (수정 모드)
-  const handleSelectEvent = (event: MappedEvent) => {
+  const handleSelectEvent = useCallback((event: MappedEvent) => {
     if (event.type === "holiday") return;
     if (event.resource) {
       setSelectedEvent(event);
       setIsModalOpen(true);
     }
-  };
+  }, []);
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setIsModalOpen(false);
     setSelectedEvent(null);
-  };
+  }, []);
 
-  const eventPropGetter = (event: any) => {
-    const isPublicHoliday = event.type === "holiday";
-    const isSubstitute = event.substitute;
-    const isSchoolHoliday =
-      event.resource?.isHoliday || event.resource?.type === "school_holiday";
-    const isRedEvent = isPublicHoliday || isSchoolHoliday;
-    const isDifferentMonth = !isSameMonth(event.start, currentDate);
+  // ✅ [수정] any 타입으로 받아서 처리 (라이브러리 타입 충돌 방지)
+  const eventPropGetter = useCallback(
+    (event: any) => {
+      const isPublicHoliday = event.type === "holiday";
+      const isSubstitute = event.substitute;
+      const isSchoolHoliday =
+        event.resource?.isHoliday || event.resource?.type === "school_holiday";
+      const isRedEvent = isPublicHoliday || isSchoolHoliday;
+      const isDifferentMonth = !isSameMonth(event.start, currentDate);
 
-    return {
-      style: {
-        backgroundColor: isRedEvent ? "#fff1f2" : "#3182f6",
-        color: isRedEvent ? "#e11d48" : "#fff",
-        border: isRedEvent ? "1px solid #fda4af" : "1px solid transparent",
-        borderRadius: "4px",
-        padding: "1px 4px",
-        fontSize: "12px",
-        fontWeight: "600",
-        boxSizing: "border-box" as const,
-        pointerEvents: (isPublicHoliday ? "none" : "auto") as any,
-        opacity: isDifferentMonth ? 0.5 : isSubstitute ? 0.8 : 1,
-      },
-    };
-  };
+      return {
+        style: {
+          backgroundColor: isRedEvent ? "#fff1f2" : "#3182f6",
+          color: isRedEvent ? "#e11d48" : "#fff",
+          border: isRedEvent ? "1px solid #fda4af" : "1px solid transparent",
+          borderRadius: "4px",
+          padding: "1px 4px",
+          fontSize: "12px",
+          fontWeight: "600",
+          boxSizing: "border-box" as const,
+          // ✅ [수정] pointerEvents 타입 캐스팅
+          pointerEvents: (isPublicHoliday
+            ? "none"
+            : "auto") as React.CSSProperties["pointerEvents"],
+          opacity: isDifferentMonth ? 0.5 : isSubstitute ? 0.8 : 1,
+          zIndex: 10,
+        },
+      };
+    },
+    [currentDate]
+  );
 
-  const CustomToolbar = (toolbar: any) => {
+  const CustomToolbar = useCallback((toolbar: ToolbarProps) => {
     const goToBack = () => {
       toolbar.onNavigate("PREV");
-      const newDate = new Date(toolbar.date);
-      newDate.setMonth(newDate.getMonth() - 1);
-      setCurrentDate(newDate);
+      setCurrentDate((prev) => {
+        const d = new Date(prev);
+        d.setMonth(d.getMonth() - 1);
+        return d;
+      });
     };
+
     const goToNext = () => {
       toolbar.onNavigate("NEXT");
-      const newDate = new Date(toolbar.date);
-      newDate.setMonth(newDate.getMonth() + 1);
-      setCurrentDate(newDate);
+      setCurrentDate((prev) => {
+        const d = new Date(prev);
+        d.setMonth(d.getMonth() + 1);
+        return d;
+      });
     };
+
     const goToCurrent = () => {
-      const now = new Date();
       toolbar.onNavigate("TODAY");
-      setCurrentDate(now);
+      setCurrentDate(new Date());
     };
 
     const isCurrentMonth = isSameMonth(toolbar.date, new Date());
@@ -302,7 +317,22 @@ export default function CalendarClient({ academyCode, userId }: Props) {
         </TodayButton>
       </ToolbarContainer>
     );
-  };
+  }, []);
+
+  const components = useMemo(
+    () => ({
+      toolbar: CustomToolbar,
+      dateCellWrapper: ({ children, value }: any) => (
+        <div
+          style={{ flex: 1, height: "100%", cursor: "pointer" }}
+          onClick={() => handleSelectSlot({ start: value, end: value })}
+        >
+          {children}
+        </div>
+      ),
+    }),
+    [CustomToolbar, handleSelectSlot]
+  );
 
   return (
     <>
@@ -323,9 +353,11 @@ export default function CalendarClient({ academyCode, userId }: Props) {
           </Header>
 
           <CalendarWrapper>
+            {/* ✅ [수정] StyledCalendar에서 제네릭 <MappedEvent> 제거 */}
             <StyledCalendar
               localizer={localizer}
               events={events}
+              // ✅ [수정] any로 받아서 Date로 반환하는 함수로 명시
               startAccessor={(event: any) => event.start}
               endAccessor={(event: any) => event.end}
               date={currentDate}
@@ -334,34 +366,14 @@ export default function CalendarClient({ academyCode, userId }: Props) {
               defaultView={Views.MONTH}
               culture="ko"
               popup
-              // ✅ [변경 1] selectable은 유지하되, 주된 클릭은 아래 components로 처리
               selectable
-              // ✅ [변경 2] 기존 이벤트 핸들러 유지 (헤더 클릭 등 보조용)
               onSelectSlot={handleSelectSlot}
+              // ✅ [수정] any로 받아서 처리
+              onSelectEvent={(event: any) => handleSelectEvent(event)}
               onDrillDown={(date) =>
                 handleSelectSlot({ start: date, end: date })
               }
-              onSelectEvent={(event: any) => handleSelectEvent(event)}
-              // ✅ [핵심] components prop 수정
-              components={{
-                toolbar: CustomToolbar,
-                // 🌟 빈 날짜 칸(배경)을 렌더링하는 컴포넌트를 가로채서 onClick 이벤트를 심습니다.
-                dateCellWrapper: ({ children, value }) => (
-                  <div
-                    style={{
-                      flex: 1,
-                      height: "100%",
-                      cursor: "pointer",
-                      // 배경색이 투명해서 클릭이 안 먹히는 경우를 방지 (필요 시 조정)
-                    }}
-                    onClick={() =>
-                      handleSelectSlot({ start: value, end: value })
-                    }
-                  >
-                    {children}
-                  </div>
-                ),
-              }}
+              components={components}
               eventPropGetter={eventPropGetter}
             />
           </CalendarWrapper>
@@ -381,7 +393,7 @@ export default function CalendarClient({ academyCode, userId }: Props) {
 }
 
 // --------------------------------------------------------------------------
-// ✨ Styles (스타일은 기존과 동일하므로 생략하지 않고 전체 포함)
+// ✨ Styles (기존과 동일)
 // --------------------------------------------------------------------------
 
 const Container = styled.div`
@@ -403,6 +415,7 @@ const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
 `;
 
 const Title = styled.h1`
@@ -457,10 +470,9 @@ const CalendarWrapper = styled.div`
   }
 `;
 
+// ✅ StyledCalendar (제네릭 없이 정의)
 const StyledCalendar = styled(Calendar)`
   font-family: "Pretendard", sans-serif;
-
-  /* ... (기존 스타일 유지) ... */
 
   .rbc-month-view,
   .rbc-time-view,
@@ -485,10 +497,7 @@ const StyledCalendar = styled(Calendar)`
     font-weight: 500;
     color: #333d4b;
     text-align: center;
-
-    /* ✅ [추가] 날짜 숫자 위에서도 포인터 표시 */
     cursor: pointer;
-
     @media (max-width: 600px) {
       padding: 4px;
       font-size: 12px;
@@ -532,18 +541,13 @@ const StyledCalendar = styled(Calendar)`
       font-size: 10px;
     }
   }
-
-  /* ✅ [핵심 수정] 날짜 칸(배경) 스타일 강화 */
   .rbc-day-bg {
-    cursor: pointer; /* 마우스 포인터 손가락 모양 */
-    transition: background-color 0.2s; /* 부드러운 전환 효과 */
+    cursor: pointer;
+    transition: background-color 0.2s;
   }
-
-  /* ✅ [추가] 마우스 올렸을 때 배경색 변경 (인터랙션 피드백) */
   .rbc-day-bg:hover {
     background-color: #f8fafc;
   }
-
   .rbc-day-bg + .rbc-day-bg {
     border-left: 1px dashed #f2f4f6;
   }
@@ -554,6 +558,7 @@ const StyledCalendar = styled(Calendar)`
     background-color: transparent;
   }
 `;
+
 const ToolbarContainer = styled.div`
   display: flex;
   justify-content: space-between;

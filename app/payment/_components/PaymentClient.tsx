@@ -1,16 +1,23 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo } from "react";
+import dynamic from "next/dynamic";
 import styled, { css, keyframes } from "styled-components";
+import { MessageCircle, Bell, ChevronLeft, ChevronRight } from "lucide-react";
 
+// Components
 import PaymentGrid from "./PaymentGrid";
 import PaymentSummary from "./PaymentSummary";
-import { getTodayYear, getTodayMonth } from "@/utils/date";
 import Select from "@/components/Select";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
-import ModalPaymentMessage from "@/components/modals/ModalPaymentMessage";
-import PaymentAddModal from "@/app/payment/_components/PaymentAddModal";
-import { MessageCircle, Bell, Plus } from "lucide-react";
+
+const ModalPaymentMessage = dynamic(
+  () => import("@/components/modals/ModalPaymentMessage"),
+  { ssr: false }
+);
+
+// Utils & Hooks
+import { getTodayYear, getTodayMonth } from "@/utils/date";
 import { PaymentType } from "@/app/_types/type";
 import { usePaymentMessageList } from "@/app/_querys";
 
@@ -19,92 +26,154 @@ interface Props {
   userId: string;
 }
 
+// --------------------------------------------------------------------------
+// 🧩 Memoized Sub-Components
+// --------------------------------------------------------------------------
+const MemoizedPaymentGrid = React.memo(PaymentGrid);
+const MemoizedPaymentSummary = React.memo(PaymentSummary);
+
 export default function PaymentClient({ academyCode, userId }: Props) {
+  // 상태 관리
   const [tabValue, setTabValue] = useState<PaymentType>("income");
   const [year, setYear] = useState(getTodayYear());
   const [month, setMonth] = useState(getTodayMonth());
   const [isMsgModalOpen, setIsMsgModalOpen] = useState(false);
-  // 🌟 [추가] 부모 컴포넌트에서 데이터 미리 로드 (인원수 확인용)
+
+  // 데이터 미리 로드
   const { data: messageList = [], isLoading: messageLoading } =
     usePaymentMessageList(academyCode);
 
   const msgCount = messageList.length;
 
-  const yearOptions = Array.from({ length: 5 }, (_, i) => {
-    const y = String(Number(getTodayYear()) - i);
-    return { label: `${y}년`, value: y };
-  });
+  // 옵션 데이터 (useMemo)
+  const yearOptions = useMemo(
+    () =>
+      // length를 4로 늘리면 [2026, 2025, 2024, 2023] 이렇게 4개가 나옵니다.
+      Array.from({ length: 4 }, (_, i) => {
+        // ✅ [수정] (현재 연도 + 1)부터 시작해서 내림차순으로 생성
+        const y = String(Number(getTodayYear()) + 1 - i);
+        return { label: `${y}년`, value: y };
+      }),
+    []
+  );
+  const monthOptions = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, i) => {
+        const m = String(i + 1).padStart(2, "0");
+        return { label: `${m}월`, value: m };
+      }),
+    []
+  );
 
-  const monthOptions = Array.from({ length: 12 }, (_, i) => {
-    const m = String(i + 1).padStart(2, "0");
-    return { label: `${m}월`, value: m };
-  });
+  // 3. 핸들러 메모이제이션
+  const handleTabIncome = useCallback(() => setTabValue("income"), []);
+  const handleTabExpenditure = useCallback(
+    () => setTabValue("expenditure"),
+    []
+  );
+
+  const handleYearChange = useCallback((_: any, v?: string) => {
+    if (v) setYear(v);
+  }, []);
+
+  const handleMonthSelectChange = useCallback((_: any, v?: string) => {
+    if (v) setMonth(v);
+  }, []);
+
+  const handleOpenMsgModal = useCallback(() => setIsMsgModalOpen(true), []);
+  const handleCloseMsgModal = useCallback(() => setIsMsgModalOpen(false), []);
+
+  // ✅ [수정됨] 날짜 변경 로직 (연도 전환 버그 수정)
+  const handleMonthChange = useCallback(
+    (direction: "prev" | "next") => {
+      // 현재 상태를 기준으로 계산
+      const currentY = parseInt(year);
+      const currentM = parseInt(month);
+
+      let newY = currentY;
+      let newM = currentM;
+
+      if (direction === "prev") {
+        newM = currentM - 1;
+        if (newM < 1) {
+          newM = 12;
+          newY = currentY - 1;
+        }
+      } else {
+        newM = currentM + 1;
+        if (newM > 12) {
+          newM = 1;
+          newY = currentY + 1;
+        }
+      }
+
+      setYear(String(newY));
+      setMonth(String(newM).padStart(2, "0"));
+    },
+    [year, month] // year와 month가 바뀔 때마다 함수 재생성 -> 최신 상태값 참조 보장
+  );
 
   return (
     <PageContainer>
       <HeaderSection>
-        <TitleGroup>
-          {/* 텍스트는 세로로 쌓이게 TextColumn으로 감쌈 */}
-          <TextColumn>
-            <PageTitleWithStar title={<Title>출납 관리</Title>} />
-          </TextColumn>
+        <HeaderTop>
+          <PageTitleWithStar title={<Title>출납 관리</Title>} />
 
-          {/* 버튼은 텍스트 우측에 배치 */}
           {msgCount > 0 && (
-            <TopRightArea>
-              <MsgButton
-                onClick={() => setIsMsgModalOpen(true)}
-                $hasCount={msgCount > 0}
-              >
-                {msgCount > 0 ? (
-                  <Bell size={16} fill="#e11d48" />
-                ) : (
-                  <MessageCircle size={16} />
-                )}
-                결제 알림
-                {msgCount > 0 && <CountBadge> {msgCount}명</CountBadge>}
-              </MsgButton>
-            </TopRightArea>
+            <MsgButton onClick={handleOpenMsgModal} $hasCount={true}>
+              <Bell size={16} fill="#e11d48" />
+              결제 알림
+              <CountBadge>{msgCount}명</CountBadge>
+            </MsgButton>
           )}
-        </TitleGroup>
+        </HeaderTop>
+
         <HeaderControls>
           <SegmentedControl>
             <SegmentButton
               $active={tabValue === "income"}
-              onClick={() => setTabValue("income")}
+              onClick={handleTabIncome}
             >
               수입
             </SegmentButton>
             <SegmentButton
               $active={tabValue === "expenditure"}
-              onClick={() => setTabValue("expenditure")}
+              onClick={handleTabExpenditure}
             >
               지출
             </SegmentButton>
           </SegmentedControl>
 
-          <Divider />
+          <DateNavigation>
+            <NavArrow onClick={() => handleMonthChange("prev")}>
+              <ChevronLeft size={20} />
+            </NavArrow>
 
-          <SelectGroup>
-            <Select
-              options={yearOptions}
-              value={year}
-              onChange={setYear}
-              width="90px"
-            />
-            <Select
-              options={monthOptions}
-              value={month}
-              onChange={setMonth}
-              width="80px"
-            />
-          </SelectGroup>
+            <SelectGroup>
+              <Select
+                options={yearOptions}
+                value={year}
+                onChange={handleYearChange}
+                width="90px"
+              />
+              <Select
+                options={monthOptions}
+                value={month}
+                onChange={handleMonthSelectChange}
+                width="80px"
+              />
+            </SelectGroup>
+
+            <NavArrow onClick={() => handleMonthChange("next")}>
+              <ChevronRight size={20} />
+            </NavArrow>
+          </DateNavigation>
         </HeaderControls>
       </HeaderSection>
 
       <ContentLayout>
         <MainCard>
-          <PaymentGrid
+          <MemoizedPaymentGrid
             year={year}
             month={month}
             type={tabValue}
@@ -114,7 +183,7 @@ export default function PaymentClient({ academyCode, userId }: Props) {
         </MainCard>
 
         <SidePanel>
-          <PaymentSummary
+          <MemoizedPaymentSummary
             year={year}
             month={month}
             type={tabValue}
@@ -123,61 +192,51 @@ export default function PaymentClient({ academyCode, userId }: Props) {
         </SidePanel>
       </ContentLayout>
 
+      {/* Dynamic Import된 모달 (조건부 렌더링) */}
       {isMsgModalOpen && (
         <ModalPaymentMessage
           messageList={messageList}
           isLoading={messageLoading}
-          onClose={() => setIsMsgModalOpen(false)}
-          academyCode={academyCode} // 🌟 추가
-          userId={userId} // 🌟 추가
+          onClose={handleCloseMsgModal}
+          academyCode={academyCode}
+          userId={userId}
         />
       )}
     </PageContainer>
   );
 }
 
-// --- Styled Components ---
+// --------------------------------------------------------------------------
+// ✨ Styled Components (변경 없음)
+// --------------------------------------------------------------------------
+
 const PageContainer = styled.div`
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 24px;
   background-color: white;
-
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
   border: 1px solid rgba(224, 224, 224, 0.4);
   border-radius: 24px;
-  font-family: "CustomFont";
+  font-family: "Pretendard", sans-serif;
 
-  @media (max-width: 600px) {
+  @media (max-width: 768px) {
+    padding: 16px;
+    gap: 16px;
   }
 `;
 
 const HeaderSection = styled.div`
   display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  flex-wrap: wrap;
-  gap: 16px;
-`;
-const TitleGroup = styled.div`
-  display: flex;
-  justify-content: space-between; /* 양 끝 정렬 */
-  align-items: center; /* 수직 중앙 정렬 */
-  width: 100%; /* 부모 영역 꽉 채우기 */
-  gap: 12px;
-`;
-
-// 2. 텍스트(제목+부제)를 감쌀 새로운 컴포넌트 추가
-const TextColumn = styled.div`
-  display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 20px;
 `;
 
-// 3. 버튼 영역 스타일 (위치 고정 해제 및 정렬)
-const TopRightArea = styled.div`
-  flex-shrink: 0; /* 화면이 좁아져도 버튼이 찌그러지지 않게 함 */
+const HeaderTop = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 `;
 
 const Title = styled.h1`
@@ -191,48 +250,39 @@ const Title = styled.h1`
   }
 `;
 
-const SubTitle = styled.span`
-  font-size: 14px;
-  color: #8b95a1;
-  font-weight: 500;
-`;
-
 const HeaderControls = styled.div`
   display: flex;
+  justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
 
   @media (max-width: 768px) {
-    width: 100%;
-    /* 모바일에서는 버튼을 위로, 나머지는 아래로 */
-    flex-wrap: wrap;
-    justify-content: flex-end;
+    flex-direction: column-reverse; /* 모바일: 날짜가 위, 탭이 아래 */
+    align-items: stretch;
   }
 `;
 
-// 🌟 [수정] 알림 버튼 스타일 (우측 상단 배치용)
 const MsgButton = styled.button<{ $hasCount: boolean }>`
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
-  background-color: ${({ $hasCount }) => ($hasCount ? "#fff0f0" : "#ffffff")};
-  color: ${({ $hasCount }) => ($hasCount ? "#e11d48" : "#4e5968")};
-  border: 1px solid ${({ $hasCount }) => ($hasCount ? "#fda4af" : "#d1d6db")};
-  border-radius: 10px;
+  padding: 8px 12px;
+  background-color: #fff0f0;
+  color: #e11d48;
+  border: 1px solid #fda4af;
+  border-radius: 12px;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 
   &:hover {
-    background-color: ${({ $hasCount }) => ($hasCount ? "#fee2e2" : "#f2f4f6")};
+    background-color: #fee2e2;
     transform: translateY(-1px);
   }
 `;
 
-// 🌟 [추가] 펄스 애니메이션 (알림이 있을 때 강조)
 const pulse = keyframes`
   0% { transform: scale(1); }
   50% { transform: scale(1.1); }
@@ -246,19 +296,18 @@ const CountBadge = styled.span`
   font-weight: 800;
   padding: 2px 6px;
   border-radius: 99px;
-  margin-left: 2px;
-  animation: ${pulse} 2s infinite; /* 알림 있으면 둥둥 거림 */
+  animation: ${pulse} 2s infinite;
 `;
 
 const SegmentedControl = styled.div`
-  background-color: #e5e8eb;
+  background-color: #f2f4f6;
   padding: 4px;
-  border-radius: 10px;
+  border-radius: 12px;
   display: flex;
-  height: 40px;
-  @media (max-width: 600px) {
-    flex: 1; /* 모바일에서 꽉 차게 */
-    order: 2; /* 줄바꿈 시 순서 조정 */
+  width: 200px;
+
+  @media (max-width: 768px) {
+    width: 100%;
   }
 `;
 
@@ -268,41 +317,59 @@ const SegmentButton = styled.button<{ $active: boolean }>`
   border-radius: 8px;
   background-color: ${(props) => (props.$active ? "#ffffff" : "transparent")};
   color: ${(props) => (props.$active ? "#191f28" : "#8b95a1")};
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  padding: 0 16px;
+  padding: 8px 0;
   box-shadow: ${(props) =>
-    props.$active ? "0 1px 3px rgba(0,0,0,0.12)" : "none"};
-  white-space: nowrap;
+    props.$active ? "0 1px 3px rgba(0,0,0,0.1)" : "none"};
+  transition: all 0.2s ease;
 `;
 
-const Divider = styled.div`
-  width: 1px;
-  height: 20px;
-  background-color: #d1d6db;
-  margin: 0 4px;
+const DateNavigation = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+
   @media (max-width: 768px) {
-    display: none;
+    justify-content: space-between;
+    width: 100%;
+  }
+`;
+
+const NavArrow = styled.button`
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid #e5e8eb;
+  background-color: white;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: #f9fafb;
+    color: #191f28;
+    border-color: #d1d6db;
   }
 `;
 
 const SelectGroup = styled.div`
   display: flex;
   gap: 8px;
-  flex-shrink: 0;
-  @media (max-width: 600px) {
-    order: 2;
-  }
 `;
-
-// 🌟 [추가] 모바일에서 버튼
 
 const ContentLayout = styled.div`
   display: flex;
   gap: 24px;
   align-items: flex-start;
-  @media (max-width: 900px) {
+  min-height: 600px;
+
+  @media (max-width: 1024px) {
     flex-direction: column;
   }
 `;
@@ -310,28 +377,23 @@ const ContentLayout = styled.div`
 const MainCard = styled.div`
   flex: 1;
   background: white;
-  border-radius: 24px;
-  padding: 24px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
-  border: 1px solid #f2f4f6;
+  border-radius: 20px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-
   width: 100%;
-  @media (max-width: 600px) {
-    padding: 16px;
-  }
 `;
 
 const SidePanel = styled.div`
-  width: 320px;
+  width: 340px;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 20px;
   position: sticky;
   top: 24px;
-  @media (max-width: 900px) {
+
+  @media (max-width: 1024px) {
     width: 100%;
     position: static;
   }

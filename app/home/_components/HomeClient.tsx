@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled, { css } from "styled-components";
 import {
   Clock,
@@ -14,7 +14,7 @@ import {
   CheckCircle2,
   ArrowLeftRight,
   CalendarOff,
-  PlusCircle, // 추가 아이콘
+  PlusCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ModalCalendarAdd from "@/components/modals/ModalCalendarAdd";
@@ -36,39 +36,148 @@ interface Props {
   userId: string;
 }
 
+// --------------------------------------------------------------------------
+// 🧩 Sub Components (Memoization for Performance)
+// --------------------------------------------------------------------------
+
+// 1. 스케줄 리스트 컴포넌트
+const ScheduleListView = React.memo(
+  ({
+    data,
+    isLoading,
+    isTempView,
+  }: {
+    data: any[];
+    isLoading: boolean;
+    isTempView: boolean;
+  }) => {
+    if (isLoading) return <ScheduleListSkeleton />;
+    if (!data || data.length === 0)
+      return (
+        <EmptyState>
+          {isTempView
+            ? "등록된 임시 시간표가 없습니다."
+            : "오늘 예정된 수업이 없습니다."}
+        </EmptyState>
+      );
+
+    return (
+      <ScheduleList>
+        {data.map((item: any, idx: number) => (
+          <ScheduleRow key={idx}>
+            <TimeWrapper>
+              <ScheduleTime>
+                {item.time?.length >= 4
+                  ? `${item.time.slice(0, 2)}:${item.time.slice(2, 4)}`
+                  : item.time}
+              </ScheduleTime>
+              <ScheduleLine />
+            </TimeWrapper>
+            <ClassCell $type="M">
+              <NameChipList content={item.M} theme="blue" />
+            </ClassCell>
+            <ClassCell $type="D">
+              <NameChipList content={item.D} theme="blue" />
+            </ClassCell>
+          </ScheduleRow>
+        ))}
+      </ScheduleList>
+    );
+  }
+);
+ScheduleListView.displayName = "ScheduleListView";
+
+// 2. 픽업 리스트 컴포넌트
+const PickupListView = React.memo(
+  ({ data, isLoading }: { data: any[]; isLoading: boolean }) => {
+    if (isLoading) return <PickupListSkeleton />;
+    if (!data || data.length === 0)
+      return <EmptyState>오늘 픽업 일정이 없습니다.</EmptyState>;
+
+    return (
+      <PickupList>
+        {data.map((item: any, idx: number) => (
+          <PickupItem key={idx}>
+            <PickupTime>
+              {item.time?.length >= 4
+                ? `${item.time.slice(0, 2)}:${item.time.slice(2, 4)}`
+                : item.time}
+            </PickupTime>
+            <PickupLine />
+            <PickupContent>
+              <NameChipList content={item.content} theme="orange" />
+            </PickupContent>
+          </PickupItem>
+        ))}
+      </PickupList>
+    );
+  }
+);
+PickupListView.displayName = "PickupListView";
+
+// 3. 칩 리스트 (공통)
+const NameChipList = React.memo(
+  ({
+    content,
+    theme,
+  }: {
+    content: string | null;
+    theme: "blue" | "orange";
+  }) => {
+    if (!content) return <EmptyDash>-</EmptyDash>;
+    // useMemo로 문자열 파싱 최적화
+    const names = useMemo(
+      () => content.split(/[\n,\s]+/).filter((str) => str.trim() !== ""),
+      [content]
+    );
+
+    return (
+      <ChipContainer>
+        {names.map((name, idx) => (
+          <NameChip key={idx} $theme={theme}>
+            {name}
+          </NameChip>
+        ))}
+      </ChipContainer>
+    );
+  }
+);
+NameChipList.displayName = "NameChipList";
+
+// --------------------------------------------------------------------------
+// 🧩 Main Component
+// --------------------------------------------------------------------------
+
 export default function DashboardClient({ academyCode, userId }: Props) {
   const router = useRouter();
-  const [currentDay, setCurrentDay] = useState("0");
+
+  // 상태 관리
   const [currentTime, setCurrentTime] = useState("");
   const [isTempView, setIsTempView] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<MappedEvent | null>(null);
 
-  // ✅ 주말 여부 상태 추가
-  const [isWeekend, setIsWeekend] = useState(false);
+  // 날짜 계산 로직 (useMemo로 최적화)
+  const { currentDay, isWeekend } = useMemo(() => {
+    // SSR 불일치 방지를 위해 클라이언트에서만 날짜 계산하도록 할 수도 있지만,
+    // 초기 렌더링 속도를 위해 여기서는 직접 계산합니다.
+    const now = new Date();
+    const jsDay = now.getDay();
+    const isWknd = jsDay === 0 || jsDay === 6;
+    const dayCode = isWknd ? "99" : String(jsDay - 1);
 
-  // 현재 시간 및 요일 업데이트
+    return { currentDay: dayCode, isWeekend: isWknd };
+  }, []); // 의존성 배열 비움 (컴포넌트 마운트 시 1회 계산)
+
+  // 시계 업데이트 (1분마다)
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      const jsDay = now.getDay(); // 0(일) ~ 6(토)
-
-      // ✅ [수정] 주말 처리 로직 개선
-      if (jsDay === 0 || jsDay === 6) {
-        setIsWeekend(true);
-        setCurrentDay("99"); // 주말용 임의 코드 (쿼리에서 데이터 안 가져오게)
-      } else {
-        setIsWeekend(false);
-        // 월(1) -> 0, 화(2) -> 1, ..., 금(5) -> 4
-        setCurrentDay(String(jsDay - 1));
-      }
-
       const hours = now.getHours();
       const minutes = now.getMinutes();
       const ampm = hours >= 12 ? "PM" : "AM";
       const displayHour = hours % 12 || 12;
       const displayMinute = String(minutes).padStart(2, "0");
-
       setCurrentTime(
         `${ampm === "PM" ? "오후" : "오전"} ${displayHour}시 ${displayMinute}분`
       );
@@ -78,7 +187,9 @@ export default function DashboardClient({ academyCode, userId }: Props) {
     return () => clearInterval(interval);
   }, []);
 
-  // 데이터 Fetching Hook
+  // React Query 데이터 Fetching (옵션 추가로 캐싱 활용)
+  const queryOptions = { staleTime: 1000 * 60 * 5, gcTime: 1000 * 60 * 10 }; // 5분 캐싱
+
   const { data: regularData, isLoading: isRegularLoading } = useTodaySchedule(
     academyCode,
     currentDay
@@ -97,45 +208,22 @@ export default function DashboardClient({ academyCode, userId }: Props) {
     refetch: refetchEvents,
   } = useTodayEvents(academyCode);
 
-  // 시간표 데이터 처리 (일반/임시 전환)
-  const currentSchedules = isTempView
-    ? tempData?.data || []
-    : regularData?.data || [];
+  // 렌더링용 데이터
+  const currentSchedules = useMemo(
+    () => (isTempView ? tempData?.data || [] : regularData?.data || []),
+    [isTempView, tempData, regularData]
+  );
+
   const isScheduleLoading = isTempView ? isTempLoading : isRegularLoading;
-  const isTempActive = false;
 
-  const formatTime = (timeStr: string) => {
-    if (!timeStr || timeStr.length < 4) return timeStr;
-    if (/^\d{4}$/.test(timeStr)) {
-      return `${timeStr.slice(0, 2)}:${timeStr.slice(2, 4)}`;
-    }
-    return timeStr;
-  };
-
-  const renderNameChips = (
-    content: string | null,
-    theme: "blue" | "orange"
-  ) => {
-    if (!content) return <EmptyDash>-</EmptyDash>;
-    const names = content.split(/[\n,\s]+/).filter((str) => str.trim() !== "");
-    return (
-      <ChipContainer>
-        {names.map((name, idx) => (
-          <NameChip key={idx} $theme={theme}>
-            {name}
-          </NameChip>
-        ))}
-      </ChipContainer>
-    );
-  };
-
-  const handleAddEvent = (e: React.MouseEvent) => {
+  // 핸들러 (useCallback으로 재생성 방지)
+  const handleAddEvent = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedEvent(null);
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const handleEditEvent = (eventItem: any) => {
+  const handleEditEvent = useCallback((eventItem: any) => {
     const mapped: MappedEvent = {
       id: eventItem.id,
       title: eventItem.title || eventItem.content,
@@ -146,14 +234,17 @@ export default function DashboardClient({ academyCode, userId }: Props) {
     };
     setSelectedEvent(mapped);
     setIsModalOpen(true);
-  };
+  }, []);
+
+  const handleToggleTempView = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsTempView((prev) => !prev);
+  }, []);
 
   return (
     <Container>
       <GridContainer>
-        {/* ------------------------------------------ */}
-        {/* 1. 수업/임시 시간표 카드 */}
-        {/* ------------------------------------------ */}
+        {/* 1. 수업/임시 시간표 */}
         <ScheduleCard>
           <CardHeader>
             <HeaderLeft>
@@ -168,20 +259,8 @@ export default function DashboardClient({ academyCode, userId }: Props) {
                   {isTempView ? "임시 시간표" : "수업 시간표"}
                 </CardTitle>
               </TitleWithIcon>
-              {!isTempView && isTempActive && (
-                <TempBadge>
-                  <AlertCircle size={12} />
-                  임시노출중
-                </TempBadge>
-              )}
             </HeaderLeft>
-            <ToggleButton
-              $isTemp={isTempView}
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsTempView(!isTempView);
-              }}
-            >
+            <ToggleButton $isTemp={isTempView} onClick={handleToggleTempView}>
               <ArrowLeftRight size={14} />
               {isTempView ? "수업시간표 보기" : "임시시간표 보기"}
             </ToggleButton>
@@ -192,7 +271,6 @@ export default function DashboardClient({ academyCode, userId }: Props) {
               router.push(isTempView ? "/temp-schedule" : "schedule")
             }
           >
-            {/* ✅ [수정] 주말이면 테이블 헤더 숨기고 안내 메시지 */}
             {isWeekend ? (
               <EmptyState
                 style={{ height: "100%", flexDirection: "column", gap: "10px" }}
@@ -207,9 +285,8 @@ export default function DashboardClient({ academyCode, userId }: Props) {
                   <div
                     style={{
                       flex: 1.5,
-                      paddingLeft: 16,
-                      justifyContent: "center",
                       display: "flex",
+                      justifyContent: "center",
                     }}
                   >
                     <Hammer
@@ -222,9 +299,8 @@ export default function DashboardClient({ academyCode, userId }: Props) {
                   <div
                     style={{
                       flex: 1.5,
-                      paddingLeft: 16,
-                      justifyContent: "center",
                       display: "flex",
+                      justifyContent: "center",
                     }}
                   >
                     <Palette
@@ -235,42 +311,18 @@ export default function DashboardClient({ academyCode, userId }: Props) {
                     드로잉
                   </div>
                 </ScheduleTableHeader>
-
-                {isScheduleLoading ? (
-                  <ScheduleListSkeleton />
-                ) : currentSchedules.length > 0 ? (
-                  <ScheduleList>
-                    {currentSchedules.map((item: any, idx: number) => (
-                      <ScheduleRow key={idx}>
-                        <TimeWrapper>
-                          <ScheduleTime>{formatTime(item.time)}</ScheduleTime>
-                          <ScheduleLine />
-                        </TimeWrapper>
-                        <ClassCell $type="M">
-                          {renderNameChips(item.M, "blue")}
-                        </ClassCell>
-                        <ClassCell $type="D">
-                          {renderNameChips(item.D, "blue")}
-                        </ClassCell>
-                      </ScheduleRow>
-                    ))}
-                  </ScheduleList>
-                ) : (
-                  <EmptyState>
-                    {isTempView
-                      ? "등록된 임시 시간표가 없습니다."
-                      : "오늘 예정된 수업이 없습니다."}
-                  </EmptyState>
-                )}
+                <ScheduleListView
+                  data={currentSchedules}
+                  isLoading={isScheduleLoading}
+                  isTempView={isTempView}
+                />
               </>
             )}
           </ScrollContent>
         </ScheduleCard>
 
         <RightColumn>
-          {/* ------------------------------------------ */}
-          {/* 2. 픽업 시간표 카드 */}
-          {/* ------------------------------------------ */}
+          {/* 2. 픽업 시간표 */}
           <PickupCard onClick={() => router.push("/pickup")}>
             <CardHeader>
               <TitleWithIcon>
@@ -288,32 +340,18 @@ export default function DashboardClient({ academyCode, userId }: Props) {
             </CardHeader>
 
             <ScrollContent>
-              {/* ✅ [수정] 주말 처리 */}
               {isWeekend ? (
                 <EmptyState>주말은 픽업 운행이 없습니다.</EmptyState>
-              ) : isPickupLoading ? (
-                <PickupListSkeleton />
-              ) : pickupData ? (
-                <PickupList>
-                  {pickupData?.map((item: any, idx: number) => (
-                    <PickupItem key={idx}>
-                      <PickupTime>{formatTime(item.time)}</PickupTime>
-                      <PickupLine />
-                      <PickupContent>
-                        {renderNameChips(item.content, "orange")}
-                      </PickupContent>
-                    </PickupItem>
-                  ))}
-                </PickupList>
               ) : (
-                <EmptyState>오늘 픽업 일정이 없습니다.</EmptyState>
+                <PickupListView
+                  data={pickupData || []}
+                  isLoading={isPickupLoading}
+                />
               )}
             </ScrollContent>
           </PickupCard>
 
-          {/* ------------------------------------------ */}
-          {/* 3. 오늘의 일정 카드 */}
-          {/* ------------------------------------------ */}
+          {/* 3. 오늘의 일정 */}
           <CalendarCard onClick={() => router.push("/schedule")}>
             <CardHeader>
               <TitleWithIcon>
@@ -360,7 +398,6 @@ export default function DashboardClient({ academyCode, userId }: Props) {
                   })}
                 </EventList>
               ) : (
-                // ✅ [수정] 일정 없을 때 친근한 문구 및 등록 버튼 추가
                 <EmptyStateWrapper>
                   <EmptyIcon>🍃</EmptyIcon>
                   <EmptyText>
@@ -395,7 +432,7 @@ export default function DashboardClient({ academyCode, userId }: Props) {
 }
 
 // --------------------------------------------------------------------------
-// ✨ Styled Components
+// ✨ Styled Components (동일 유지)
 // --------------------------------------------------------------------------
 
 const Container = styled.div`
@@ -515,17 +552,6 @@ const ScheduleCard = styled(CardBase)`
   @media (max-width: 1024px) {
     min-height: 400px;
   }
-`;
-const TempBadge = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border-radius: 20px;
-  background-color: #fff1f2;
-  color: #e11d48;
-  font-size: 11px;
-  font-weight: 700;
 `;
 const ToggleButton = styled.button<{ $isTemp: boolean }>`
   display: flex;
@@ -748,6 +774,8 @@ const EventContent = styled.div`
 const EventList = styled.div`
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  max-height: 320px;
 `;
 const EventItem = styled.div`
   display: flex;
@@ -796,8 +824,6 @@ const HeaderRight = styled.div`
     gap: 8px;
   }
 `;
-
-// ✅ [추가] 일정이 없을 때 보여줄 커스텀 스타일
 const EmptyStateWrapper = styled.div`
   display: flex;
   flex-direction: column;
@@ -807,17 +833,14 @@ const EmptyStateWrapper = styled.div`
   gap: 16px;
   text-align: center;
 `;
-
 const EmptyIcon = styled.div`
   font-size: 32px;
 `;
-
 const EmptyText = styled.p`
   font-size: 14px;
   color: #8b95a1;
   line-height: 1.5;
 `;
-
 const AddEventButton = styled.button`
   display: flex;
   align-items: center;
@@ -831,7 +854,6 @@ const AddEventButton = styled.button`
   border: none;
   cursor: pointer;
   transition: all 0.2s;
-
   &:hover {
     background-color: #dbeafe;
   }

@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled, { css } from "styled-components";
+import dynamic from "next/dynamic";
 import { extractInitialConsonants } from "@/utils/common";
 import { useModalStore } from "@/store/modalStore";
-import ModalTimeManager from "@/components/modals/ModalTimeManager";
 import {
   Search as SearchIcon,
   Add as AddIcon,
@@ -12,109 +12,188 @@ import {
   ViewDay as ViewDayIcon,
 } from "@mui/icons-material";
 import { replaceTimeFormat, replaceTimePattern } from "@/utils/format";
-
 import { WEEKDAY_LIST } from "@/utils/list";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
 import { useUpsertTempSchedule } from "@/app/_querys";
+
+// 모달 동적 로딩
+const ModalTimeManager = dynamic(
+  () => import("@/components/modals/ModalTimeManager"),
+  { ssr: false }
+);
 
 interface Props {
   initialTimeList: any[];
   initialDataList: any[];
 }
 
+// --------------------------------------------------------------------------
+// 🧩 Memoized Cell Component (셀 단위 최적화)
+// --------------------------------------------------------------------------
+const TempScheduleCell = React.memo(
+  ({
+    id,
+    content,
+    isHighlighted,
+    isEvenColumn,
+    isVisible,
+    isDayEnd,
+    onBlur,
+  }: {
+    id: string;
+    content: string;
+    isHighlighted: boolean;
+    isEvenColumn: boolean;
+    isVisible: boolean;
+    isDayEnd: boolean;
+    onBlur: React.FocusEventHandler<HTMLDivElement>;
+  }) => {
+    return (
+      <Td
+        id={id}
+        onBlur={onBlur}
+        contentEditable={true}
+        suppressContentEditableWarning={true}
+        $isHighlighted={isHighlighted}
+        $isEvenColumn={isEvenColumn}
+        $isVisible={isVisible}
+        $isDayEnd={isDayEnd}
+        data-original={content}
+      >
+        {content}
+      </Td>
+    );
+  },
+  (prev, next) => {
+    // 내용, 가시성, 하이라이트 여부가 같으면 리렌더링 방지
+    return (
+      prev.content === next.content &&
+      prev.isVisible === next.isVisible &&
+      prev.isHighlighted === next.isHighlighted
+    );
+  }
+);
+TempScheduleCell.displayName = "TempScheduleCell";
+
+// --------------------------------------------------------------------------
+// 🧩 Main Component
+// --------------------------------------------------------------------------
+
 export default function TempScheduleClient({
   initialTimeList,
   initialDataList,
 }: Props) {
+  // State
   const [searchText, setSearchText] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState(""); // 디바운스된 검색어
   const [activeDay, setActiveDay] = useState(0);
   const [isAllView, setIsAllView] = useState(false);
 
   const openModal = useModalStore((state) => state.openModal);
-
-  // ✅ Upsert Mutation 사용
   const { mutate: upsertTempSchedule } = useUpsertTempSchedule();
 
+  // 초기 요일 설정
   useEffect(() => {
     const today = new Date().getDay();
-    if (today >= 1 && today <= 5) {
-      setActiveDay(today - 1);
-    } else {
-      setActiveDay(0);
-    }
+    setActiveDay(today >= 1 && today <= 5 ? today - 1 : 0);
   }, []);
 
-  // ✅ Blur 이벤트 핸들러: 내용 변경 시 저장(Upsert)
-  const handleOnBlur: React.FocusEventHandler<HTMLDivElement> = (e) => {
-    const text = e.currentTarget.innerText.trim();
-    const refId = e.currentTarget.id.split("-");
-    const time = refId[0];
-    const day = refId[1];
-    const type = refId[2];
-    const originalContent = e.currentTarget.getAttribute("data-original");
+  // 검색어 디바운싱 (입력 렉 방지)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchText);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchText]);
 
-    if (text === originalContent) return;
+  // 데이터 가공 최적화 (useMemo)
+  const rows = useMemo(() => {
+    return initialTimeList?.map((item: any) => {
+      const obj: any = { days: WEEKDAY_LIST, time: item.time };
+      const filterList =
+        initialDataList?.filter((d: any) => d.time === item.time) || [];
 
-    upsertTempSchedule({
-      content: text,
-      time,
-      day,
-      type,
-      academyCode: "2", // 실제 사용 시 전역 상태나 Props로 주입 권장
-      registerID: "admin",
+      for (let i = 0; i < 10; i++) {
+        let contents = "";
+        const type = i % 2 === 0 ? "M" : "D";
+        if (filterList.length > 0) {
+          const data = filterList.find((d: any) => {
+            return (
+              WEEKDAY_LIST[Math.floor(i / 2)].value === Number(d.day) &&
+              type === d.type
+            );
+          });
+          contents = data?.content || "";
+        }
+        obj["contents" + String(i)] = contents;
+        obj["type" + String(i)] = type;
+      }
+      return obj;
     });
-  };
+  }, [initialTimeList, initialDataList]);
 
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchText(event.target.value.toLowerCase());
-  };
+  // 핸들러 최적화 (useCallback)
+  const handleOnBlur = useCallback<React.FocusEventHandler<HTMLDivElement>>(
+    (e) => {
+      const text = e.currentTarget.innerText.trim();
+      const originalContent = e.currentTarget.getAttribute("data-original");
 
-  const handleAddTime = () => {
+      if (text === originalContent) return;
+
+      const refId = e.currentTarget.id.split("-");
+      const time = refId[0];
+      const day = refId[1];
+      const type = refId[2];
+
+      upsertTempSchedule({
+        content: text,
+        time,
+        day,
+        type,
+        academyCode: "2",
+        registerID: "admin",
+      });
+    },
+    [upsertTempSchedule]
+  );
+
+  const handleSearchChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setSearchText(event.target.value.toLowerCase());
+    },
+    []
+  );
+
+  const handleAddTime = useCallback(() => {
     openModal({
       type: "SIMPLE",
       title: "시간 추가",
       content: <ModalTimeManager mode="add" target="temp-schedule" />,
       hideFooter: true,
     });
-  };
+  }, [openModal]);
 
-  const handleManageTime = (timeValue: string) => {
-    openModal({
-      type: "SIMPLE",
-      title: "시간 관리",
-      content: (
-        <ModalTimeManager
-          mode="delete"
-          initialTime={replaceTimePattern(timeValue)}
-          target="temp-schedule"
-        />
-      ),
-      hideFooter: true,
-    });
-  };
+  const handleManageTime = useCallback(
+    (timeValue: string) => {
+      openModal({
+        type: "SIMPLE",
+        title: "시간 관리",
+        content: (
+          <ModalTimeManager
+            mode="delete"
+            initialTime={replaceTimePattern(timeValue)}
+            target="temp-schedule"
+          />
+        ),
+        hideFooter: true,
+      });
+    },
+    [openModal]
+  );
 
-  const rows = initialTimeList?.map((item: any) => {
-    const obj: any = { days: WEEKDAY_LIST, time: item.time };
-    const filterList =
-      initialDataList?.filter((d: any) => d.time === item.time) || [];
-
-    for (let i = 0; i < 10; i++) {
-      let contents = "";
-      const type = i % 2 === 0 ? "M" : "D";
-      if (filterList.length > 0) {
-        const data = filterList.find((d: any) => {
-          return (
-            WEEKDAY_LIST[Math.floor(i / 2)].value === Number(d.day) &&
-            type === d.type
-          );
-        });
-        contents = data?.content || "";
-      }
-      obj["contents" + String(i)] = contents;
-      obj["type" + String(i)] = type;
-    }
-    return obj;
-  });
+  const toggleAllView = useCallback(() => {
+    setIsAllView((prev) => !prev);
+  }, []);
 
   return (
     <Container>
@@ -157,10 +236,7 @@ export default function TempScheduleClient({
             </TabList>
           )}
 
-          <ViewToggleButton
-            onClick={() => setIsAllView(!isAllView)}
-            $isAllView={isAllView}
-          >
+          <ViewToggleButton onClick={toggleAllView} $isAllView={isAllView}>
             {isAllView ? <ViewDayIcon /> : <GridViewIcon />}
             <span>{isAllView ? "요일별" : "한 눈에"}</span>
           </ViewToggleButton>
@@ -184,7 +260,7 @@ export default function TempScheduleClient({
             </tr>
           </Thead>
           <tbody>
-            {rows.map((row: any) => (
+            {rows.map((row: any, idx: number) => (
               <tr key={row.time}>
                 <ThStickyLeft onClick={() => handleManageTime(row.time)}>
                   {replaceTimeFormat(row.time)}
@@ -196,31 +272,28 @@ export default function TempScheduleClient({
                   const typeKey = `type${index}`;
                   const id = `${row.time}-${row.days[dayIndex].value}-${row[typeKey]}`;
                   const content = row[contentKey] ?? "";
-
-                  // 요일의 마지막 컬럼인지 (구분선용)
                   const isDayEnd = (index + 1) % 2 === 0;
 
+                  // 하이라이트 로직 (디바운스된 검색어 사용)
                   const isHighlighted =
-                    searchText &&
+                    debouncedSearch &&
                     content &&
-                    (content.toLowerCase().includes(searchText) ||
-                      extractInitialConsonants(content).includes(searchText));
+                    (content.toLowerCase().includes(debouncedSearch) ||
+                      extractInitialConsonants(content).includes(
+                        debouncedSearch
+                      ));
 
                   return (
-                    <Td
+                    <TempScheduleCell
                       key={id}
                       id={id}
+                      content={content}
+                      isHighlighted={!!isHighlighted}
+                      isEvenColumn={index % 2 !== 0}
+                      isVisible={isAllView || dayIndex === activeDay}
+                      isDayEnd={isDayEnd}
                       onBlur={handleOnBlur}
-                      contentEditable={true}
-                      suppressContentEditableWarning={true}
-                      $isHighlighted={!!isHighlighted}
-                      $isEvenColumn={index % 2 !== 0}
-                      $isVisible={isAllView || dayIndex === activeDay}
-                      $isDayEnd={isDayEnd}
-                      data-original={content}
-                    >
-                      {content}
-                    </Td>
+                    />
                   );
                 })}
               </tr>
@@ -233,7 +306,7 @@ export default function TempScheduleClient({
 }
 
 // --------------------------------------------------------------------------
-// ✨ Styled Components
+// ✨ Styled Components (기존과 동일)
 // --------------------------------------------------------------------------
 
 const Container = styled.div`
@@ -311,6 +384,11 @@ const TabList = styled.div`
   background-color: #e5e8eb;
   padding: 4px;
   border-radius: 12px;
+  overflow-x: auto;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 `;
 
 const TabButton = styled.button<{ $isActive: boolean }>`
@@ -327,6 +405,8 @@ const TabButton = styled.button<{ $isActive: boolean }>`
   box-shadow: ${(props) =>
     props.$isActive ? "0 2px 4px rgba(0,0,0,0.05)" : "none"};
   font-family: "CustomFont";
+  white-space: nowrap;
+  min-width: 48px;
 `;
 
 const ViewToggleButton = styled.button<{ $isAllView: boolean }>`
@@ -346,7 +426,7 @@ const ViewToggleButton = styled.button<{ $isAllView: boolean }>`
   transition: all 0.3s ease;
   white-space: nowrap;
   justify-content: center;
-  height: ${(props) => (props.$isAllView ? "45px" : "")};
+  height: ${(props) => (props.$isAllView ? "45px" : "auto")};
 
   svg {
     font-size: 18px;

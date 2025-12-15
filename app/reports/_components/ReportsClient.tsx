@@ -43,7 +43,7 @@ import { replaceMoneyKr } from "@/utils/format";
 import ReportsSkeleton from "./ReportsSkeleton";
 import { getMonthlyTotalAction, getCustomerStatsAction } from "@/app/_actions";
 
-// [수정 1] 데이터 타입 인터페이스 정의
+// --- Types ---
 interface ChartDataItem {
   month: string;
   income: number;
@@ -56,13 +56,14 @@ interface ChartDataItem {
 
 interface Props {
   academyCode: string;
-  initialChartData: any[];
+  initialChartData: ChartDataItem[];
   currentServerYear: number;
   customerList: any[];
 }
 
 type TabType = "customer" | "income" | "expenditure";
 
+// --- Constants ---
 const COLORS = {
   blue: "#3182f6",
   red: "#ef4444",
@@ -77,6 +78,75 @@ const COLORS = {
   topSpending: ["#ef4444", "#f97316", "#f59e0b", "#84cc16", "#10b981"],
 };
 
+const DEFAULT_CHART_ITEM: ChartDataItem = {
+  month: "",
+  income: 0,
+  incomeCount: 0,
+  expenditure: 0,
+  join: 0,
+  leave: 0,
+  totalMembers: 0,
+};
+
+// --- Sub Components ---
+
+const TrendBadge = ({
+  rate,
+  isReverse = false,
+}: {
+  rate: number;
+  isReverse?: boolean;
+}) => {
+  if (rate === 0)
+    return (
+      <Badge $color="gray">
+        <Minus size={12} /> 변동 없음
+      </Badge>
+    );
+
+  const finalColor = isReverse
+    ? rate > 0
+      ? "red"
+      : "green"
+    : rate > 0
+    ? "green"
+    : "red";
+
+  return (
+    <Badge $color={finalColor}>
+      {rate > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+      {Math.abs(rate)}% {rate > 0 ? "증가" : "감소"}
+    </Badge>
+  );
+};
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <TooltipWrapper>
+        <TooltipLabel>{label}</TooltipLabel>
+        {payload.map((entry: any, index: number) => (
+          <TooltipItem key={index} color={entry.color}>
+            <span>{entry.name}:</span>
+            <strong>
+              {typeof entry.value === "number"
+                ? entry.name.includes("금액") ||
+                  entry.name.includes("수입") ||
+                  entry.name.includes("지출")
+                  ? replaceMoneyKr(entry.value)
+                  : `${entry.value}${entry.name.includes("건수") ? "건" : "명"}`
+                : entry.value}
+            </strong>
+          </TooltipItem>
+        ))}
+      </TooltipWrapper>
+    );
+  }
+  return null;
+};
+
+// --- Main Component ---
+
 export default function ReportsClient({
   academyCode,
   initialChartData,
@@ -85,14 +155,13 @@ export default function ReportsClient({
 }: Props) {
   const [activeTab, setActiveTab] = useState<TabType>("customer");
   const [currentYear, setCurrentYear] = useState(currentServerYear);
-  // [수정 2] state에 제네릭 타입 명시
   const [chartData, setChartData] = useState<ChartDataItem[]>(initialChartData);
   const [isLoading, setIsLoading] = useState(false);
 
   const thisMonthIdx = new Date().getMonth();
   const isFirstRender = useRef(true);
 
-  // ✅ 데이터 Fetching
+  // 1. Data Fetching
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -103,7 +172,6 @@ export default function ReportsClient({
       setIsLoading(true);
       try {
         const yearStr = String(currentYear);
-        // [수정 3] API 응답에 'as any[]'를 붙여서 타입 추론 에러 방지
         const [incomeData, expenditureData, customerData] = (await Promise.all([
           getMonthlyTotalAction(yearStr, "income", academyCode),
           getMonthlyTotalAction(yearStr, "expenditure", academyCode),
@@ -112,7 +180,6 @@ export default function ReportsClient({
 
         const newChartData = Array.from({ length: 12 }, (_, i) => {
           const monthStr = String(i + 1).padStart(2, "0");
-          // any 타입으로 캐스팅된 데이터에서 find 수행
           const incomeItem = incomeData.find((d: any) => d.month === monthStr);
           const expendItem = expenditureData.find(
             (d: any) => d.month === monthStr
@@ -123,8 +190,8 @@ export default function ReportsClient({
 
           return {
             month: `${i + 1}월`,
-            income: incomeItem?.total || 0, // 에러 해결 지점
-            incomeCount: incomeItem?.count || 0, // 에러 해결 지점
+            income: incomeItem?.total || 0,
+            incomeCount: incomeItem?.count || 0,
             expenditure: expendItem?.total || 0,
             join: customerItem?.join || 0,
             leave: customerItem?.leave || 0,
@@ -143,21 +210,11 @@ export default function ReportsClient({
     fetchData();
   }, [currentYear, academyCode]);
 
-  // --- 1. 통계 요약 ---
+  // 2. Statistics Calculation (useMemo)
   const stats = useMemo(() => {
-    // [수정 4] || {} 대신 명확한 초기값 객체 제공하여 타입 에러 방지
-    const defaultData: ChartDataItem = {
-      month: "",
-      income: 0,
-      incomeCount: 0,
-      expenditure: 0,
-      join: 0,
-      leave: 0,
-      totalMembers: 0,
-    };
-
-    const current = chartData[thisMonthIdx] || defaultData;
-    const prev = thisMonthIdx > 0 ? chartData[thisMonthIdx - 1] : defaultData;
+    const current = chartData[thisMonthIdx] || DEFAULT_CHART_ITEM;
+    const prev =
+      thisMonthIdx > 0 ? chartData[thisMonthIdx - 1] : DEFAULT_CHART_ITEM;
 
     const calcRate = (cur: number, pre: number) => {
       if (!pre) return cur > 0 ? 100 : 0;
@@ -169,17 +226,16 @@ export default function ReportsClient({
       (acc, cur) => acc + cur.expenditure,
       0
     );
-
     const totalJoinYear = chartData.reduce((acc, cur) => acc + cur.join, 0);
     const totalLeaveYear = chartData.reduce((acc, cur) => acc + cur.leave, 0);
 
     const maxIncomeItem = chartData.reduce(
       (max, cur) => (cur.income > max.income ? cur : max),
-      chartData[0] || defaultData
+      chartData[0] || DEFAULT_CHART_ITEM
     );
     const maxExpenditureItem = chartData.reduce(
       (max, cur) => (cur.expenditure > max.expenditure ? cur : max),
-      chartData[0] || defaultData
+      chartData[0] || DEFAULT_CHART_ITEM
     );
 
     return {
@@ -188,15 +244,15 @@ export default function ReportsClient({
         rate: calcRate(current.income || 0, prev.income || 0),
         count: current.incomeCount || 0,
         totalYear: totalIncomeYear,
-        maxAmount: maxIncomeItem?.income || 0,
-        maxMonth: maxIncomeItem?.month || "-",
+        maxAmount: maxIncomeItem.income || 0,
+        maxMonth: maxIncomeItem.month || "-",
       },
       expenditure: {
         total: current.expenditure || 0,
         rate: calcRate(current.expenditure || 0, prev.expenditure || 0),
         totalYear: totalExpenditureYear,
-        maxAmount: maxExpenditureItem?.expenditure || 0,
-        maxMonth: maxExpenditureItem?.month || "-",
+        maxAmount: maxExpenditureItem.expenditure || 0,
+        maxMonth: maxExpenditureItem.month || "-",
       },
       customer: {
         joinYear: totalJoinYear,
@@ -206,12 +262,12 @@ export default function ReportsClient({
     };
   }, [chartData, thisMonthIdx]);
 
-  // --- 2. 원생 상세 분석 ---
+  // 3. Customer Demographics Calculation (useMemo)
   const customerDemographics = useMemo(() => {
     const stateData = { active: 0, pause: 0, wait: 0, rest: 0 };
     const genderData = { male: 0, female: 0 };
     const schoolData = { kinder: 0, elem: 0, middle: 0, high: 0, etc: 0 };
-    const freqData = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    const freqData: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 
     const todayYear = new Date().getFullYear();
 
@@ -236,10 +292,7 @@ export default function ReportsClient({
         }
 
         const count = parseInt(c.count || "0", 10);
-        if (count >= 1 && count <= 5) {
-          // @ts-ignore
-          freqData[count]++;
-        }
+        if (count >= 1 && count <= 5) freqData[count]++;
       }
     });
 
@@ -270,7 +323,7 @@ export default function ReportsClient({
     };
   }, [customerList]);
 
-  // --- 3. 지출 상위 랭킹 ---
+  // 4. Top Spending Calculation (useMemo)
   const topSpendingData = useMemo(() => {
     return [...chartData]
       .sort((a, b) => b.expenditure - a.expenditure)
@@ -280,62 +333,6 @@ export default function ReportsClient({
 
   const handleYearChange = (dir: number) => setCurrentYear((p) => p + dir);
 
-  const TrendBadge = ({
-    rate,
-    isReverse = false,
-  }: {
-    rate: number;
-    isReverse?: boolean;
-  }) => {
-    if (rate === 0)
-      return (
-        <Badge $color="gray">
-          <Minus size={12} /> 변동 없음
-        </Badge>
-      );
-    const finalColor = isReverse
-      ? rate > 0
-        ? "red"
-        : "green"
-      : rate > 0
-      ? "green"
-      : "red";
-
-    return (
-      <Badge $color={finalColor}>
-        {rate > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-        {Math.abs(rate)}% {rate > 0 ? "증가" : "감소"}
-      </Badge>
-    );
-  };
-
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <TooltipWrapper>
-          <TooltipLabel>{label}</TooltipLabel>
-          {payload.map((entry: any, index: number) => (
-            <TooltipItem key={index} color={entry.color}>
-              <span>{entry.name}:</span>
-              <strong>
-                {typeof entry.value === "number"
-                  ? entry.name.includes("금액") ||
-                    entry.name.includes("수입") ||
-                    entry.name.includes("지출")
-                    ? replaceMoneyKr(entry.value)
-                    : `${entry.value}${
-                        entry.name.includes("건수") ? "건" : "명"
-                      }`
-                  : entry.value}
-              </strong>
-            </TooltipItem>
-          ))}
-        </TooltipWrapper>
-      );
-    }
-    return null;
-  };
-
   return (
     <>
       {isLoading ? (
@@ -343,7 +340,7 @@ export default function ReportsClient({
       ) : (
         <Container>
           <Header>
-            <PageTitleWithStar title={<Title>통계 리포트</Title>} />
+            <PageTitleWithStar title={<Title>통계</Title>} />
             <Controls>
               <YearSelector>
                 <YearButton
@@ -392,7 +389,7 @@ export default function ReportsClient({
               </LoadingOverlay>
             )}
 
-            {/* 1. 인원 현황 */}
+            {/* 1. Customer Tab */}
             {activeTab === "customer" && (
               <DashboardGrid>
                 <StatCard>
@@ -451,7 +448,6 @@ export default function ReportsClient({
                           tick={{ fontSize: 11, fill: "#94a3b8" }}
                           axisLine={false}
                           tickLine={false}
-                          interval="preserveStartEnd"
                         />
                         <YAxis
                           tick={{ fontSize: 11, fill: "#94a3b8" }}
@@ -611,7 +607,7 @@ export default function ReportsClient({
               </DashboardGrid>
             )}
 
-            {/* 2. 수입 현황 */}
+            {/* 2. Income Tab */}
             {activeTab === "income" && (
               <DashboardGrid>
                 <StatCard>
@@ -673,7 +669,6 @@ export default function ReportsClient({
                           tick={{ fontSize: 11, fill: "#94a3b8" }}
                           axisLine={false}
                           tickLine={false}
-                          interval="preserveStartEnd"
                         />
                         <YAxis
                           tick={{ fontSize: 11, fill: "#94a3b8" }}
@@ -736,7 +731,6 @@ export default function ReportsClient({
                           tick={{ fontSize: 11, fill: "#94a3b8" }}
                           axisLine={false}
                           tickLine={false}
-                          interval="preserveStartEnd"
                         />
                         <YAxis
                           tick={{ fontSize: 11, fill: "#94a3b8" }}
@@ -760,7 +754,7 @@ export default function ReportsClient({
               </DashboardGrid>
             )}
 
-            {/* 3. 지출 현황 */}
+            {/* 3. Expenditure Tab */}
             {activeTab === "expenditure" && (
               <DashboardGrid>
                 <StatCard>
@@ -825,7 +819,6 @@ export default function ReportsClient({
                           tick={{ fontSize: 11, fill: "#94a3b8" }}
                           axisLine={false}
                           tickLine={false}
-                          interval="preserveStartEnd"
                         />
                         <YAxis
                           tick={{ fontSize: 11, fill: "#94a3b8" }}
@@ -912,7 +905,7 @@ export default function ReportsClient({
 }
 
 // --------------------------------------------------------------------------
-// ✨ Styled Components
+// ✨ Styled Components (기존과 동일)
 // --------------------------------------------------------------------------
 const Container = styled.div`
   padding: 24px;
@@ -1126,6 +1119,7 @@ const StatHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
 `;
 
 const StatTitle = styled.h3`

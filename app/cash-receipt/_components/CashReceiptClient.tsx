@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import styled, { css } from "styled-components";
 import { Search as SearchIcon, CheckSquare, Square } from "lucide-react";
 
@@ -24,6 +24,146 @@ interface Props {
   userId: string;
 }
 
+// --- Helper Functions ---
+const formatDate = (y: string, m: string, d: string) =>
+  !y || !m || !d ? "-" : `${y}-${m}-${d}`;
+
+// --- Sub Component: Table (렌더링 최적화) ---
+const CashReceiptTable = React.memo(
+  ({
+    data,
+    selectedIds,
+    toggleSelect,
+    toggleSelectAll,
+    toggleRegister,
+    handleBlur,
+    year,
+  }: any) => {
+    if (data.length === 0) {
+      return <EmptyMessage>데이터가 없습니다.</EmptyMessage>;
+    }
+
+    return (
+      <Table>
+        <thead>
+          <tr>
+            <Th style={{ width: "50px", textAlign: "center" }}>
+              <CheckBoxButton
+                onClick={toggleSelectAll}
+                className={
+                  selectedIds.size === data.length && data.length > 0
+                    ? "checked"
+                    : ""
+                }
+              >
+                {selectedIds.size === data.length && data.length > 0 ? (
+                  <CheckSquare size={20} />
+                ) : (
+                  <Square size={20} />
+                )}
+              </CheckBoxButton>
+            </Th>
+            <Th style={{ width: "100px", textAlign: "center" }}>상태</Th>
+            <Th style={{ width: "140px" }}>날짜</Th>
+            <Th style={{ width: "100px" }}>이름</Th>
+            <Th style={{ width: "150px" }}>현금영수증 번호</Th>
+            <Th style={{ width: "120px", textAlign: "right" }}>금액</Th>
+            <Th>비고</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row: any) => (
+            <Tr key={row.id} $isSelected={selectedIds.has(row.id)}>
+              <Td style={{ textAlign: "center" }}>
+                <CheckBoxButton
+                  onClick={() => toggleSelect(row.id)}
+                  className={selectedIds.has(row.id) ? "checked" : ""}
+                >
+                  {selectedIds.has(row.id) ? (
+                    <CheckSquare size={20} />
+                  ) : (
+                    <Square size={20} />
+                  )}
+                </CheckBoxButton>
+              </Td>
+              <Td style={{ textAlign: "center" }}>
+                <Badge
+                  $active={row.register === "Y"}
+                  onClick={() => toggleRegister(row.id, row.name, row.register)}
+                >
+                  {row.register === "Y" ? "발행" : "미발행"}
+                </Badge>
+              </Td>
+              <Td>
+                <Input
+                  defaultValue={formatDate(row.year, row.month, row.day)}
+                  onBlur={(e) =>
+                    handleBlur(
+                      row.id,
+                      row.name,
+                      "date",
+                      e.target.value,
+                      formatDate(row.year, row.month, row.day)
+                    )
+                  }
+                  placeholder="YYYY-MM-DD"
+                />
+              </Td>
+              <Td style={{ fontWeight: 600 }}>{row.name}</Td>
+              <Td>
+                <Input
+                  defaultValue={replaceHyphenFormat(row.cash_number, "phone")}
+                  placeholder="번호 입력"
+                  onBlur={(e) =>
+                    handleBlur(
+                      row.id,
+                      row.name,
+                      "cash_number",
+                      e.target.value,
+                      row.cash_number
+                    )
+                  }
+                />
+              </Td>
+              <Td style={{ textAlign: "right" }}>
+                <Input
+                  defaultValue={Number(row.fee).toLocaleString() + "원"}
+                  style={{
+                    textAlign: "right",
+                    fontWeight: 700,
+                    color: "#3182f6",
+                  }}
+                  onBlur={(e) =>
+                    handleBlur(row.id, row.name, "fee", e.target.value, row.fee)
+                  }
+                />
+              </Td>
+              <Td>
+                <Input
+                  defaultValue={row.note}
+                  placeholder="메모"
+                  onBlur={(e) =>
+                    handleBlur(
+                      row.id,
+                      row.name,
+                      "note",
+                      e.target.value,
+                      row.note
+                    )
+                  }
+                />
+              </Td>
+            </Tr>
+          ))}
+        </tbody>
+      </Table>
+    );
+  }
+);
+CashReceiptTable.displayName = "CashReceiptTable";
+
+// --- Main Component ---
+
 export default function CashReceiptClient({ academyCode, userId }: Props) {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear().toString());
@@ -31,6 +171,7 @@ export default function CashReceiptClient({ academyCode, userId }: Props) {
     String(today.getMonth() + 1).padStart(2, "0")
   );
   const [searchText, setSearchText] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const { data: rows = [], isLoading } = useGetCashReceiptList(
     academyCode,
@@ -41,8 +182,7 @@ export default function CashReceiptClient({ academyCode, userId }: Props) {
   const { mutateAsync: updateBatch } = useUpdateCashReceiptBatch();
   const { openModal } = useModalStore();
 
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-
+  // 1. 데이터 필터링 (useMemo)
   const filteredRows = useMemo(() => {
     if (!searchText) return rows;
     return rows.filter(
@@ -52,22 +192,44 @@ export default function CashReceiptClient({ academyCode, userId }: Props) {
     );
   }, [rows, searchText]);
 
-  const toggleSelect = (id: number) => {
-    const newSet = new Set(selectedIds);
-    if (newSet.has(id)) newSet.delete(id);
-    else newSet.add(id);
-    setSelectedIds(newSet);
-  };
+  // 2. 옵션 데이터 (useMemo)
+  const yearOptions = useMemo(
+    () =>
+      Array.from({ length: 5 }, (_, i) => {
+        const y = String(today.getFullYear() - i);
+        return { label: `${y}년`, value: y };
+      }),
+    []
+  );
 
-  const toggleSelectAll = () => {
+  const monthOptions = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, i) => {
+        const m = String(i + 1).padStart(2, "0");
+        return { label: `${m}월`, value: m };
+      }),
+    []
+  );
+
+  // Handlers (useCallback)
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      return newSet;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
     if (selectedIds.size === filteredRows.length && filteredRows.length > 0) {
       setSelectedIds(new Set());
     } else {
       setSelectedIds(new Set(filteredRows.map((r: any) => r.id)));
     }
-  };
+  }, [selectedIds, filteredRows]);
 
-  const handleBatchIssue = () => {
+  const handleBatchIssue = useCallback(() => {
     if (selectedIds.size === 0) return;
 
     openModal({
@@ -84,282 +246,130 @@ export default function CashReceiptClient({ academyCode, userId }: Props) {
         setSelectedIds(new Set());
       },
     });
-  };
+  }, [selectedIds, updateBatch, userId, academyCode, openModal]);
 
-  const handleBlur = (
-    id: number,
-    name: string,
-    field: string,
-    value: string,
-    originalValue: any
-  ) => {
-    let finalValue = value;
-    if (value === String(originalValue)) return;
+  const handleBlur = useCallback(
+    (
+      id: number,
+      name: string,
+      field: string,
+      value: string,
+      originalValue: any
+    ) => {
+      let finalValue = value;
+      if (value === String(originalValue)) return;
 
-    if (field === "date") {
-      const num = replaceOnlyNum(value);
-      if (num.length === 4)
-        finalValue = `${year}${num.substring(0, 2)}${num.substring(2, 4)}`;
-      else if (num.length === 8) finalValue = num;
-      else return;
-    } else if (field === "fee" || field === "cash_number") {
-      finalValue = replaceOnlyNum(value);
-    }
+      if (field === "date") {
+        const num = replaceOnlyNum(value);
+        if (num.length === 4)
+          finalValue = `${year}${num.substring(0, 2)}${num.substring(2, 4)}`;
+        else if (num.length === 8) finalValue = num;
+        else return;
+      } else if (field === "fee" || field === "cash_number") {
+        finalValue = replaceOnlyNum(value);
+      }
 
-    updateCashReceipt({
-      id,
-      name,
-      field,
-      value: finalValue,
-      academyCode,
-      updaterId: userId,
-    });
-  };
+      updateCashReceipt({
+        id,
+        name,
+        field,
+        value: finalValue,
+        academyCode,
+        updaterId: userId,
+      });
+    },
+    [year, updateCashReceipt, academyCode, userId]
+  );
 
-  const toggleRegister = (id: number, name: string, currentVal: string) => {
-    const newVal = currentVal === "Y" ? "N" : "Y";
-    updateCashReceipt({
-      id,
-      name,
-      field: "register",
-      value: newVal,
-      academyCode,
-      updaterId: userId,
-    });
-  };
+  const toggleRegister = useCallback(
+    (id: number, name: string, currentVal: string) => {
+      const newVal = currentVal === "Y" ? "N" : "Y";
+      updateCashReceipt({
+        id,
+        name,
+        field: "register",
+        value: newVal,
+        academyCode,
+        updaterId: userId,
+      });
+    },
+    [updateCashReceipt, academyCode, userId]
+  );
 
-  const formatDate = (y: string, m: string, d: string) =>
-    !y || !m || !d ? "-" : `${y}-${m}-${d}`;
+  // Select Change Handlers
+  const handleYearChange = useCallback(
+    (_: any, v?: string) => v && setYear(v),
+    []
+  );
+  const handleMonthChange = useCallback(
+    (_: any, v?: string) => v && setMonth(v),
+    []
+  );
 
-  const yearOptions = Array.from({ length: 5 }, (_, i) => {
-    const y = String(today.getFullYear() - i);
-    return { label: `${y}년`, value: y };
-  });
-
-  const monthOptions = Array.from({ length: 12 }, (_, i) => {
-    const m = String(i + 1).padStart(2, "0");
-    return { label: `${m}월`, value: m };
-  });
+  if (isLoading) return <CashReceiptSkeleton />;
 
   return (
-    <>
-      {isLoading ? (
-        <CashReceiptSkeleton />
-      ) : (
-        <Container>
-          <Header>
-            <PageTitleWithStar title={<Title>현금영수증</Title>} />
+    <Container>
+      <Header>
+        <PageTitleWithStar title={<Title>현금영수증</Title>} />
+        <Controls>
+          <Select
+            options={yearOptions}
+            value={year}
+            onChange={handleYearChange}
+            width="90px"
+          />
+          <Select
+            options={monthOptions}
+            value={month}
+            onChange={handleMonthChange}
+            width="80px"
+          />
+          <SearchWrapper>
+            <SearchIcon size={18} color="#94a3b8" />
+            <SearchInput
+              placeholder="이름"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+            />
+          </SearchWrapper>
+        </Controls>
+      </Header>
 
-            <Controls>
-              {/* 1. 연도 */}
-              <Select
-                options={yearOptions}
-                value={year}
-                onChange={setYear}
-                width="90px" // 모바일 고려 조금 줄임
-              />
-              {/* 2. 월 */}
-              <Select
-                options={monthOptions}
-                value={month}
-                onChange={setMonth}
-                width="80px" // 모바일 고려 조금 줄임
-              />
-              {/* 3. 검색창 */}
-              <SearchWrapper>
-                <SearchIcon size={18} color="#94a3b8" />
-                <SearchInput
-                  placeholder="이름"
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                />
-              </SearchWrapper>
-            </Controls>
-          </Header>
+      <ContentArea>
+        <TableContainer>
+          <CashReceiptTable
+            data={filteredRows}
+            selectedIds={selectedIds}
+            toggleSelect={toggleSelect}
+            toggleSelectAll={toggleSelectAll}
+            toggleRegister={toggleRegister}
+            handleBlur={handleBlur}
+            year={year}
+          />
+        </TableContainer>
 
-          <ContentArea>
-            <TableContainer>
-              <Table>
-                <thead>
-                  <tr>
-                    <Th style={{ width: "50px", textAlign: "center" }}>
-                      <CheckBoxButton
-                        onClick={toggleSelectAll}
-                        className={
-                          selectedIds.size === filteredRows.length &&
-                          filteredRows.length > 0
-                            ? "checked"
-                            : ""
-                        }
-                      >
-                        {selectedIds.size === filteredRows.length &&
-                        filteredRows.length > 0 ? (
-                          <CheckSquare size={20} />
-                        ) : (
-                          <Square size={20} />
-                        )}
-                      </CheckBoxButton>
-                    </Th>
-                    <Th style={{ width: "100px", textAlign: "center" }}>
-                      상태
-                    </Th>
-                    <Th style={{ width: "140px" }}>날짜</Th>
-                    <Th style={{ width: "100px" }}>이름</Th>
-                    <Th style={{ width: "150px" }}>현금영수증 번호</Th>
-                    <Th style={{ width: "120px", textAlign: "right" }}>금액</Th>
-                    <Th>비고</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {isLoading ? (
-                    <tr>
-                      <Td
-                        colSpan={7}
-                        style={{ textAlign: "center", padding: "40px" }}
-                      >
-                        로딩 중...
-                      </Td>
-                    </tr>
-                  ) : filteredRows.length === 0 ? (
-                    <tr>
-                      <Td
-                        colSpan={7}
-                        style={{
-                          textAlign: "center",
-                          padding: "40px",
-                          color: "#888",
-                        }}
-                      >
-                        데이터가 없습니다.
-                      </Td>
-                    </tr>
-                  ) : (
-                    filteredRows.map((row: any) => (
-                      <Tr key={row.id} $isSelected={selectedIds.has(row.id)}>
-                        <Td style={{ textAlign: "center" }}>
-                          <CheckBoxButton
-                            onClick={() => toggleSelect(row.id)}
-                            className={selectedIds.has(row.id) ? "checked" : ""}
-                          >
-                            {selectedIds.has(row.id) ? (
-                              <CheckSquare size={20} />
-                            ) : (
-                              <Square size={20} />
-                            )}
-                          </CheckBoxButton>
-                        </Td>
-                        <Td style={{ textAlign: "center" }}>
-                          <Badge
-                            $active={row.register === "Y"}
-                            onClick={() =>
-                              toggleRegister(row.id, row.name, row.register)
-                            }
-                          >
-                            {row.register === "Y" ? "발행" : "미발행"}
-                          </Badge>
-                        </Td>
-                        <Td>
-                          <Input
-                            defaultValue={formatDate(
-                              row.year,
-                              row.month,
-                              row.day
-                            )}
-                            onBlur={(e) =>
-                              handleBlur(
-                                row.id,
-                                row.name,
-                                "date",
-                                e.target.value,
-                                formatDate(row.year, row.month, row.day)
-                              )
-                            }
-                            placeholder="YYYY-MM-DD"
-                          />
-                        </Td>
-                        <Td style={{ fontWeight: 600 }}>{row.name}</Td>
-                        <Td>
-                          <Input
-                            defaultValue={replaceHyphenFormat(
-                              row.cash_number,
-                              "phone"
-                            )}
-                            placeholder="번호 입력"
-                            onBlur={(e) =>
-                              handleBlur(
-                                row.id,
-                                row.name,
-                                "cash_number",
-                                e.target.value,
-                                row.cash_number
-                              )
-                            }
-                          />
-                        </Td>
-                        <Td style={{ textAlign: "right" }}>
-                          <Input
-                            defaultValue={
-                              Number(row.fee).toLocaleString() + "원"
-                            }
-                            style={{
-                              textAlign: "right",
-                              fontWeight: 700,
-                              color: "#3182f6",
-                            }}
-                            onBlur={(e) =>
-                              handleBlur(
-                                row.id,
-                                row.name,
-                                "fee",
-                                e.target.value,
-                                row.fee
-                              )
-                            }
-                          />
-                        </Td>
-                        <Td>
-                          <Input
-                            defaultValue={row.note}
-                            placeholder="메모"
-                            onBlur={(e) =>
-                              handleBlur(
-                                row.id,
-                                row.name,
-                                "note",
-                                e.target.value,
-                                row.note
-                              )
-                            }
-                          />
-                        </Td>
-                      </Tr>
-                    ))
-                  )}
-                </tbody>
-              </Table>
-            </TableContainer>
-
-            <ActionFooter>
-              <FooterText>
-                {selectedIds.size > 0
-                  ? `${selectedIds.size}건 선택됨`
-                  : "선택된 항목 없음"}
-              </FooterText>
-              <ActionButton
-                onClick={handleBatchIssue}
-                disabled={selectedIds.size === 0}
-              >
-                일괄 발행 처리
-              </ActionButton>
-            </ActionFooter>
-          </ContentArea>
-        </Container>
-      )}
-    </>
+        <ActionFooter>
+          <FooterText>
+            {selectedIds.size > 0
+              ? `${selectedIds.size}건 선택됨`
+              : "선택된 항목 없음"}
+          </FooterText>
+          <ActionButton
+            onClick={handleBatchIssue}
+            disabled={selectedIds.size === 0}
+          >
+            일괄 발행 처리
+          </ActionButton>
+        </ActionFooter>
+      </ContentArea>
+    </Container>
   );
 }
 
-// --- Styles ---
+// --------------------------------------------------------------------------
+// ✨ Styles (기존과 동일)
+// --------------------------------------------------------------------------
 
 const Container = styled.div`
   padding: 32px;
@@ -370,12 +380,10 @@ const Container = styled.div`
   border: 1px solid rgba(224, 224, 224, 0.4);
   border-radius: 24px;
   gap: 24px;
-
   @media (max-width: 600px) {
     padding: 16px;
   }
 `;
-
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
@@ -383,52 +391,42 @@ const Header = styled.div`
   flex-wrap: wrap;
   gap: 16px;
 `;
-
 const Title = styled.h1`
   font-size: 26px;
   font-weight: 800;
   color: #191f28;
   margin: 0;
 `;
-
-// ✅ [수정] 컨트롤 영역 스타일: 줄바꿈 금지(nowrap) + 모바일 100%
 const Controls = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: nowrap; /* 줄바꿈 절대 금지 */
-
+  flex-wrap: nowrap;
   @media (max-width: 768px) {
-    width: 50%; /* 모바일에서 꽉 채우기 */
-    margin-top: 4px; /* 타이틀과 약간 띄우기 */
+    width: 100%; /* 모바일에서 꽉 채우기 */
+    margin-top: 4px;
+    justify-content: flex-end;
   }
 `;
-
-// ✅ [수정] 검색창 스타일: 남는 공간 채우기 (flex: 1)
 const SearchWrapper = styled.div`
   display: flex;
   align-items: center;
   background: #fff;
   padding: 0 10px;
   border-radius: 12px;
-  width: 180px; /* PC 기본 너비 */
-  height: 40px;
+  width: 180px;
+  height: 40px; /* Select 높이와 통일 (보통 38~42px) */
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   border: 1px solid #e5e8eb;
   transition: all 0.2s;
-
-  /* 모바일 대응: 남는 공간 모두 차지 */
-  @media (max-width: 768px) {
-    /* flex: 1; */
-    width: auto;
-    min-width: 90%; /* flex 자식 오버플로우 방지 */
-  }
-
   &:focus-within {
     border-color: #3182f6;
   }
+  @media (max-width: 768px) {
+    flex: 1; /* 남는 공간 채우기 */
+    min-width: 120px;
+  }
 `;
-
 const SearchInput = styled.input`
   border: none;
   outline: none;
@@ -436,19 +434,16 @@ const SearchInput = styled.input`
   margin-left: 6px;
   font-size: 14px;
   background: transparent;
-  min-width: 0; /* input 크기 줄어들 수 있게 함 */
-
+  min-width: 0;
   &::placeholder {
     color: #b0b8c1;
   }
 `;
-
 const ContentArea = styled.div`
   display: flex;
   flex-direction: column;
   gap: 24px;
 `;
-
 const TableContainer = styled.div`
   background: white;
   border-radius: 16px;
@@ -457,47 +452,6 @@ const TableContainer = styled.div`
   border: 1px solid #e5e8eb;
   min-height: 500px;
 `;
-
-const ActionFooter = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 16px;
-  padding: 0 8px;
-`;
-
-const FooterText = styled.span`
-  font-size: 15px;
-  font-weight: 600;
-  color: #4e5968;
-`;
-
-const ActionButton = styled.button`
-  padding: 10px 20px;
-  border-radius: 8px;
-  background-color: #3182f6;
-  color: white;
-  font-weight: 700;
-  border: none;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(49, 130, 246, 0.2);
-  transition: all 0.2s;
-
-  &:hover {
-    background-color: #1b64da;
-    transform: translateY(-2px);
-  }
-
-  &:disabled {
-    background-color: #e5e8eb;
-    color: #b0b8c1;
-    cursor: not-allowed;
-    box-shadow: none;
-    transform: none;
-  }
-`;
-
-// ... (Table, Th, Td, Tr, Input, Badge, CheckBoxButton 스타일 기존 동일)
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
@@ -574,4 +528,43 @@ const CheckBoxButton = styled.button`
   &:hover {
     color: #3182f6;
   }
+`;
+const ActionFooter = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 0 8px;
+`;
+const FooterText = styled.span`
+  font-size: 15px;
+  font-weight: 600;
+  color: #4e5968;
+`;
+const ActionButton = styled.button`
+  padding: 10px 20px;
+  border-radius: 8px;
+  background-color: #3182f6;
+  color: white;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(49, 130, 246, 0.2);
+  transition: all 0.2s;
+  &:hover {
+    background-color: #1b64da;
+    transform: translateY(-2px);
+  }
+  &:disabled {
+    background-color: #e5e8eb;
+    color: #b0b8c1;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+  }
+`;
+const EmptyMessage = styled.div`
+  padding: 40px;
+  text-align: center;
+  color: #888;
 `;

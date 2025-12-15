@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import styled from "styled-components";
 import {
   Search as SearchIcon,
   Add as AddIcon,
-  Store as StoreIcon, // 아이콘 변경
-  Phone as PhoneIcon,
+  Store as StoreIcon,
   MoreVert as MoreVertIcon,
 } from "@mui/icons-material";
 import { useModalStore } from "@/store/modalStore";
@@ -14,9 +13,84 @@ import ModalBranchManager from "@/components/modals/ModalBranchManager";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
 import { useBranchList, useDeleteBranch } from "@/app/_querys";
 import BranchSkeleton from "./BranchSkeleton";
-interface Props {
-  initialData: any[];
-}
+
+// --- Sub Components ---
+
+const BranchTable = React.memo(({ data, onEdit, onDelete }: any) => {
+  return (
+    <TableView>
+      <thead>
+        <tr>
+          <th style={{ minWidth: "60px" }}>코드</th>
+          <th style={{ minWidth: "120px" }}>지점명</th>
+          <th style={{ minWidth: "100px" }}>지점장</th>
+          <th style={{ minWidth: "120px" }}>연락처</th>
+          <th style={{ minWidth: "120px" }}>사업장번호</th>
+          <th style={{ minWidth: "200px" }}>주소</th>
+          <th style={{ minWidth: "50px" }}></th>
+        </tr>
+      </thead>
+      <tbody>
+        {data?.map((item: any) => (
+          <tr key={item.code} onClick={() => onEdit(item)}>
+            <td style={{ fontWeight: 700, color: "#3182f6" }}>{item.code}</td>
+            <td style={{ fontWeight: 700 }}>{item.name}</td>
+            <td>{item.owner || "-"}</td>
+            <td>{item.tel || "-"}</td>
+            <td>{item.business_no || "-"}</td>
+            <td style={{ color: "#6b7684", fontSize: "14px" }}>
+              {item.address} {item.detail_address}
+            </td>
+            <td onClick={(e) => onDelete(e, item.code)}>
+              <MoreBtnWrapper>
+                <MoreIcon />
+              </MoreBtnWrapper>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </TableView>
+  );
+});
+BranchTable.displayName = "BranchTable";
+
+const BranchCardList = React.memo(({ data, onEdit, onDelete }: any) => {
+  return (
+    <CardView>
+      {data?.map((item: any) => (
+        <Card key={item.code} onClick={() => onEdit(item)}>
+          <CardHeader>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <Avatar>{(item.name || "").charAt(0)}</Avatar>
+              <NameArea>
+                <Name>{item.name}</Name>
+                <SubText>
+                  코드: {item.code} | 지점장: {item.owner || "미정"}
+                </SubText>
+                <SubText>사업장번호: {item.business_no}</SubText>
+              </NameArea>
+            </div>
+            <MoreBtnWrapper onClick={(e) => onDelete(e, item.code)}>
+              <MoreIcon />
+            </MoreBtnWrapper>
+          </CardHeader>
+          <CardBody>
+            <InfoRow>
+              <StoreIcon fontSize="small" />
+              <span>
+                {item.address} <br />
+                {item.detail_address}
+              </span>
+            </InfoRow>
+          </CardBody>
+        </Card>
+      ))}
+    </CardView>
+  );
+});
+BranchCardList.displayName = "BranchCardList";
+
+// --- Main Component ---
 
 export default function BranchClient() {
   const [searchText, setSearchText] = useState("");
@@ -24,161 +98,103 @@ export default function BranchClient() {
   const { mutate: deleteBranch } = useDeleteBranch();
   const { data: initialData, isLoading } = useBranchList();
 
-  // 필터링
+  // 1. 데이터 필터링 (useMemo)
   const filteredData = useMemo(() => {
-    return initialData?.filter((item) => {
+    if (!initialData) return [];
+    return initialData.filter((item: any) => {
       const name = item.name || "";
       const code = item.code || "";
       return name.includes(searchText) || code.includes(searchText);
     });
   }, [initialData, searchText]);
 
-  const handleAdd = () => {
+  // Handlers (useCallback)
+  const handleAdd = useCallback(() => {
     openModal({
       title: "지점 등록",
       content: <ModalBranchManager mode="add" />,
       type: "SIMPLE",
     });
-  };
+  }, [openModal]);
 
-  const handleEdit = (item: any) => {
-    openModal({
-      title: "지점 정보 수정",
-      content: <ModalBranchManager mode="edit" initialData={item} />,
-      type: "SIMPLE",
-    });
-  };
+  const handleEdit = useCallback(
+    (item: any) => {
+      openModal({
+        title: "지점 정보 수정",
+        content: <ModalBranchManager mode="edit" initialData={item} />,
+        type: "SIMPLE",
+      });
+    },
+    [openModal]
+  );
 
-  const handleDeleteCheck = (e: React.MouseEvent, code: string) => {
-    e.stopPropagation();
-    openModal({
-      type: "SIMPLE",
-      title: "지점 삭제",
-      content: "이 지점을 정말 삭제하시겠어요?", // variables 사용 권장
-      onConfirm: () => {
-        deleteBranch(code);
-      },
-    });
-  };
+  const handleDeleteCheck = useCallback(
+    (e: React.MouseEvent, code: string) => {
+      e.stopPropagation();
+      openModal({
+        type: "SIMPLE",
+        title: "지점 삭제",
+        content: "이 지점을 정말 삭제하시겠어요?",
+        onConfirm: () => {
+          deleteBranch(code);
+        },
+      });
+    },
+    [openModal, deleteBranch]
+  );
+
+  if (isLoading) return <BranchSkeleton />;
 
   return (
-    <>
-      {isLoading ? (
-        <BranchSkeleton />
-      ) : (
-        <Container>
-          <Header>
-            <PageTitleWithStar
-              title={
-                <Title>
-                  <Highlight>지점</Highlight> 목록
-                </Title>
-              }
+    <Container>
+      <Header>
+        <PageTitleWithStar
+          title={
+            <Title>
+              <Highlight>지점</Highlight> 목록
+            </Title>
+          }
+        />
+        <Controls>
+          <SearchWrapper>
+            <SearchIcon style={{ color: "#94a3b8" }} />
+            <SearchInput
+              placeholder="지점명, 코드 검색..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
             />
-            <Controls>
-              <SearchWrapper>
-                <SearchIcon style={{ color: "#94a3b8" }} />
-                <SearchInput
-                  placeholder="지점명, 코드 검색..."
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                />
-              </SearchWrapper>
-              <AddButton onClick={handleAdd}>
-                <AddIcon />
-              </AddButton>
-            </Controls>
-          </Header>
+          </SearchWrapper>
+          <AddButton onClick={handleAdd}>
+            <AddIcon />
+          </AddButton>
+        </Controls>
+      </Header>
 
-          <ListContainer>
-            {/* PC Table View */}
-            <TableScrollWrapper>
-              <TableView>
-                <thead>
-                  <tr>
-                    <th style={{ minWidth: "60px" }}>코드</th>
-                    <th style={{ minWidth: "120px" }}>지점명</th>
-                    <th style={{ minWidth: "100px" }}>지점장</th>
-                    <th style={{ minWidth: "120px" }}>연락처</th>
-                    <th style={{ minWidth: "120px" }}>사업장번호</th>
-                    <th style={{ minWidth: "200px" }}>주소</th>
-                    <th style={{ minWidth: "50px" }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredData?.map((item) => (
-                    <tr key={item.code} onClick={() => handleEdit(item)}>
-                      <td style={{ fontWeight: 700, color: "#3182f6" }}>
-                        {item.code}
-                      </td>
-                      <td style={{ fontWeight: 700 }}>{item.name}</td>
-                      <td>{item.owner || "-"}</td>
-                      <td>{item.tel || "-"}</td>
-                      <td>{item.business_no || "-"}</td>
-                      <td style={{ color: "#6b7684", fontSize: "14px" }}>
-                        {/* ✅ 기본 주소 + 상세 주소 연결해서 보여주기 */}
-                        {item.address}
-                        {item.detail_address}
-                      </td>
-                      <td onClick={(e) => handleDeleteCheck(e, item.code)}>
-                        <MoreBtnWrapper>
-                          <MoreIcon />
-                        </MoreBtnWrapper>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </TableView>
-            </TableScrollWrapper>
+      <ListContainer>
+        {/* PC Table View */}
+        <TableScrollWrapper>
+          <BranchTable
+            data={filteredData}
+            onEdit={handleEdit}
+            onDelete={handleDeleteCheck}
+          />
+        </TableScrollWrapper>
 
-            {/* Mobile Card View */}
-            <CardView>
-              {filteredData?.map((item) => (
-                <Card key={item.code} onClick={() => handleEdit(item)}>
-                  <CardHeader>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "12px",
-                      }}
-                    >
-                      <Avatar>{item.name.charAt(0)}</Avatar>
-                      <NameArea>
-                        <Name>{item.name}</Name>
-                        <SubText>
-                          코드: {item.code} | 지점장: {item.owner || "미정"}
-                        </SubText>
-                        <SubText>사업장번호: {item.business_no}</SubText>
-                      </NameArea>
-                    </div>
-                    <MoreBtnWrapper
-                      onClick={(e) => handleDeleteCheck(e, item.code)}
-                    >
-                      <MoreIcon />
-                    </MoreBtnWrapper>
-                  </CardHeader>
-                  <CardBody>
-                    <InfoRow>
-                      <StoreIcon fontSize="small" />
-                      <span>
-                        {/* ✅ 모바일에서도 동일하게 적용 */}
-                        {item.address} <br />
-                        {item.detail_address}
-                      </span>
-                    </InfoRow>
-                  </CardBody>
-                </Card>
-              ))}
-            </CardView>
-          </ListContainer>
-        </Container>
-      )}
-    </>
+        {/* Mobile Card View */}
+        <BranchCardList
+          data={filteredData}
+          onEdit={handleEdit}
+          onDelete={handleDeleteCheck}
+        />
+      </ListContainer>
+    </Container>
   );
 }
 
-// --- Styles (Employee와 동일) ---
+// --------------------------------------------------------------------------
+// ✨ Styles (기존과 동일)
+// --------------------------------------------------------------------------
+
 const Container = styled.div`
   padding: 24px;
   background-color: white;

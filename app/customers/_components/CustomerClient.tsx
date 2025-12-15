@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import styled from "styled-components";
 import {
   Search,
@@ -22,7 +22,6 @@ import {
 import { getDDay } from "@/utils/date";
 import { ModalCustomerDelete } from "@/components/modals/ModalCustomerDelete";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
-// ✅ 공통 Select 컴포넌트 import (경로 확인 필요)
 import Select from "@/components/Select";
 
 interface Props {
@@ -30,25 +29,205 @@ interface Props {
   academyCode: string;
 }
 
-const DEFAULT_ITEMS_PER_PAGE = 8;
+const DEFAULT_ITEMS_PER_PAGE = 10;
+
+// --- Helper Functions ---
+const formatPhoneNumber = (phone: string) => {
+  if (!phone || phone === "010") return "-";
+  return replaceHyphenFormat(phone, "phone");
+};
+
+// --- Sub Components (테이블 & 카드 뷰 분리) ---
+
+const CustomersTable = React.memo(
+  ({ data, startIndex, onDetail, onDelete }: any) => {
+    return (
+      <TableView>
+        <thead>
+          <tr>
+            <th
+              style={{
+                minWidth: "50px",
+                position: "sticky",
+                left: 0,
+                zIndex: 10,
+              }}
+            >
+              No
+            </th>
+            <th
+              style={{
+                minWidth: "80px",
+                position: "sticky",
+                left: "50px",
+                zIndex: 10,
+              }}
+            >
+              이름
+            </th>
+            <th style={{ minWidth: "60px" }}>성별</th>
+            <th style={{ minWidth: "100px" }}>생년월일</th>
+            <th style={{ minWidth: "80px" }}>수강횟수</th>
+            <th style={{ minWidth: "100px" }}>회비</th>
+            <th style={{ minWidth: "120px" }}>학생 휴대폰</th>
+            <th style={{ minWidth: "100px" }}>학교</th>
+            <th style={{ minWidth: "200px" }}>비고</th>
+            <th style={{ minWidth: "100px" }}>부모님 성함</th>
+            <th style={{ minWidth: "120px" }}>부모님 휴대폰</th>
+            <th style={{ minWidth: "150px" }}>현금영수증 번호</th>
+            <th style={{ minWidth: "100px" }}>등록일</th>
+            <th style={{ minWidth: "80px" }}>D+DAY</th>
+            <th style={{ minWidth: "80px" }}>상태</th>
+            <th style={{ minWidth: "100px" }}>퇴원일</th>
+            <th style={{ minWidth: "50px" }}></th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((item: any, index: number) => (
+            <tr key={item.id} onClick={() => onDetail(item)}>
+              <td
+                style={{
+                  position: "sticky",
+                  left: 0,
+                  zIndex: 5,
+                  backgroundColor: "#fff",
+                }}
+              >
+                {startIndex + index + 1}
+              </td>
+              <td
+                style={{
+                  fontWeight: 700,
+                  position: "sticky",
+                  left: "50px",
+                  zIndex: 5,
+                  backgroundColor: "#fff",
+                }}
+              >
+                {item.name}
+              </td>
+              <td>{item.sex === "M" ? "남자" : "여자"}</td>
+              <td>{replaceHyphenFormat(item.birth || "", "date")}</td>
+              <td>
+                {item.count ? (
+                  <CountBadge count={item.count}>{item.count}회</CountBadge>
+                ) : (
+                  "-"
+                )}
+              </td>
+              <td>
+                {item.fee ? `${Number(item.fee).toLocaleString()}원` : "-"}
+              </td>
+              <td>{formatPhoneNumber(item.tel)}</td>
+              <td>{item.school || "-"}</td>
+              <td style={{ color: "#8b95a1", fontSize: "13px" }}>
+                {item.note || "-"}
+              </td>
+              <td>{item.parentname || "-"}</td>
+              <td>{item.cash_number || "-"}</td>
+              <td>{formatPhoneNumber(item.parentphone)}</td>
+              <td>{replaceHyphenFormat(item.date || "", "date")}</td>
+              <td style={{ color: "#3182f6", fontWeight: 600 }}>
+                {getDDay(item.date)}
+              </td>
+              <td>
+                <StateBadge $state={item.state}>
+                  {getStateLabel(item.state)}
+                </StateBadge>
+              </td>
+              <td>{replaceHyphenFormat(item.discharge || "", "date")}</td>
+              <td
+                onClick={(e) => onDelete(e, item)}
+                style={{ cursor: "pointer" }}
+              >
+                <MoreBtnWrapper>
+                  <MoreIcon />
+                </MoreBtnWrapper>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </TableView>
+    );
+  }
+);
+CustomersTable.displayName = "CustomersTable";
+
+const CustomersCardList = React.memo(({ data, onDetail, onDelete }: any) => {
+  return (
+    <CardView>
+      {data.map((item: any) => (
+        <Card key={item.id} onClick={() => onDetail(item)}>
+          <CardHeader>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <Avatar>{(item.name || "").charAt(0)}</Avatar>
+              <NameArea>
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                >
+                  <Name>{item.name}</Name>
+                  <StateBadge $state={item.state}>
+                    {getStateLabel(item.state)}
+                  </StateBadge>
+                </div>
+                <SubText>
+                  {item.school ? `${item.school} | ` : ""}
+                  {item.sex === "M" ? "남" : "여"}
+                </SubText>
+              </NameArea>
+            </div>
+            <MoreBtnWrapper
+              onClick={(e) => onDelete(e, item)}
+              style={{ marginRight: "-8px" }}
+            >
+              <MoreIcon />
+            </MoreBtnWrapper>
+          </CardHeader>
+          <CardBody>
+            <InfoRow>
+              <Smartphone size={16} color="#b0b8c1" />
+              <span>
+                {formatPhoneNumber(item.tel) === "-"
+                  ? "연락처 없음"
+                  : formatPhoneNumber(item.tel)}
+              </span>
+            </InfoRow>
+            {item.note && <NoteRow>📢 {item.note}</NoteRow>}
+          </CardBody>
+        </Card>
+      ))}
+    </CardView>
+  );
+});
+CustomersCardList.displayName = "CustomersCardList";
+
+// --- Main Component ---
 
 export default function CustomersClient({ initialData, academyCode }: Props) {
+  // State
   const [searchText, setSearchText] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterState, setFilterState] = useState("all");
   const [filterCount, setFilterCount] = useState("all");
-
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
 
   const { openModal, closeModal } = useModalStore();
 
-  const filteredAndSortedData = useMemo(() => {
+  // 1. 검색어 디바운싱
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchText), 300);
+    return () => clearTimeout(timer);
+  }, [searchText]);
+
+  // 2. 필터링 로직 (useMemo 최적화)
+  const processedData = useMemo(() => {
     const filtered = initialData.filter((item) => {
       const name = item.name || "";
       const matchesSearch =
-        !searchText ||
-        name.includes(searchText) ||
-        extractInitialConsonants(name).includes(searchText);
+        !debouncedSearch ||
+        name.includes(debouncedSearch) ||
+        extractInitialConsonants(name).includes(debouncedSearch);
 
       const matchesState = filterState === "all" || item.state === filterState;
       const matchesCount =
@@ -60,100 +239,101 @@ export default function CustomersClient({ initialData, academyCode }: Props) {
     return filtered.sort((a, b) => {
       const orderA = STATE_ORDER[a.state] || 99;
       const orderB = STATE_ORDER[b.state] || 99;
-
-      if (orderA !== orderB) {
-        return orderA - orderB;
-      }
+      if (orderA !== orderB) return orderA - orderB;
       return (a.name || "").localeCompare(b.name || "");
     });
-  }, [initialData, searchText, filterState, filterCount]);
+  }, [initialData, debouncedSearch, filterState, filterCount]);
 
+  // 3. 페이지네이션 데이터 계산
+  const currentItems = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return processedData.slice(start, start + itemsPerPage);
+  }, [processedData, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(processedData.length / itemsPerPage);
+
+  // 4. 필터 변경 시 페이지 리셋
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchText, filterState, filterCount]);
+  }, [debouncedSearch, filterState, filterCount]);
 
+  // 5. 반응형 리사이징
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth > 1180) {
-        setItemsPerPage(8);
-      } else if (window.innerWidth > 800) {
-        setItemsPerPage(8);
-      } else {
-        setItemsPerPage(10);
-      }
+      if (window.innerWidth > 1180) setItemsPerPage(10);
+      else if (window.innerWidth > 800) setItemsPerPage(8);
+      else setItemsPerPage(10);
     };
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredAndSortedData.slice(
-    indexOfFirstItem,
-    indexOfLastItem
+  // Handlers (useCallback)
+  const handlePageChange = useCallback(
+    (pageNumber: number) => {
+      if (pageNumber >= 1 && pageNumber <= totalPages) {
+        setCurrentPage(pageNumber);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    },
+    [totalPages]
   );
-  const totalPages = Math.ceil(filteredAndSortedData.length / itemsPerPage);
 
-  const handlePageChange = (pageNumber: number) => {
-    setCurrentPage(pageNumber);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const handleAdd = () => {
+  const handleAdd = useCallback(() => {
     openModal({
       title: "원생 등록",
       content: <ModalCustomerManager mode="add" academyCode={academyCode} />,
       type: "BOTTOM",
       hideFooter: true,
     });
-  };
+  }, [openModal, academyCode]);
 
-  const handleDetail = (customer: any) => {
-    openModal({
-      title: "원생 정보 수정",
-      content: (
-        <ModalCustomerManager
-          mode="edit"
-          academyCode={academyCode}
-          initialData={customer}
-        />
-      ),
-      hideFooter: true,
-      type: "BOTTOM",
-    });
-  };
+  const handleDetail = useCallback(
+    (customer: any) => {
+      openModal({
+        title: "원생 정보 수정",
+        content: (
+          <ModalCustomerManager
+            mode="edit"
+            academyCode={academyCode}
+            initialData={customer}
+          />
+        ),
+        hideFooter: true,
+        type: "BOTTOM",
+      });
+    },
+    [openModal, academyCode]
+  );
 
-  const handleDeleteCheck = (e: React.MouseEvent, item: any) => {
-    e.stopPropagation();
-    openModal({
-      title: "회원 삭제",
-      content: (
-        <ModalCustomerDelete
-          id={item.id}
-          name={item.name}
-          academyCode={academyCode}
-          onClose={closeModal}
-        />
-      ),
-      hideFooter: true,
-      type: "SIMPLE",
-    });
-  };
+  const handleDeleteCheck = useCallback(
+    (e: React.MouseEvent, item: any) => {
+      e.stopPropagation();
+      openModal({
+        title: "회원 삭제",
+        content: (
+          <ModalCustomerDelete
+            id={item.id}
+            name={item.name}
+            academyCode={academyCode}
+            onClose={closeModal}
+          />
+        ),
+        hideFooter: true,
+        type: "SIMPLE",
+      });
+    },
+    [openModal, closeModal, academyCode]
+  );
 
-  const formatPhoneNumber = (phone: string) => {
-    if (!phone || phone === "010") return "-";
-    return replaceHyphenFormat(phone, "phone");
-  };
-
-  // ✅ Select 컴포넌트 핸들러 어댑터
-  const handleStateChange = (_: any, value?: string) => {
+  const handleStateChange = useCallback((_: any, value?: string) => {
     if (value) setFilterState(value);
-  };
+  }, []);
 
-  const handleCountChange = (_: any, value?: string) => {
+  const handleCountChange = useCallback((_: any, value?: string) => {
     if (value) setFilterCount(value);
-  };
+  }, []);
 
   return (
     <Container>
@@ -167,7 +347,6 @@ export default function CustomersClient({ initialData, academyCode }: Props) {
         />
         <Controls>
           <FilterGroup>
-            {/* ✅ FilterSelect -> 공통 Select로 교체 */}
             <Select
               width="130px"
               value={filterState}
@@ -197,169 +376,25 @@ export default function CustomersClient({ initialData, academyCode }: Props) {
       </Header>
 
       <ListContainer>
-        {/* === Desktop Table View === */}
+        {/* Desktop View */}
         <TableScrollWrapper>
-          <TableView>
-            <thead>
-              <tr>
-                <th
-                  style={{
-                    minWidth: "50px",
-                    position: "sticky",
-                    left: 0,
-                    zIndex: 10,
-                  }}
-                >
-                  No
-                </th>
-                <th
-                  style={{
-                    minWidth: "80px",
-                    position: "sticky",
-                    left: "50px",
-                    zIndex: 10,
-                  }}
-                >
-                  이름
-                </th>
-                <th style={{ minWidth: "60px" }}>성별</th>
-                <th style={{ minWidth: "100px" }}>생년월일</th>
-                <th style={{ minWidth: "80px" }}>수강횟수</th>
-                <th style={{ minWidth: "100px" }}>회비</th>
-                <th style={{ minWidth: "120px" }}>학생 휴대폰</th>
-                <th style={{ minWidth: "100px" }}>학교</th>
-                <th style={{ minWidth: "200px" }}>비고</th>
-                <th style={{ minWidth: "100px" }}>부모님 성함</th>
-                <th style={{ minWidth: "120px" }}>부모님 휴대폰</th>
-                <th style={{ minWidth: "150px" }}>현금영수증 번호</th>
-                <th style={{ minWidth: "100px" }}>등록일</th>
-                <th style={{ minWidth: "80px" }}>D+DAY</th>
-                <th style={{ minWidth: "80px" }}>상태</th>
-                <th style={{ minWidth: "100px" }}>퇴원일</th>
-                <th style={{ minWidth: "50px" }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentItems.map((item, index) => (
-                <tr key={item.id} onClick={() => handleDetail(item)}>
-                  <td
-                    style={{
-                      position: "sticky",
-                      left: 0,
-                      zIndex: 5,
-                      backgroundColor: "#fff",
-                    }}
-                  >
-                    {(currentPage - 1) * itemsPerPage + index + 1}
-                  </td>
-                  <td
-                    style={{
-                      fontWeight: 700,
-                      position: "sticky",
-                      left: "50px",
-                      zIndex: 5,
-                      backgroundColor: "#fff",
-                    }}
-                  >
-                    {item.name}
-                  </td>
-                  <td>{item.sex === "M" ? "남자" : "여자"}</td>
-                  <td>{replaceHyphenFormat(item.birth || "", "date")}</td>
-                  <td>
-                    {item.count ? (
-                      <CountBadge count={item.count}>{item.count}회</CountBadge>
-                    ) : (
-                      "-"
-                    )}
-                  </td>
-                  <td>
-                    {item.fee ? `${Number(item.fee).toLocaleString()}원` : "-"}
-                  </td>
-                  <td>{formatPhoneNumber(item.tel)}</td>
-                  <td>{item.school || "-"}</td>
-                  <td style={{ color: "#8b95a1", fontSize: "13px" }}>
-                    {item.note || "-"}
-                  </td>
-
-                  <td>{item.parentname || "-"}</td>
-                  <td>{item.cash_number || "-"}</td>
-                  <td>{formatPhoneNumber(item.parentphone)}</td>
-                  <td>{replaceHyphenFormat(item.date || "", "date")}</td>
-                  <td style={{ color: "#3182f6", fontWeight: 600 }}>
-                    {getDDay(item.date)}
-                  </td>
-                  <td>
-                    <StateBadge $state={item.state}>
-                      {getStateLabel(item.state)}
-                    </StateBadge>
-                  </td>
-                  <td>{replaceHyphenFormat(item.discharge || "", "date")}</td>
-                  <td
-                    onClick={(e) => handleDeleteCheck(e, item)}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <MoreBtnWrapper>
-                      <MoreIcon />
-                    </MoreBtnWrapper>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </TableView>
+          <CustomersTable
+            data={currentItems}
+            startIndex={(currentPage - 1) * itemsPerPage}
+            onDetail={handleDetail}
+            onDelete={handleDeleteCheck}
+          />
         </TableScrollWrapper>
 
-        {/* === Mobile Card View === */}
-        <CardView>
-          {currentItems.map((item) => (
-            <Card key={item.id} onClick={() => handleDetail(item)}>
-              <CardHeader>
-                <div
-                  style={{ display: "flex", alignItems: "center", gap: "12px" }}
-                >
-                  <Avatar>{(item.name || "").charAt(0)}</Avatar>
-                  <NameArea>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                      }}
-                    >
-                      <Name>{item.name}</Name>
-                      <StateBadge $state={item.state}>
-                        {getStateLabel(item.state)}
-                      </StateBadge>
-                    </div>
-                    <SubText>
-                      {item.school ? `${item.school} | ` : ""}
-                      {item.sex === "M" ? "남" : "여"}
-                    </SubText>
-                  </NameArea>
-                </div>
-                <MoreBtnWrapper
-                  onClick={(e) => handleDeleteCheck(e, item)}
-                  style={{ marginRight: "-8px" }}
-                >
-                  <MoreIcon />
-                </MoreBtnWrapper>
-              </CardHeader>
-              <CardBody>
-                <InfoRow>
-                  <Smartphone size={16} color="#b0b8c1" />
-                  <span>
-                    {formatPhoneNumber(item.tel) === "-"
-                      ? "연락처 없음"
-                      : formatPhoneNumber(item.tel)}
-                  </span>
-                </InfoRow>
-                {item.note && <NoteRow>📢 {item.note}</NoteRow>}
-              </CardBody>
-            </Card>
-          ))}
-        </CardView>
+        {/* Mobile View */}
+        <CustomersCardList
+          data={currentItems}
+          onDetail={handleDetail}
+          onDelete={handleDeleteCheck}
+        />
       </ListContainer>
 
-      {/* [페이지네이션] */}
+      {/* Pagination */}
       {totalPages > 0 && (
         <PaginationContainer>
           <PageButton
@@ -369,6 +404,7 @@ export default function CustomersClient({ initialData, academyCode }: Props) {
             <ChevronLeft size={20} />
           </PageButton>
 
+          {/* 페이지 번호 최적화 가능 (현재는 전체 표시) */}
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
             <PageButton
               key={page}
@@ -391,7 +427,9 @@ export default function CustomersClient({ initialData, academyCode }: Props) {
   );
 }
 
-// --- Styles ---
+// --------------------------------------------------------------------------
+// ✨ Styles (기존과 동일)
+// --------------------------------------------------------------------------
 
 const Container = styled.div`
   padding: 24px;

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import styled from "styled-components";
 import {
   Search as SearchIcon,
@@ -19,14 +19,15 @@ interface Props {
   academyCode: string;
 }
 
-// 날짜 포맷
+const DEFAULT_ITEMS_PER_PAGE = 9;
+
+// --- Helper Functions (렌더링 밖으로 분리) ---
 const formatDate = (dateString: string) => {
   if (!dateString) return "";
   const date = new Date(dateString);
   return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
 };
 
-// 섹션 라벨
 const getSectionLabel = (type: string) => {
   switch (type) {
     case "fix":
@@ -42,65 +43,44 @@ const getSectionLabel = (type: string) => {
   }
 };
 
-const DEFAULT_ITEMS_PER_PAGE = 10; // ✅ [변경] 기본값을 넉넉하게 수정 (초기 로딩 시 깜빡임 방지)
-
+// --- Main Component ---
 export default function MemoClient({ initialData, academyCode }: Props) {
+  // State
   const [searchText, setSearchText] = useState("");
-
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
 
   const { openModal } = useModalStore();
 
-  const handleAdd = () => {
-    openModal({
-      title: "메모 작성",
-      content: <ModalMemoManager mode="add" academyCode={academyCode} />,
-      type: "SIMPLE",
-      hideFooter: true,
-    });
-  };
+  // 1. 검색어 디바운싱 (입력 시 렉 방지)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchText), 300);
+    return () => clearTimeout(timer);
+  }, [searchText]);
 
-  const handleDetail = (memo: any) => {
-    openModal({
-      title: "메모 상세",
-      content: (
-        <ModalMemoManager
-          mode="edit"
-          academyCode={academyCode}
-          initialData={memo}
-        />
-      ),
-      type: "SIMPLE",
-      hideFooter: true,
-    });
-  };
-
-  // ✅ [수정 1] 검색어 변경 OR 페이지당 아이템 수 변경 시 1페이지로 리셋
-  // (화면 크기를 줄였다 늘렸다 할 때 페이지 계산이 꼬이는 것 방지)
+  // 2. 검색어 변경 시 페이지 리셋
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchText, itemsPerPage]);
+  }, [debouncedSearch]);
 
-  // 화면 크기에 따른 아이템 개수 조절
+  // 3. 반응형 아이템 개수 조절
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth > 1180) {
-        setItemsPerPage(9);
-      } else if (window.innerWidth > 800) {
-        setItemsPerPage(7);
-      } else {
-        setItemsPerPage(3);
-      }
+      const width = window.innerWidth;
+      if (width > 1180) setItemsPerPage(9);
+      else if (width > 800) setItemsPerPage(6); // 2열 배치 고려
+      else setItemsPerPage(4); // 1열 배치 고려
     };
-
-    handleResize();
+    handleResize(); // 초기 실행
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // 1. 데이터 필터링 및 정렬
-  const sortedFilteredData = useMemo(() => {
+  // 4. 데이터 가공 (필터링 -> 섹션 분류 -> 정렬)
+  const processedData = useMemo(() => {
+    if (!initialData) return [];
+
     const now = new Date();
     const todayStart = new Date(
       now.getFullYear(),
@@ -110,27 +90,17 @@ export default function MemoClient({ initialData, academyCode }: Props) {
     const weekStart = todayStart - 7 * 24 * 60 * 60 * 1000;
     const monthStart = todayStart - 30 * 24 * 60 * 60 * 1000;
 
+    // A. 필터링
     const filtered = initialData.filter((item) => {
       const title = item.title || "";
       const content = item.content || "";
-      return title.includes(searchText) || content.includes(searchText);
+      return (
+        title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        content.toLowerCase().includes(debouncedSearch.toLowerCase())
+      );
     });
 
-    const dataWithSection = filtered.map((item) => {
-      const isFixed = item.fixed_yn === "Y" || item.FIXED_YN === "Y";
-      let section = "old";
-
-      if (isFixed) section = "fix";
-      else {
-        const dateStr = item.update_date || item.UPDATE_DATE;
-        const itemDate = new Date(dateStr).getTime();
-        if (itemDate >= todayStart) section = "today";
-        else if (itemDate >= weekStart) section = "week";
-        else if (itemDate >= monthStart) section = "month";
-      }
-      return { ...item, section };
-    });
-
+    // B. 섹션 분류 및 정렬
     const sectionOrder: Record<string, number> = {
       fix: 0,
       today: 1,
@@ -139,29 +109,42 @@ export default function MemoClient({ initialData, academyCode }: Props) {
       old: 4,
     };
 
-    return dataWithSection.sort((a, b) => {
-      if (sectionOrder[a.section] !== sectionOrder[b.section]) {
-        return sectionOrder[a.section] - sectionOrder[b.section];
-      }
-      return (
-        new Date(b.update_date || b.UPDATE_DATE).getTime() -
-        new Date(a.update_date || a.UPDATE_DATE).getTime()
-      );
-    });
-  }, [initialData, searchText]);
+    return filtered
+      .map((item) => {
+        const isFixed = item.fixed_yn === "Y" || item.FIXED_YN === "Y";
+        let section = "old";
 
-  // ✅ [수정 2] 의존성 배열에 itemsPerPage 추가 (매우 중요)
-  // 이게 없으면 화면 크기가 바뀌어도 데이터 자르는 기준이 갱신되지 않습니다.
+        if (isFixed) section = "fix";
+        else {
+          const dateStr = item.update_date || item.UPDATE_DATE;
+          const itemTime = new Date(dateStr).getTime();
+          if (itemTime >= todayStart) section = "today";
+          else if (itemTime >= weekStart) section = "week";
+          else if (itemTime >= monthStart) section = "month";
+        }
+        return { ...item, section, isFixed };
+      })
+      .sort((a, b) => {
+        // 섹션 우선 정렬
+        if (sectionOrder[a.section] !== sectionOrder[b.section]) {
+          return sectionOrder[a.section] - sectionOrder[b.section];
+        }
+        // 같은 섹션 내 최신순 정렬
+        return (
+          new Date(b.update_date || b.UPDATE_DATE).getTime() -
+          new Date(a.update_date || a.UPDATE_DATE).getTime()
+        );
+      });
+  }, [initialData, debouncedSearch]);
+
+  // 5. 페이지네이션 데이터 슬라이싱
   const currentItems = useMemo(() => {
-    const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    return sortedFilteredData.slice(indexOfFirstItem, indexOfLastItem);
-  }, [sortedFilteredData, currentPage, itemsPerPage]);
+    const start = (currentPage - 1) * itemsPerPage;
+    return processedData.slice(start, start + itemsPerPage);
+  }, [processedData, currentPage, itemsPerPage]);
 
-  const totalPages = Math.ceil(sortedFilteredData.length / itemsPerPage);
-
-  // 3. 그룹화
-  const groupedCurrentItems = useMemo(() => {
+  // 6. 현재 페이지 아이템 그룹화 (UI 렌더링용)
+  const groupedItems = useMemo(() => {
     const groups: Record<string, any[]> = {
       fix: [],
       today: [],
@@ -170,20 +153,51 @@ export default function MemoClient({ initialData, academyCode }: Props) {
       old: [],
     };
     currentItems.forEach((item) => {
-      if (groups[item.section]) {
-        groups[item.section].push(item);
-      }
+      if (groups[item.section]) groups[item.section].push(item);
     });
     return groups;
   }, [currentItems]);
 
+  const totalPages = Math.ceil(processedData.length / itemsPerPage);
   const sectionKeys = ["fix", "today", "week", "month", "old"];
 
-  const handlePageChange = (page: number) => {
-    if (page < 1 || page > totalPages) return; // 범위 체크
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  // Handlers
+  const handleAdd = useCallback(() => {
+    openModal({
+      title: "메모 작성",
+      content: <ModalMemoManager mode="add" academyCode={academyCode} />,
+      type: "SIMPLE",
+      hideFooter: true,
+    });
+  }, [openModal, academyCode]);
+
+  const handleDetail = useCallback(
+    (memo: any) => {
+      openModal({
+        title: "메모 상세",
+        content: (
+          <ModalMemoManager
+            mode="edit"
+            academyCode={academyCode}
+            initialData={memo}
+          />
+        ),
+        type: "SIMPLE",
+        hideFooter: true,
+      });
+    },
+    [openModal, academyCode]
+  );
+
+  const handlePageChange = useCallback(
+    (newPage: number) => {
+      if (newPage >= 1 && newPage <= totalPages) {
+        setCurrentPage(newPage);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    },
+    [totalPages]
+  );
 
   return (
     <Container>
@@ -205,70 +219,38 @@ export default function MemoClient({ initialData, academyCode }: Props) {
       </Header>
 
       <ContentArea>
-        {sectionKeys.map((key, idx) => {
-          const items = groupedCurrentItems[key];
-          if (!items || items.length === 0) return null;
-
-          return (
-            <Section key={key + "" + idx}>
-              <SectionTitle>{getSectionLabel(key)}</SectionTitle>
-              <Grid>
-                {items.map((item, idx) => {
-                  const isFixed =
-                    item.fixed_yn === "Y" || item.FIXED_YN === "Y";
-                  const title = item.title || item.TITLE || "제목 없음";
-                  const content =
-                    item.content === "<p><br></p>" ? "본문 없음" : item.content;
-                  const date = item.update_date || item.UPDATE_DATE;
-                  const writer =
-                    item.updater_id ||
-                    item.register_id ||
-                    item.NAME ||
-                    "작성자";
-
-                  return (
-                    <Card
-                      key={item.id + "" + idx}
-                      onClick={() => handleDetail(item)}
-                      $isFixed={isFixed}
-                    >
-                      <CardHeader>
-                        <CardTitle>{title}</CardTitle>
-                        {isFixed && (
-                          <Pin size={16} color="#3182f6" fill="#3182f6" />
-                        )}
-                      </CardHeader>
-                      <CardContent
-                        dangerouslySetInnerHTML={{ __html: content }}
-                      />
-                      <CardFooter>
-                        <DateInfo>
-                          <Clock size={12} />
-                          {formatDate(date)}
-                        </DateInfo>
-                        <Author>{writer}</Author>
-                      </CardFooter>
-                    </Card>
-                  );
-                })}
-              </Grid>
-            </Section>
-          );
-        })}
-
-        {initialData.length === 0 && (
+        {processedData.length === 0 ? (
           <EmptyState>
             <p>작성된 메모가 없습니다.</p>
             <AddButtonLarge onClick={handleAdd}>
               새 메모 작성하기
             </AddButtonLarge>
           </EmptyState>
+        ) : (
+          sectionKeys.map((key) => {
+            const items = groupedItems[key];
+            if (!items || items.length === 0) return null;
+
+            return (
+              <Section key={key}>
+                <SectionTitle>{getSectionLabel(key)}</SectionTitle>
+                <Grid>
+                  {items.map((item) => (
+                    <MemoCard
+                      key={item.id}
+                      item={item}
+                      onClick={() => handleDetail(item)}
+                    />
+                  ))}
+                </Grid>
+              </Section>
+            );
+          })
         )}
       </ContentArea>
 
-      {/* ✅ 페이지네이션 UI */}
-      {/* 데이터가 있고 페이지가 1개 이상일 때만 노출 */}
-      {sortedFilteredData.length > 0 && totalPages > 1 && (
+      {/* 페이지네이션 */}
+      {processedData.length > 0 && totalPages > 1 && (
         <PaginationContainer>
           <PageButton
             onClick={() => handlePageChange(currentPage - 1)}
@@ -277,17 +259,16 @@ export default function MemoClient({ initialData, academyCode }: Props) {
             <ChevronLeft size={16} />
           </PageButton>
 
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-            (page, idx) => (
-              <PageButton
-                key={page + "" + idx}
-                $active={currentPage === page}
-                onClick={() => handlePageChange(page)}
-              >
-                {page}
-              </PageButton>
-            )
-          )}
+          {/* 페이지 번호 최적화: 너무 많으면 현재 페이지 주변만 표시하는 로직 추가 가능 */}
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            <PageButton
+              key={page}
+              $active={currentPage === page}
+              onClick={() => handlePageChange(page)}
+            >
+              {page}
+            </PageButton>
+          ))}
 
           <PageButton
             onClick={() => handlePageChange(currentPage + 1)}
@@ -301,7 +282,38 @@ export default function MemoClient({ initialData, academyCode }: Props) {
   );
 }
 
-// ... (Styled Components는 이전과 동일) ...
+// --- Sub Component: MemoCard (렌더링 최적화) ---
+const MemoCard = React.memo(
+  ({ item, onClick }: { item: any; onClick: () => void }) => {
+    const title = item.title || item.TITLE || "제목 없음";
+    const content = item.content === "<p><br></p>" ? "본문 없음" : item.content;
+    const date = item.update_date || item.UPDATE_DATE;
+    const writer = item.updater_id || item.register_id || item.NAME || "작성자";
+
+    return (
+      <Card onClick={onClick} $isFixed={item.isFixed}>
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+          {item.isFixed && <Pin size={16} color="#3182f6" fill="#3182f6" />}
+        </CardHeader>
+        <CardContent dangerouslySetInnerHTML={{ __html: content }} />
+        <CardFooter>
+          <DateInfo>
+            <Clock size={12} />
+            {formatDate(date)}
+          </DateInfo>
+          <Author>{writer}</Author>
+        </CardFooter>
+      </Card>
+    );
+  }
+);
+MemoCard.displayName = "MemoCard";
+
+// --------------------------------------------------------------------------
+// ✨ Styled Components (기존과 동일)
+// --------------------------------------------------------------------------
+
 const Container = styled.div`
   padding: 24px;
   background-color: white;

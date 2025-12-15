@@ -9,7 +9,7 @@ import {
 } from "../_actions";
 import { authOptions } from "@/lib/auth";
 export const metadata: Metadata = {
-  title: "통계 리포트 - 학원 관리",
+  title: "통계",
 };
 
 // ✅ [수정 1] 데이터 타입 정의
