@@ -63,7 +63,7 @@ import {
 // ----------------------------------------------------------------------
 // ✅ 1. 메뉴 데이터 구조
 // ----------------------------------------------------------------------
-type UserLevel = "원장" | "부원장" | "선생님" | number;
+type UserLevel = "원장" | "부원장" | "선생님" | "관리자" | number;
 
 interface MenuItem {
   id?: string;
@@ -81,6 +81,7 @@ interface MenuSection {
   items: MenuItem[];
 }
 
+const HIGH_LEVELS = [1, 9];
 const MENU_STRUCTURE: MenuSection[] = [
   {
     title: "시간표",
@@ -160,7 +161,7 @@ const MENU_STRUCTURE: MenuSection[] = [
         type: "link",
         icon: UserCog,
         color: "#f0f9ff",
-        allowedLevels: [1],
+        allowedLevels: HIGH_LEVELS,
       },
       {
         label: "지점 관리",
@@ -168,7 +169,7 @@ const MENU_STRUCTURE: MenuSection[] = [
         type: "link",
         icon: Building2,
         color: "#f0f9ff",
-        allowedLevels: [1],
+        allowedLevels: HIGH_LEVELS,
       },
     ],
   },
@@ -182,7 +183,7 @@ const MENU_STRUCTURE: MenuSection[] = [
         type: "link",
         icon: CreditCard,
         color: "#f5f3ff",
-        allowedLevels: [1],
+        allowedLevels: HIGH_LEVELS,
       },
       {
         label: "등록부",
@@ -190,7 +191,7 @@ const MENU_STRUCTURE: MenuSection[] = [
         type: "link",
         icon: FileSignature,
         color: "#f0fdf4",
-        allowedLevels: [1],
+        allowedLevels: HIGH_LEVELS,
       },
       {
         label: "현금영수증",
@@ -198,7 +199,7 @@ const MENU_STRUCTURE: MenuSection[] = [
         type: "link",
         icon: Receipt,
         color: "#f5f3ff",
-        allowedLevels: [1],
+        allowedLevels: HIGH_LEVELS,
       },
       {
         label: "통계",
@@ -206,11 +207,13 @@ const MENU_STRUCTURE: MenuSection[] = [
         type: "link",
         icon: ChartPie,
         color: "#f5f3ff",
-        allowedLevels: [1],
+        allowedLevels: HIGH_LEVELS,
       },
     ],
   },
 ];
+
+// 관리자, 원장님
 
 // ----------------------------------------------------------------------
 // ✅ 2. 드래그 가능한 아이템 컴포넌트
@@ -375,7 +378,7 @@ export const Header = () => {
               <PcNavLink href="/pickup" $active={isActive("/pickup")}>
                 픽업 시간표
               </PcNavLink>
-              {[1].includes(userLevel) && (
+              {HIGH_LEVELS.includes(userLevel) && (
                 <PcNavLink href="/payment" $active={isActive("/payment")}>
                   출납부
                 </PcNavLink>
@@ -417,7 +420,7 @@ export const Header = () => {
           <Label $active={isActive("/attendance")}>출석부</Label>
         </BottomLink>
 
-        {[1].includes(userLevel) ? (
+        {HIGH_LEVELS.includes(userLevel) ? (
           <BottomLink href="/payment" $active={isActive("/payment")}>
             <StyledIcon as={CreditCard} $active={isActive("/payment")} />
             <Label $active={isActive("/payment")}>출납부</Label>
