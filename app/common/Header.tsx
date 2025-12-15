@@ -59,6 +59,7 @@ import {
   useToggleFavorite,
   useReorderFavorites,
 } from "../_querys";
+import { HIGH_LEVELS } from "@/utils/list";
 
 // ----------------------------------------------------------------------
 // ✅ 1. 메뉴 데이터 구조
@@ -81,7 +82,6 @@ interface MenuSection {
   items: MenuItem[];
 }
 
-const HIGH_LEVELS = [1, 9];
 const MENU_STRUCTURE: MenuSection[] = [
   {
     title: "시간표",

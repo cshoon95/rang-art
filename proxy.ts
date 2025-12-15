@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { HIGH_LEVELS } from "./utils/list";
 
 // 🔐 권한 설정 (경로: 허용된 레벨 배열)
-const PROTECTED_ROUTES: Record<string, string[]> = {
-  "/payment": ["1"], // 출납부
-  "/cash-receipt": ["1"], // 현금영수증
-  "/employee": ["1"], // 직원 관리
-  "/branch": ["1"], // 지점 관리
-  "/register": ["1"], // 등록부
+const PROTECTED_ROUTES: Record<string, number[]> = {
+  "/payment": HIGH_LEVELS, // 출납부
+  "/cash-receipt": HIGH_LEVELS, // 현금영수증
+  "/employee": HIGH_LEVELS, // 직원 관리
+  "/branch": HIGH_LEVELS, // 지점 관리
+  "/register": HIGH_LEVELS, // 등록부
 };
 
 export async function proxy(req: NextRequest) {
@@ -42,7 +43,7 @@ export async function proxy(req: NextRequest) {
   if (protectedPath) {
     const allowedLevels = PROTECTED_ROUTES[protectedPath];
     // 토큰에 저장된 유저 레벨 (없으면 기본값 '선생님')
-    const userLevel = String(token.level) || "3";
+    const userLevel = Number(token.level) || 3;
 
     // 4. 권한 체크: 허용된 레벨이 아니면 권한 없음 페이지로 이동
     if (!allowedLevels.includes(userLevel)) {

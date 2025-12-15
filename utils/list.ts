@@ -7,6 +7,8 @@ export const ACADEMY_LIST = [
   { code: "2", name: "무료체험" },
 ];
 
+export const HIGH_LEVELS = [1, 9];
+
 /**
  * 주중 리스트
  */
