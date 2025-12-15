@@ -4,7 +4,7 @@ import React, { useState, useTransition, useRef } from "react";
 import styled from "styled-components";
 import { useModalStore } from "@/store/modalStore";
 import { useUpsertEmployee } from "@/app/_querys";
-// ✅ 공통 Select 컴포넌트 Import (경로는 실제 파일 위치에 맞게 수정해주세요)
+// ✅ 공통 Select 컴포넌트 Import
 import Select from "../Select";
 
 // --- 옵션 데이터 ---
@@ -15,6 +15,7 @@ const LEVEL_OPTIONS = [
   { value: "4", label: "스탭" },
 ];
 
+// ✅ 재직 상태 옵션 (드롭다운용)
 const STATE_OPTIONS = [
   { value: "Y", label: "재직" },
   { value: "N", label: "퇴사" },
@@ -32,11 +33,13 @@ export default function ModalEmployeeManager({
   academyCode,
   initialData,
 }: Props) {
+  // 날짜 포맷팅 함수
   const formatDateToInput = (str: string) => {
     if (!str || str.length < 8) return "";
     return str.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
   };
 
+  // 폼 상태 초기화
   const [formData, setFormData] = useState({
     name: initialData?.NAME || "",
     userId: initialData?.ID || "",
@@ -47,6 +50,7 @@ export default function ModalEmployeeManager({
       : "1990-01-01",
     salary: initialData?.SALARY || "",
     account: initialData?.ACCOUNT || "",
+    // ✅ DB 데이터(O/X 등)를 드롭다운 값(Y/N/H)으로 매핑
     state:
       initialData?.STATE === "O" ? "Y" : initialData?.STATE === "X" ? "N" : "Y",
     date: initialData?.DATE
@@ -60,10 +64,9 @@ export default function ModalEmployeeManager({
 
   const [isPending, startTransition] = useTransition();
   const closeModal = useModalStore((state) => state.closeModal);
-
-  // [가정] useUpsertEmployee 훅 사용
   const { mutate: mutateUpsertEmployee } = useUpsertEmployee(mode);
 
+  // 전화번호 자동 하이픈
   const autoHyphen = (value: string) => {
     const raw = value.replace(/[^0-9]/g, "");
     if (raw.length < 4) return raw;
@@ -71,12 +74,13 @@ export default function ModalEmployeeManager({
     return raw.replace(/(\d{3})(\d{3,4})(\d{4})/, "$1-$2-$3").slice(0, 13);
   };
 
+  // 급여 콤마 포맷팅
   const formatCurrency = (value: string | number) => {
     if (!value) return "";
     return Number(value).toLocaleString();
   };
 
-  // ✅ 통합 핸들러 (Input, Textarea용)
+  // 공통 핸들러
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
@@ -100,9 +104,7 @@ export default function ModalEmployeeManager({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ✅ Select 컴포넌트 전용 핸들러 (타입 불일치 해결)
-  // 공통 Select는 name prop을 받지 않고 onChange(e, value) 형태이므로
-  // 여기서 name을 수동으로 지정하여 기존 handleChange와 로직을 맞춥니다.
+  // ✅ Select 핸들러 (직급, 재직상태 변경 시 사용)
   const handleSelectChange = (name: string, value: string | undefined) => {
     setFormData((prev) => ({ ...prev, [name]: value || "" }));
   };
@@ -152,7 +154,7 @@ export default function ModalEmployeeManager({
           </InputGroup>
           <InputGroup>
             <Label>직급</Label>
-            {/* ✅ 공통 Select 적용 */}
+            {/* 직급 드롭다운 */}
             <Select
               width="100%"
               options={LEVEL_OPTIONS}
@@ -234,7 +236,7 @@ export default function ModalEmployeeManager({
         <Row>
           <InputGroup>
             <Label>재직 상태</Label>
-            {/* ✅ 공통 Select 적용 */}
+            {/* ✅ 재직 상태 드롭다운 적용 */}
             <Select
               width="100%"
               options={STATE_OPTIONS}
@@ -274,7 +276,7 @@ export default function ModalEmployeeManager({
   );
 }
 
-// --- Styles ---
+// --- Styles (기존과 동일) ---
 const FormContainer = styled.div`
   display: flex;
   flex-direction: column;
