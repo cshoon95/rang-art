@@ -352,7 +352,7 @@ export default function DashboardClient({ academyCode, userId }: Props) {
           </PickupCard>
 
           {/* 3. 오늘의 일정 */}
-          <CalendarCard onClick={() => router.push("/schedule")}>
+          <CalendarCard onClick={() => router.push("/calendar")}>
             <CardHeader>
               <TitleWithIcon>
                 <IconWrapper $bg="#f0fdf4">
@@ -775,7 +775,20 @@ const EventList = styled.div`
   flex-direction: column;
   overflow-y: auto;
   max-height: 320px;
+
+  /* ✅ [수정] 마지막 아이템이 잘리지 않도록 하단 여백 추가 */
+  padding-bottom: 50px;
+
+  /* (선택사항) 스크롤바 디자인을 예쁘게 다듬기 */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: #e5e7eb;
+    border-radius: 3px;
+  }
 `;
+
 const EventItem = styled.div`
   display: flex;
   align-items: center;
@@ -784,6 +797,7 @@ const EventItem = styled.div`
   gap: 12px;
   cursor: pointer;
   transition: background-color 0.2s;
+
   &:last-child {
     border-bottom: none;
   }
