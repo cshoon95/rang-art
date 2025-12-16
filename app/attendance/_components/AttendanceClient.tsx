@@ -39,13 +39,12 @@ import {
   subDays,
   addDays,
 } from "date-fns";
+
 interface Props {
   academyCode: string;
 }
 
-// --------------------------------------------------------------------------
-// 🧩 Editable Cell (최적화 + 공백/엔터 처리)
-// --------------------------------------------------------------------------
+// ... (EditableCell 컴포넌트는 변경 없음) ...
 interface EditableCellProps {
   initialValue: string;
   studentId: number;
@@ -80,12 +79,8 @@ const EditableCell = React.memo(
     }, [initialValue]);
 
     const handleBlur = () => {
-      // ✅ [수정] trim()으로 앞뒤 공백 제거
       const trimmedValue = value.trim();
 
-      // ✅ [수정] 공백 제거 후 기존 값과 동일하면 저장 안 함
-      // 예1: "" 상태에서 "   " 입력 -> trimmed는 "" -> return (저장X)
-      // 예2: "1" 상태에서 "" 입력 -> trimmed는 "" -> 다름 -> 진행 (삭제O)
       if (trimmedValue === initialValue) {
         setValue(initialValue);
         return;
@@ -124,7 +119,6 @@ const EditableCell = React.memo(
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-      // ✅ [수정] 엔터 입력 시 기본 동작(줄바꿈 등) 막고 저장 트리거(Blur)
       if (e.key === "Enter") {
         e.preventDefault();
         (e.target as HTMLInputElement).blur();
@@ -162,7 +156,7 @@ const EditableCell = React.memo(
 EditableCell.displayName = "EditableCell";
 
 // --------------------------------------------------------------------------
-// 🧩 Student Row (최적화: 별도 컴포넌트 분리 및 Memo)
+// 🧩 Student Row (✅ 수정됨: FeeCell을 StickyGroup 밖으로 이동)
 // --------------------------------------------------------------------------
 interface StudentRowProps {
   student: any;
@@ -201,6 +195,7 @@ const StudentRow = React.memo(
 
     return (
       <TableRow>
+        {/* ✅ StickyGroup에는 이름과 전월 데이터만 유지 */}
         <StickyGroup>
           <NameCell onClick={() => onOpenHistory(student.id)}>
             <span className="name">
@@ -210,23 +205,21 @@ const StudentRow = React.memo(
           </NameCell>
 
           <PrevDataCell>{prevData || "-"}</PrevDataCell>
-
-          <FeeCell>
-            <FeeCheckbox onClick={() => onToggleFee(student)}>
-              {student.fee_yn === "Y" ? (
-                <CheckSquare size={18} color="#3182f6" />
-              ) : (
-                <Square size={18} color="#cbd5e1" />
-              )}
-            </FeeCheckbox>
-            <MsgIcon
-              $status={student.msg_yn}
-              onClick={() => onCycleMsg(student)}
-            >
-              <Mail size={18} />
-            </MsgIcon>
-          </FeeCell>
         </StickyGroup>
+
+        {/* ✅ FeeCell을 밖으로 빼서 날짜들과 함께 스크롤되도록 함 */}
+        <FeeCell>
+          <FeeCheckbox onClick={() => onToggleFee(student)}>
+            {student.fee_yn === "Y" ? (
+              <CheckSquare size={18} color="#3182f6" />
+            ) : (
+              <Square size={18} color="#cbd5e1" />
+            )}
+          </FeeCheckbox>
+          <MsgIcon $status={student.msg_yn} onClick={() => onCycleMsg(student)}>
+            <Mail size={18} />
+          </MsgIcon>
+        </FeeCell>
 
         {daysInMonth.map((day) => {
           const dateStr = format(day, "yyyy-MM-dd");
@@ -262,16 +255,14 @@ StudentRow.displayName = "StudentRow";
 // --------------------------------------------------------------------------
 
 export default function AttendanceClient({ academyCode }: Props) {
+  // ... (상태 및 훅 로직은 기존과 동일) ...
   const [currentDate, setCurrentDate] = useState(new Date());
-
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-
   const [prevDataMap, setPrevDataMap] = useState<Record<string, string>>({});
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(
     null
   );
-
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
   useEffect(() => {
@@ -281,8 +272,7 @@ export default function AttendanceClient({ academyCode }: Props) {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // 1. 날짜 계산
-  const { startDate, endDate, daysInMonth, currentYearMonth } = useMemo(() => {
+  const { startDate, endDate, daysInMonth } = useMemo(() => {
     const start = startOfMonth(currentDate);
     const end = endOfMonth(currentDate);
     const days = eachDayOfInterval({ start, end }).filter(
@@ -292,11 +282,9 @@ export default function AttendanceClient({ academyCode }: Props) {
       startDate: start,
       endDate: end,
       daysInMonth: days,
-      currentYearMonth: format(currentDate, "yyyy-MM"),
     };
   }, [currentDate]);
 
-  // 2. 데이터 조회
   const { data: students = [], refetch: refetchStudents } =
     useGetStudents(academyCode);
 
@@ -310,7 +298,6 @@ export default function AttendanceClient({ academyCode }: Props) {
   const { data: calendarEvents = [], isLoading: isCalendarDataLoading } =
     useGetCalendarList(academyCode);
 
-  // 3. 휴일 계산
   const holidaySet = useMemo(() => {
     const set = new Set<string>();
     const year = currentDate.getFullYear();
@@ -332,7 +319,6 @@ export default function AttendanceClient({ academyCode }: Props) {
     return set;
   }, [currentDate, calendarEvents]);
 
-  // 4. 전월 데이터
   useEffect(() => {
     let isMounted = true;
     const fetchPrevData = async () => {
@@ -354,7 +340,6 @@ export default function AttendanceClient({ academyCode }: Props) {
     };
   }, [currentDate, academyCode]);
 
-  // 5. Lookup Map
   const attendanceMap = useMemo(() => {
     const map = new Map<string, string>();
     if (attendanceList) {
@@ -365,7 +350,6 @@ export default function AttendanceClient({ academyCode }: Props) {
     return map;
   }, [attendanceList]);
 
-  // 필터링
   const filteredStudents = useMemo(() => {
     if (!debouncedSearch) return students;
 
@@ -383,7 +367,6 @@ export default function AttendanceClient({ academyCode }: Props) {
     [students, selectedStudentId]
   );
 
-  // Handlers
   const handleToggleFee = useCallback(
     async (student: any) => {
       const isChecked = student.fee_yn === "Y";
@@ -453,7 +436,7 @@ export default function AttendanceClient({ academyCode }: Props) {
           <SearchBox>
             <Search size={18} color="#94a3b8" />
             <SearchInput
-              placeholder="이름 검색 (초성 가능)"
+              placeholder="이름 검색..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -463,16 +446,19 @@ export default function AttendanceClient({ academyCode }: Props) {
 
       <TableWrapper>
         <TableContainer>
+          {/* ✅ 헤더에서도 원비를 StickyGroup 밖으로 이동 */}
           <TableHeader>
             <StickyGroup>
               <HeaderCell $width={100}>이름</HeaderCell>
               <HeaderCell $width={50} $bg="#fffbeb">
                 전월
               </HeaderCell>
-              <HeaderCell $width={70} $bg="#f0f9ff">
-                원비
-              </HeaderCell>
             </StickyGroup>
+
+            {/* ✅ 원비 헤더: 스크롤 영역으로 이동 */}
+            <HeaderCell $width={70} $bg="#f0f9ff">
+              원비
+            </HeaderCell>
 
             {daysInMonth.map((day) => {
               const dateStr = format(day, "yyyy-MM-dd");
@@ -524,6 +510,8 @@ export default function AttendanceClient({ academyCode }: Props) {
   );
 }
 
+// ... (스타일은 대부분 동일하지만 FeeCell에 flex-shrink: 0 속성 확인)
+
 // --------------------------------------------------------------------------
 // ✨ Styles
 // --------------------------------------------------------------------------
@@ -544,6 +532,7 @@ const Container = styled.div`
     margin-bottom: 60px;
   }
 `;
+// ... (Header, MainTitle, Controls, DateNav, NavBtn, DateText, SearchBox, SearchInput, InactiveButton 등은 기존과 동일) ...
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
@@ -626,33 +615,7 @@ const SearchInput = styled.input`
   width: 100%;
   font-family: inherit;
 `;
-const InactiveButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 42px;
-  padding: 0 16px;
-  background-color: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  color: #64748b;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
 
-  &:hover {
-    background-color: #f8fafc;
-    color: #334155;
-    border-color: #cbd5e1;
-  }
-
-  @media (max-width: 600px) {
-    width: 100%;
-    justify-content: center;
-  }
-`;
 const TableWrapper = styled.div`
   flex: 1;
   background: white;
@@ -783,6 +746,7 @@ const FeeCell = styled.div`
   gap: 8px;
   border-right: 1px solid #f1f5f9;
   background-color: #f0f9ff;
+  flex-shrink: 0; /* ✅ flex-shrink: 0 유지 (스크롤 시 너비 고정) */
 `;
 const FeeCheckbox = styled.button`
   background: none;

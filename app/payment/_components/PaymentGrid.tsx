@@ -167,7 +167,7 @@ export default function PaymentGrid({
 
         <SearchInputWrapper>
           <SearchInput
-            placeholder={type === "income" ? "이름 검색" : "내역 검색"}
+            placeholder={type === "income" ? "이름 검색..." : "내역 검색..."}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
           />
