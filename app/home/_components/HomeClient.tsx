@@ -436,7 +436,6 @@ export default function DashboardClient({ academyCode, userId }: Props) {
 // --------------------------------------------------------------------------
 
 const Container = styled.div`
-  padding: 24px;
   background-color: #f4f6f8;
   display: flex;
   flex-direction: column;
