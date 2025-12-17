@@ -25,6 +25,8 @@ const ModalTimeManager = dynamic(
 interface Props {
   initialTimeList: any[];
   initialDataList: any[];
+  academyCode: string;
+  userId: string;
 }
 
 // --------------------------------------------------------------------------
@@ -82,6 +84,8 @@ ScheduleCell.displayName = "ScheduleCell";
 export default function ScheduleClient({
   initialTimeList,
   initialDataList,
+  academyCode,
+  userId,
 }: Props) {
   // State
   const [searchText, setSearchText] = useState("");
@@ -153,8 +157,8 @@ export default function ScheduleClient({
         time,
         day,
         type,
-        academyCode: "2", // 추후 동적 변수로 교체 필요
-        registerID: "admin",
+        academyCode,
+        registerID: userId,
       });
     },
     [upsertSchedule]
@@ -171,7 +175,14 @@ export default function ScheduleClient({
     openModal({
       type: "SIMPLE",
       title: "시간 추가",
-      content: <ModalTimeManager mode="add" target="schedule" />,
+      content: (
+        <ModalTimeManager
+          mode="add"
+          target="schedule"
+          academyCode={academyCode}
+          userId={userId}
+        />
+      ),
       hideFooter: true,
     });
   }, [openModal]);
@@ -186,6 +197,8 @@ export default function ScheduleClient({
             mode="delete"
             initialTime={replaceTimePattern(timeValue)}
             target="schedule"
+            academyCode={academyCode}
+            userId={userId}
           />
         ),
         hideFooter: true,

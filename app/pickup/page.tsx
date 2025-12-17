@@ -27,7 +27,12 @@ export default async function PickupPage() {
 
   return (
     <Suspense fallback={<PickupSkeleton />}>
-      <PickupClient initialTimeList={timeList} initialDataList={dataList} />
+      <PickupClient
+        initialTimeList={timeList}
+        initialDataList={dataList}
+        academyCode={academyCode}
+        userId={userId}
+      />
     </Suspense>
   );
 }

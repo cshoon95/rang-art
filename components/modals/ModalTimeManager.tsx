@@ -28,12 +28,16 @@ interface Props {
   initialTime?: string;
   // ⭐ 분기 처리를 위한 타겟 Prop 추가
   target: "schedule" | "pickup" | "temp-schedule";
+  academyCode: string;
+  userId: string;
 }
 
 export default function ModalTimeManager({
   mode,
   initialTime = "",
   target,
+  academyCode,
+  userId,
 }: Props) {
   const [time, setTime] = useState(initialTime);
   const router = useRouter();
@@ -133,8 +137,8 @@ export default function ModalTimeManager({
 
     const param = {
       time: removeTimePattern(time),
-      academyCode: "2", // 필요 시 전역 상태나 props로 전달
-      registerID: "admin",
+      academyCode, // 필요 시 전역 상태나 props로 전달
+      registerID: userId,
     };
 
     if (target === "schedule") {
@@ -154,7 +158,7 @@ export default function ModalTimeManager({
 
     const param = {
       time: removeTimePattern(initialTime),
-      academyCode: "2",
+      academyCode,
     };
 
     if (target === "schedule") {

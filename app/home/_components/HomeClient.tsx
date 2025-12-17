@@ -750,7 +750,7 @@ const PickupLine = styled.div`
   }
 `;
 const PickupContent = styled.div`
-  margin-left: 30px;
+  margin-left: 25px;
   flex: 1;
 `;
 const CalendarCard = styled(CardBase)`

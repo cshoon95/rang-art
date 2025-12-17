@@ -554,7 +554,7 @@ const ImageSection = styled.div`
 
 const ImageWrapper = styled.div`
   width: 100%;
-  height: 480px; /* ✅ 메인 이미지 높이 여기서 고정 */
+  height: 380px; /* ✅ 메인 이미지 높이 여기서 고정 */
   cursor: zoom-in;
   position: relative;
   background-color: #000; /* 이미지가 비는 공간 검은색 처리 (선택) */

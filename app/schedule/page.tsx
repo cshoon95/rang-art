@@ -27,7 +27,12 @@ export default async function SchedulePage() {
 
   return (
     <Suspense fallback={<ScheduleSkeleton />}>
-      <ScheduleClient initialTimeList={timeList} initialDataList={dataList} />
+      <ScheduleClient
+        initialTimeList={timeList}
+        initialDataList={dataList}
+        academyCode={academyCode}
+        userId={userId}
+      />
     </Suspense>
   );
 }

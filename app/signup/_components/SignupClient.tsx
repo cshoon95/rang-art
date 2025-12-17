@@ -54,10 +54,6 @@ export default function SignupClient() {
 
     const userName = session.user.name || "이름없음";
 
-    // [중요] 세션 업데이트는 onSuccess에서 하는 게 더 안전하지만,
-    // 여기서 미리 호출해도 큰 문제는 없습니다. (다만 비동기 순서 주의)
-    // await update({ academyCode: "2" }); // 이 줄은 제거하거나 신중히 사용
-
     await joinMutate({
       email: session.user.email,
       name: userName,

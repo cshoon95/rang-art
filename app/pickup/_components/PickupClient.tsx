@@ -31,6 +31,8 @@ const ModalTimeManager = dynamic(
 interface Props {
   initialTimeList: any[];
   initialDataList: any[];
+  academyCode: string;
+  userId: string;
 }
 
 // --------------------------------------------------------------------------
@@ -82,6 +84,8 @@ PickupCell.displayName = "PickupCell";
 export default function PickupClient({
   initialTimeList,
   initialDataList,
+  academyCode,
+  userId,
 }: Props) {
   const [searchText, setSearchText] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState(""); // 디바운스
@@ -142,8 +146,8 @@ export default function PickupClient({
         content: text,
         time,
         day,
-        academyCode: "2",
-        registerID: "admin",
+        academyCode,
+        registerID: userId,
         type: "",
       });
     },
@@ -161,7 +165,14 @@ export default function PickupClient({
     openModal({
       type: "SIMPLE",
       title: "시간 추가",
-      content: <ModalTimeManager mode="add" target="pickup" />,
+      content: (
+        <ModalTimeManager
+          mode="add"
+          target="pickup"
+          academyCode={academyCode}
+          userId={userId}
+        />
+      ),
       hideFooter: true,
     });
   }, [openModal]);
@@ -176,6 +187,8 @@ export default function PickupClient({
             mode="delete"
             initialTime={replaceTimePattern(timeValue)}
             target="pickup"
+            academyCode={academyCode}
+            userId={userId}
           />
         ),
         hideFooter: true,

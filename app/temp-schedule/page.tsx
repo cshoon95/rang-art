@@ -30,6 +30,8 @@ export default async function SchedulePage() {
       <TempScheduleClient
         initialTimeList={timeList}
         initialDataList={dataList}
+        academyCode={academyCode}
+        userId={userId}
       />
     </Suspense>
   );

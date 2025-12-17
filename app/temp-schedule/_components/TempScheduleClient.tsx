@@ -25,6 +25,8 @@ const ModalTimeManager = dynamic(
 interface Props {
   initialTimeList: any[];
   initialDataList: any[];
+  academyCode: string;
+  userId: string;
 }
 
 // --------------------------------------------------------------------------
@@ -82,6 +84,8 @@ TempScheduleCell.displayName = "TempScheduleCell";
 export default function TempScheduleClient({
   initialTimeList,
   initialDataList,
+  academyCode,
+  userId,
 }: Props) {
   // State
   const [searchText, setSearchText] = useState("");
@@ -150,8 +154,8 @@ export default function TempScheduleClient({
         time,
         day,
         type,
-        academyCode: "2",
-        registerID: "admin",
+        academyCode,
+        registerID: userId,
       });
     },
     [upsertTempSchedule]
@@ -168,7 +172,14 @@ export default function TempScheduleClient({
     openModal({
       type: "SIMPLE",
       title: "시간 추가",
-      content: <ModalTimeManager mode="add" target="temp-schedule" />,
+      content: (
+        <ModalTimeManager
+          mode="add"
+          target="temp-schedule"
+          academyCode={academyCode}
+          userId={userId}
+        />
+      ),
       hideFooter: true,
     });
   }, [openModal]);
@@ -183,6 +194,8 @@ export default function TempScheduleClient({
             mode="delete"
             initialTime={replaceTimePattern(timeValue)}
             target="temp-schedule"
+            academyCode={academyCode}
+            userId={userId}
           />
         ),
         hideFooter: true,
