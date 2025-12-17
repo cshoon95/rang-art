@@ -510,8 +510,6 @@ export async function getTodayTempScheduleAction(
 export const getScheduleTimeListAction = async (academyCode: string) => {
   const supabase = await createClient();
 
-  // Supabase에서 해당 학원의 모든 시간 데이터를 가져옵니다.
-  // DISTINCT를 직접 지원하지 않으므로 전체를 가져와서 JS에서 중복을 제거합니다.
   const { data, error } = await supabase
     .from("schedule")
     .select("time")
@@ -522,20 +520,22 @@ export const getScheduleTimeListAction = async (academyCode: string) => {
     return [];
   }
 
-  // ✅ 중복 제거 (Set 활용)
+  // 중복 제거
   const uniqueTimeStrings = Array.from(new Set(data.map((d) => d.time)));
   const uniqueRows = uniqueTimeStrings.map((t) => ({ time: t }));
 
-  // ✅ 학원 시간표 맞춤 정렬 로직 (기존 로직 유지)
+  // ✅ 정렬 로직 수정
   const sortedRows = uniqueRows.sort((a: any, b: any) => {
     const getWeight = (timeStr: string) => {
       if (!timeStr) return 0;
 
-      // "03:30" 형식에서 시간과 분 추출
+      // 🚨 [수정] 데이터가 "0230" (4자리) 형식이므로 인덱스 조정
+      // 시: 0~2 (앞 2글자)
+      // 분: 2~4 (뒤 2글자)
       let hour = parseInt(timeStr.substring(0, 2), 10);
-      const minute = parseInt(timeStr.substring(3, 5), 10);
+      const minute = parseInt(timeStr.substring(2, 4), 10); // 여기가 핵심!
 
-      // 🔥 핵심: 08시 이전(01~07)은 오후/밤으로 간주하여 +12시간 (뒤로 보냄)
+      // 08시 이전(01~07)은 오후/밤으로 간주 (+12시간)
       if (hour < 8) {
         hour += 12;
       }
@@ -545,6 +545,8 @@ export const getScheduleTimeListAction = async (academyCode: string) => {
 
     return getWeight(a.time) - getWeight(b.time);
   });
+
+  console.log(sortedRows);
 
   return sortedRows;
 };
