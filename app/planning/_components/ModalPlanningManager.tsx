@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import styled from "styled-components";
-import { Upload, Trash2, Check, Image as ImageIcon } from "lucide-react";
+import { Upload, Trash2, Check, X } from "lucide-react";
 import { useModalStore } from "@/store/modalStore";
 import { useUpsertPlanning, useDeletePlanning } from "@/app/_querys";
 
-// 🚨 [추가 1] 최대 용량 설정 (Vercel 제한 고려하여 4MB로 설정)
-const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
+// 🚨 최대 용량 설정 (파일 개당 4MB)
+const MAX_FILE_SIZE = 4 * 1024 * 1024;
 
 interface Props {
   initialData?: any;
@@ -26,54 +26,78 @@ export default function ModalPlanningManager({
   academyCode,
   userId,
 }: Props) {
-  // ✅ [추가 2] 알림창을 띄우기 위해 openModal 추가
   const { openModal, closeModal } = useModalStore();
 
+  // --- State ---
   const [title, setTitle] = useState(initialData?.title || "");
   const [content, setContent] = useState(initialData?.content || "");
-  const [previewSrc, setPreviewSrc] = useState<string>(
-    initialData?.image_url || ""
-  );
-  const [file, setFile] = useState<File | null>(null);
+
+  // ✅ [변경 1] 이미지 상태 관리 (기존 URL들 vs 새로 추가된 파일들)
+  const [existingImages, setExistingImages] = useState<string[]>(() => {
+    // 1순위: images 배열, 2순위: image_url(구 데이터 호환)
+    if (initialData?.images && initialData.images.length > 0) {
+      return initialData.images;
+    }
+    if (initialData?.image_url) {
+      return [initialData.image_url];
+    }
+    return [];
+  });
+
+  const [newFiles, setNewFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const upsertMutation = useUpsertPlanning(closeModal);
   const deleteMutation = useDeletePlanning(closeModal);
 
+  // --- Handlers ---
+
+  // 1. 파일 선택 (다중)
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
+    const selectedFiles = Array.from(e.target.files || []);
+    if (selectedFiles.length === 0) return;
 
-    if (selectedFile) {
-      // 🚨 [추가 3] 용량 체크 로직
-      if (selectedFile.size > MAX_FILE_SIZE) {
-        openModal({
-          title: "용량 초과",
-          content: "이미지 크기는 4MB 이하로 해주세요.\n(서버 전송 제한)",
-          type: "ALERT",
-        });
+    // 용량 체크 및 필터링
+    const validFiles: File[] = [];
+    let isError = false;
 
-        // 선택된 파일 초기화 (같은 파일 다시 선택 가능하도록 value 비움)
-        if (fileInputRef.current) fileInputRef.current.value = "";
-        return;
+    selectedFiles.forEach((file) => {
+      if (file.size > MAX_FILE_SIZE) {
+        isError = true;
+      } else {
+        validFiles.push(file);
       }
+    });
 
-      setFile(selectedFile);
-      setPreviewSrc(URL.createObjectURL(selectedFile));
-    }
-  };
-
-  const handleSave = () => {
-    // 저장 전 한 번 더 체크 (선택사항)
-    if (file && file.size > MAX_FILE_SIZE) {
+    if (isError) {
       openModal({
         title: "용량 초과",
-        content: "이미지 크기가 4MB를 초과하여 저장할 수 없습니다.",
+        content: "일부 이미지가 4MB를 초과하여 제외되었습니다.",
         type: "ALERT",
       });
-      return;
     }
 
+    // 기존 목록에 추가
+    setNewFiles((prev) => [...prev, ...validFiles]);
+
+    // 입력값 초기화 (같은 파일 다시 선택 가능하도록)
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // 2. 기존 이미지 삭제
+  const removeExistingImage = (indexToRemove: number) => {
+    setExistingImages((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  // 3. 새 파일 삭제
+  const removeNewFile = (indexToRemove: number) => {
+    setNewFiles((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  // 4. 저장
+  const handleSave = () => {
     const formData = new FormData();
+
     if (initialData?.id) formData.append("id", initialData.id);
     formData.append("academyCode", academyCode);
     formData.append("userId", userId);
@@ -82,14 +106,18 @@ export default function ModalPlanningManager({
     formData.append("type", type);
     formData.append("title", title);
     formData.append("content", content);
-    formData.append("currentImageUrl", initialData?.image_url || "");
-    if (file) formData.append("file", file);
+
+    // ✅ [변경 2] 기존 이미지 목록 (JSON 문자열) + 새 파일들 (Append Loop)
+    formData.append("currentImages", JSON.stringify(existingImages));
+
+    newFiles.forEach((file) => {
+      formData.append("files", file);
+    });
 
     upsertMutation.mutate(formData);
   };
 
   const handleDelete = () => {
-    // 삭제 확인 모달 사용
     openModal({
       title: "삭제 확인",
       content: "정말 삭제하시겠습니까?",
@@ -102,35 +130,60 @@ export default function ModalPlanningManager({
 
   return (
     <Wrapper>
-      {/* 🟢 스크롤 가능한 본문 영역 */}
       <ScrollContent>
-        {/* 이미지 업로드 */}
+        {/* --- 이미지 업로드 섹션 --- */}
         <Section>
-          <Label>계획안 이미지</Label>
-          <ImageUploadBox onClick={() => fileInputRef.current?.click()}>
-            {previewSrc ? (
-              <PreviewImage src={previewSrc} alt="Preview" />
-            ) : (
-              <UploadPlaceholder>
-                <IconCircle>
-                  <Upload size={20} />
-                </IconCircle>
-                <span className="text">이미지를 등록해주세요</span>
-                {/* 문구 수정 */}
-                <span className="sub">클릭하여 업로드 (4MB 제한)</span>
-              </UploadPlaceholder>
-            )}
-            <input
-              type="file"
-              hidden
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              accept="image/*"
-            />
-          </ImageUploadBox>
+          <Label>
+            계획안 이미지{" "}
+            <span style={{ color: "#94a3b8", fontWeight: 400 }}>
+              (최대 4MB)
+            </span>
+          </Label>
+
+          {/* 이미지 그리드 컨테이너 */}
+          <ImageGrid>
+            {/* 1. 업로드 버튼 (항상 첫 번째) */}
+            <UploadBox onClick={() => fileInputRef.current?.click()}>
+              <Upload size={20} className="icon" />
+              <span>추가</span>
+              <input
+                type="file"
+                hidden
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept="image/*"
+                multiple // ✅ 다중 선택 가능
+              />
+            </UploadBox>
+
+            {/* 2. 기존 이미지 렌더링 */}
+            {existingImages.map((url, idx) => (
+              <ThumbnailItem key={`existing-${idx}`}>
+                <ThumbnailImage src={url} alt="Existing" />
+                <DeleteBadge onClick={() => removeExistingImage(idx)}>
+                  <X size={12} />
+                </DeleteBadge>
+              </ThumbnailItem>
+            ))}
+
+            {/* 3. 새로 추가된 파일 렌더링 */}
+            {newFiles.map((file, idx) => (
+              <ThumbnailItem key={`new-${idx}`}>
+                {/* createObjectURL은 메모리 관리를 위해 컴포넌트 분리가 좋으나 간편 구현 */}
+                <ThumbnailImage
+                  src={URL.createObjectURL(file)}
+                  alt="New"
+                  onLoad={(e) => URL.revokeObjectURL(e.currentTarget.src)}
+                />
+                <DeleteBadge onClick={() => removeNewFile(idx)}>
+                  <X size={12} />
+                </DeleteBadge>
+              </ThumbnailItem>
+            ))}
+          </ImageGrid>
         </Section>
 
-        {/* ... (나머지 입력 필드들 기존과 동일) ... */}
+        {/* --- 텍스트 입력 섹션 --- */}
         <Section>
           <Label>제목</Label>
           <Input
@@ -144,14 +197,14 @@ export default function ModalPlanningManager({
           <Label>상세 내용</Label>
           <TextArea
             placeholder="학부모님께 전달할 내용을 입력하세요."
-            rows={5}
+            rows={8}
             value={content}
             onChange={(e) => setContent(e.target.value)}
           />
         </Section>
       </ScrollContent>
 
-      {/* 🔴 하단 고정 버튼 영역 */}
+      {/* --- 하단 버튼 --- */}
       <FixedFooter>
         {initialData?.id ? (
           <DeleteBtn onClick={handleDelete} disabled={deleteMutation.isPending}>
@@ -175,25 +228,25 @@ export default function ModalPlanningManager({
   );
 }
 
-// ... (스타일 코드는 기존과 동일하므로 생략 가능, ImageUploadBox 내부 텍스트만 10MB -> 4MB로 변경된 것 확인) ...
-// 스타일 하단에 기존 스타일 그대로 유지해주세요.
+// --------------------------------------------------------------------------
+// 🎨 Styles
+// --------------------------------------------------------------------------
+
 const Wrapper = styled.div`
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
 `;
-// ... (나머지 스타일들) ...
 
 const ScrollContent = styled.div`
-  flex: 1; /* 남은 공간 모두 차지 */
-  overflow-y: auto; /* 내용 넘치면 스크롤 */
+  flex: 1;
+  overflow-y: auto;
   padding: 20px 24px;
   display: flex;
   flex-direction: column;
   gap: 24px;
 
-  /* 스크롤바 커스텀 */
   &::-webkit-scrollbar {
     width: 6px;
   }
@@ -216,64 +269,79 @@ const Label = styled.label`
   margin-left: 2px;
 `;
 
-const ImageUploadBox = styled.div`
-  width: 100%;
-  height: 180px; /* 적당한 높이 */
-  border: 2px dashed #e2e8f0;
-  border-radius: 16px;
+/* ✅ 그리드 레이아웃으로 변경 */
+const ImageGrid = styled.div`
   display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+`;
+
+/* ✅ 업로드 버튼 박스 (정사각형) */
+const UploadBox = styled.div`
+  width: 100px;
+  height: 100px;
+  border: 2px dashed #e2e8f0;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   cursor: pointer;
-  overflow: hidden;
   background: #f8fafc;
   transition: all 0.2s;
-  position: relative;
+  color: #64748b;
 
   &:hover {
     border-color: #3182f6;
     background: #eff6ff;
-    .icon-circle {
-      background: #3182f6;
-      color: white;
-    }
+    color: #3182f6;
+  }
+
+  span {
+    font-size: 12px;
+    font-weight: 600;
   }
 `;
 
-const PreviewImage = styled.img`
+/* ✅ 썸네일 아이템 */
+const ThumbnailItem = styled.div`
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  background: white;
+`;
+
+const ThumbnailImage = styled.img`
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
 `;
 
-const UploadPlaceholder = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-
-  .text {
-    font-size: 14px;
-    font-weight: 600;
-    color: #334155;
-  }
-  .sub {
-    font-size: 12px;
-    color: #94a3b8;
-  }
-`;
-
-const IconCircle = styled.div`
-  width: 44px;
-  height: 44px;
+/* ✅ 삭제 버튼 (X 뱃지) */
+const DeleteBadge = styled.button`
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: #e2e8f0;
-  color: #64748b;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
   transition: all 0.2s;
-  margin-bottom: 4px;
+
+  &:hover {
+    background: #ef4444;
+    transform: scale(1.1);
+  }
 `;
 
 const Input = styled.input`
@@ -308,7 +376,6 @@ const TextArea = styled.textarea`
   }
 `;
 
-// 🔴 고정된 푸터 (항상 보임)
 const FixedFooter = styled.div`
   padding: 16px 24px;
   background: white;
@@ -316,10 +383,8 @@ const FixedFooter = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-shrink: 0; /* 크기 줄어들지 않음 */
+  flex-shrink: 0;
   gap: 12px;
-
-  /* 모바일 하단 안전 영역 (아이폰 등) */
   padding-bottom: max(16px, env(safe-area-inset-bottom));
 `;
 

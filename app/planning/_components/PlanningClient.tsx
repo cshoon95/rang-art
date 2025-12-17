@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import styled, { css, keyframes } from "styled-components";
 import {
   ChevronLeft,
   ChevronRight,
   Plus,
-  Edit3, // 아이콘 변경
+  Edit3,
   Calendar as CalendarIcon,
   Image as ImageIcon,
   User,
@@ -14,7 +14,6 @@ import {
   Layout,
   X,
   Maximize2,
-  MoreHorizontal, // 아이콘 추가
 } from "lucide-react";
 import { useModalStore } from "@/store/modalStore";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
@@ -36,10 +35,51 @@ const TABS = [
   { id: "temporary", label: "임시 저장" },
 ];
 
-// --- 1. Sub Components ---
+// --------------------------------------------------------------------------
+// 1. Sub Components (PlanContent)
+// --------------------------------------------------------------------------
 
 const PlanContent = React.memo(
   ({ planData, openManagerModal, activeTabLabel, onImageClick }: any) => {
+    // ✅ 1. 이미지 데이터 정규화
+    const images: string[] = useMemo(() => {
+      if (!planData) return [];
+      if (
+        planData.images &&
+        Array.isArray(planData.images) &&
+        planData.images.length > 0
+      ) {
+        return planData.images;
+      }
+      if (planData.image_url) {
+        return [planData.image_url];
+      }
+      return [];
+    }, [planData]);
+
+    const [currentIndex, setCurrentIndex] = useState(0);
+
+    // 데이터 변경 시 인덱스 초기화
+    useEffect(() => {
+      setCurrentIndex(0);
+    }, [planData]);
+
+    const handlePrev = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+    };
+
+    const handleNext = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setCurrentIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+    };
+
+    // ✅ 썸네일 클릭 핸들러
+    const handleThumbnailClick = (index: number, e: React.MouseEvent) => {
+      e.stopPropagation();
+      setCurrentIndex(index);
+    };
+
     if (!planData) {
       return (
         <EmptyStateContainer>
@@ -60,19 +100,48 @@ const PlanContent = React.memo(
     return (
       <ArticleCard>
         <ImageSection>
-          {planData.image_url ? (
-            <ImageWrapper onClick={() => onImageClick(planData.image_url)}>
-              <StyledImage
-                src={planData.image_url}
-                alt="Cover"
-                loading="lazy"
-              />
-              <ImageOverlay>
-                <OverlayBtn>
-                  <Maximize2 size={20} /> 미리보기
-                </OverlayBtn>
-              </ImageOverlay>
-            </ImageWrapper>
+          {images.length > 0 ? (
+            <>
+              <ImageWrapper onClick={() => onImageClick(images, currentIndex)}>
+                <StyledImage
+                  src={images[currentIndex]}
+                  alt={`Slide ${currentIndex}`}
+                  loading="lazy"
+                />
+                <ImageOverlay>
+                  <OverlayBtn>
+                    <Maximize2 size={20} /> 크게 보기
+                  </OverlayBtn>
+                </ImageOverlay>
+
+                {/* 화살표 버튼 (2장 이상일 때) */}
+                {images.length > 1 && (
+                  <>
+                    <SliderBtn $position="left" onClick={handlePrev}>
+                      <ChevronLeft size={24} />
+                    </SliderBtn>
+                    <SliderBtn $position="right" onClick={handleNext}>
+                      <ChevronRight size={24} />
+                    </SliderBtn>
+                  </>
+                )}
+              </ImageWrapper>
+
+              {/* ✅ [추가] 하단 썸네일 리스트 (2장 이상일 때만 표시) */}
+              {images.length > 1 && (
+                <ThumbnailList>
+                  {images.map((img, idx) => (
+                    <ThumbnailItem
+                      key={idx}
+                      $active={idx === currentIndex}
+                      onClick={(e) => handleThumbnailClick(idx, e)}
+                    >
+                      <img src={img} alt={`thumb-${idx}`} />
+                    </ThumbnailItem>
+                  ))}
+                </ThumbnailList>
+              )}
+            </>
           ) : (
             <NoImagePlaceholder>
               <div className="icon-box">
@@ -88,6 +157,7 @@ const PlanContent = React.memo(
         </ImageSection>
 
         <ContentSection>
+          {/* ... (기존 내용 유지) ... */}
           <HeaderGroup>
             <TagBadge $type={activeTabLabel}>{activeTabLabel}</TagBadge>
             <MetaGroup>
@@ -118,8 +188,9 @@ const PlanContent = React.memo(
   }
 );
 PlanContent.displayName = "PlanContent";
-
-// --- 2. Main Component ---
+// --------------------------------------------------------------------------
+// 2. Main Component
+// --------------------------------------------------------------------------
 
 export default function PlanningClient({ academyCode, userId }: Props) {
   // State
@@ -127,8 +198,9 @@ export default function PlanningClient({ academyCode, userId }: Props) {
   const [month, setMonth] = useState(getTodayMonth());
   const [activeTab, setActiveTab] = useState<TabType>("normal");
 
-  // Image Preview State
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  // ✅ Preview State (배열 & 인덱스)
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
 
   const { openModal } = useModalStore();
 
@@ -176,13 +248,30 @@ export default function PlanningClient({ academyCode, userId }: Props) {
     });
   }, [planData, year, month, activeTab, academyCode, userId, openModal]);
 
-  const handleImageClick = useCallback((url: string) => {
-    setPreviewImage(url);
+  // 이미지 클릭 핸들러
+  const handleImageClick = useCallback((images: string[], index: number) => {
+    setPreviewImages(images);
+    setPreviewIndex(index);
   }, []);
 
   const closePreview = useCallback(() => {
-    setPreviewImage(null);
+    setPreviewImages([]);
+    setPreviewIndex(0);
   }, []);
+
+  // 모달 내부 슬라이드 핸들러
+  const handleModalPrev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPreviewIndex((prev) =>
+      prev === 0 ? previewImages.length - 1 : prev - 1
+    );
+  };
+  const handleModalNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPreviewIndex((prev) =>
+      prev === previewImages.length - 1 ? 0 : prev + 1
+    );
+  };
 
   const activeTabLabel = useMemo(
     () => TABS.find((t) => t.id === activeTab)?.label || "일반",
@@ -246,17 +335,39 @@ export default function PlanningClient({ academyCode, userId }: Props) {
             )}
           </MainArea>
 
-          {/* Image Overlay Modal */}
-          {previewImage && (
+          {/* ✅ 다중 이미지 모달 뷰어 */}
+          {previewImages.length > 0 && (
             <OverlayBackdrop onClick={closePreview}>
               <OverlayCloseBtn onClick={closePreview}>
                 <X size={24} />
               </OverlayCloseBtn>
+
+              {/* 모달: 좌측 버튼 */}
+              {previewImages.length > 1 && (
+                <ModalNavBtn $pos="left" onClick={handleModalPrev}>
+                  <ChevronLeft size={32} />
+                </ModalNavBtn>
+              )}
+
               <OverlayImage
-                src={previewImage}
+                src={previewImages[previewIndex]}
                 alt="Original"
                 onClick={(e) => e.stopPropagation()}
               />
+
+              {/* 모달: 우측 버튼 */}
+              {previewImages.length > 1 && (
+                <ModalNavBtn $pos="right" onClick={handleModalNext}>
+                  <ChevronRight size={32} />
+                </ModalNavBtn>
+              )}
+
+              {/* 모달: 페이지네이션 */}
+              {previewImages.length > 1 && (
+                <ModalPagination onClick={(e) => e.stopPropagation()}>
+                  {previewIndex + 1} / {previewImages.length}
+                </ModalPagination>
+              )}
             </OverlayBackdrop>
           )}
         </PageLayout>
@@ -266,7 +377,7 @@ export default function PlanningClient({ academyCode, userId }: Props) {
 }
 
 // --------------------------------------------------------------------------
-// 🎨 Styled Components (Redesigned)
+// 🎨 Styled Components
 // --------------------------------------------------------------------------
 
 const fadeIn = keyframes`
@@ -276,7 +387,7 @@ const fadeIn = keyframes`
 
 const PageLayout = styled.div`
   width: 100%;
-  max-width: 1000px; /* 적절한 최대 너비 설정 */
+  max-width: 1000px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -371,7 +482,7 @@ const CurrentDate = styled.div`
   }
 `;
 
-// --- Tabs (Segmented Control Style) ---
+// --- Tabs ---
 const SegmentedControl = styled.div`
   display: flex;
   background: #f3f4f6;
@@ -420,7 +531,7 @@ const ArticleCard = styled.article`
   border-radius: 24px;
   border: 1px solid #f3f4f6;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05),
-    0 2px 4px -1px rgba(0, 0, 0, 0.03), 0 0 0 1px rgba(0, 0, 0, 0.02); /* Subtle outline */
+    0 2px 4px -1px rgba(0, 0, 0, 0.03), 0 0 0 1px rgba(0, 0, 0, 0.02);
   overflow: hidden;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 
@@ -430,31 +541,72 @@ const ArticleCard = styled.article`
   }
 `;
 
-// --- Image Section ---
 const ImageSection = styled.div`
   position: relative;
   width: 100%;
-  height: 480px;
+  /* ✅ 높이를 자동으로 늘어나게 변경 (썸네일 포함을 위해) */
+  /* height: 480px; 기존 고정 높이 제거 혹은 min-height로 변경 권장 */
   background-color: #f8fafc;
   overflow: hidden;
-
-  @media (max-width: 768px) {
-    height: 280px;
-  }
+  display: flex;
+  flex-direction: column; /* 세로 배치 */
 `;
 
 const ImageWrapper = styled.div`
   width: 100%;
-  height: 100%;
+  height: 480px; /* ✅ 메인 이미지 높이 여기서 고정 */
   cursor: zoom-in;
   position: relative;
+  background-color: #000; /* 이미지가 비는 공간 검은색 처리 (선택) */
+
+  @media (max-width: 768px) {
+    height: 320px;
+  }
 
   &:hover div {
     opacity: 1;
   }
+`;
 
-  &:hover img {
-    transform: scale(1.03);
+// ✅ [추가] 썸네일 리스트 컨테이너
+const ThumbnailList = styled.div`
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  background: white;
+  border-top: 1px solid #e5e7eb;
+  overflow-x: auto; /* 이미지 많으면 가로 스크롤 */
+
+  /* 스크롤바 숨기기 (선택) */
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+  }
+`;
+
+// ✅ [추가] 썸네일 아이템
+const ThumbnailItem = styled.div<{ $active: boolean }>`
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid ${(props) => (props.$active ? "#2563eb" : "transparent")};
+  opacity: ${(props) => (props.$active ? 1 : 0.6)};
+  transition: all 0.2s;
+
+  &:hover {
+    opacity: 1;
+  }
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 `;
 
@@ -464,7 +616,7 @@ const StyledImage = styled.img`
   object-fit: contain;
   padding: 20px;
   transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  background-color: white; /* 이미지가 작을 경우 배경 */
+  background-color: white;
 `;
 
 const ImageOverlay = styled.div`
@@ -477,6 +629,7 @@ const ImageOverlay = styled.div`
   opacity: 0;
   transition: opacity 0.3s ease;
   backdrop-filter: blur(2px);
+  pointer-events: none; /* 오버레이가 클릭 이벤트를 가로채지 않도록 */
 `;
 
 const OverlayBtn = styled.button`
@@ -491,13 +644,71 @@ const OverlayBtn = styled.button`
   font-size: 14px;
   color: #111;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  cursor: pointer;
   transform: translateY(10px);
   transition: transform 0.3s ease;
 
   ${ImageWrapper}:hover & {
     transform: translateY(0);
   }
+`;
+
+// ✅ 슬라이더 버튼 (썸네일)
+const SliderBtn = styled.button<{ $position: "left" | "right" }>`
+  position: absolute;
+  top: 50%;
+  ${(props) => (props.$position === "left" ? "left: 10px;" : "right: 10px;")}
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 5;
+  color: #333;
+  backdrop-filter: blur(4px);
+  transition: all 0.2s;
+  opacity: 0;
+
+  ${ImageWrapper}:hover & {
+    opacity: 1;
+  }
+
+  &:hover {
+    background: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-50%) scale(1.1);
+  }
+`;
+
+// ✅ 페이지네이션 (썸네일)
+const Pagination = styled.div`
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.2s;
+
+  ${ImageWrapper}:hover & {
+    opacity: 1;
+  }
+`;
+
+const Dot = styled.div<{ $active: boolean }>`
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: ${(props) =>
+    props.$active ? "#2563eb" : "rgba(255, 255, 255, 0.6)"};
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s;
 `;
 
 const NoImagePlaceholder = styled.div`
@@ -581,8 +792,6 @@ const TagBadge = styled.span<{ $type: string }>`
   border-radius: 8px;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-
-  /* 색상 자동 할당 로직이 필요하다면 props에 따라 변경 가능 */
   background-color: #eff6ff;
   color: #2563eb;
 `;
@@ -631,7 +840,6 @@ const BodyArea = styled.div`
   white-space: pre-wrap;
   word-break: break-word;
 
-  /* Optional: Typography enhancement */
   p {
     margin-bottom: 1em;
   }
@@ -746,6 +954,7 @@ const OverlayImage = styled.img`
   object-fit: contain;
   border-radius: 8px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  transition: transform 0.2s;
 `;
 
 const OverlayCloseBtn = styled.button`
@@ -763,9 +972,47 @@ const OverlayCloseBtn = styled.button`
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s;
+  z-index: 10001;
 
   &:hover {
     background: rgba(255, 255, 255, 0.25);
     transform: rotate(90deg);
   }
+`;
+
+// ✅ 모달 네비게이션 버튼
+const ModalNavBtn = styled.button<{ $pos: "left" | "right" }>`
+  position: absolute;
+  top: 50%;
+  ${(props) => (props.$pos === "left" ? "left: 20px;" : "right: 20px;")}
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  padding: 10px;
+  z-index: 10000;
+
+  &:hover {
+    color: white;
+    transform: translateY(-50%) scale(1.2);
+  }
+
+  @media (max-width: 600px) {
+    /* 모바일에서는 버튼을 작게 하거나 숨길 수 있음. 여기선 유지 */
+    ${(props) => (props.$pos === "left" ? "left: 5px;" : "right: 5px;")}
+    transform: translateY(-50%) scale(0.8);
+  }
+`;
+
+const ModalPagination = styled.div`
+  position: absolute;
+  bottom: 30px;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 6px 16px;
+  border-radius: 20px;
+  z-index: 10000;
 `;
