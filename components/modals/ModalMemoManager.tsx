@@ -225,6 +225,16 @@ const QuillWrapper = styled.div`
   .ql-container.ql-snow {
     border: none;
   }
+  .ql-editor.ql-blank::before {
+    /* 기본값은 left: 15px 정도입니다. 원하는 대로 조정하세요. */
+    left: 5px !important;
+    top: 10px !important;
+
+    /* 폰트 스타일 수정 */
+    color: #a0a0a0;
+    font-style: normal;
+    font-size: 16px;
+  }
 `;
 
 // 🌟 에러 메시지 애니메이션

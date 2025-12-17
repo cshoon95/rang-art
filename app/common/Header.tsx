@@ -752,11 +752,12 @@ const BottomLink = styled(Link)<{ $active?: boolean }>`
   text-decoration: none;
   color: ${(props) => (props.$active ? "#3182f6" : "#b0b8c1")};
 
-  /* ✅ 기본 모바일 브라우저: 패딩 없음 */
+  /* ✅ 기본: 패딩 없음 */
   padding-bottom: 0;
 
-  /* ✅ PWA 환경: 하단 띄움 */
-  @media (display-mode: standalone) {
+  /* ✅ PWA 환경 + 모바일(가로 768px 미만)일 때만 하단 띄움 */
+  /* 아이패드(보통 768px 이상)는 이 조건에 걸리지 않아 패딩이 0이 됩니다. */
+  @media (display-mode: standalone) and (max-width: 767px) {
     padding-bottom: 20px;
   }
 `;

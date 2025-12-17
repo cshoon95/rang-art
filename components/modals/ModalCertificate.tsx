@@ -16,7 +16,6 @@ interface Props {
 }
 
 export default function ModalCertificate({ academyCode, year, name }: Props) {
-  const { closeModal } = useModalStore();
   const [isDownloading, setIsDownloading] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -108,7 +107,7 @@ const Container = styled.div`
 
   /* 📱 모바일 설정: 화면을 꽉 채워서 푸터를 바닥으로 밀어냄 */
   @media (max-width: 768px) {
-    height: 85vh; /* 화면 높이 100% */
+    height: 92vh; /* 화면 높이 100% */
     max-height: none; /* 높이 제한 해제 */
     border-radius: 0; /* 둥근 모서리 제거 */
     width: 100%; /* 가로도 꽉 차게 */

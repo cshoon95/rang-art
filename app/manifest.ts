@@ -15,13 +15,13 @@ export default function manifest(): MetadataRoute.Manifest {
         src: "/icon.png",
         sizes: "192x192",
         type: "image/png",
-        purpose: "maskable",
+        purpose: "any", // ✨ 'maskable' 대신 'any' 사용 (또는 'any maskable'로 둘 다 지원)
       },
       {
         src: "/icon.png",
         sizes: "512x512",
         type: "image/png",
-        purpose: "maskable",
+        purpose: "any", // ✨ 여기도 변경
       },
     ],
   };

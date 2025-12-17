@@ -244,7 +244,7 @@ const FooterWrapper = styled.footer`
 
   /* 🚨 PC 전용 설정 (모바일/태블릿 숨김) */
   display: none;
-  @media (min-width: 1025px) and (hover: hover) {
+  @media (min-width: 825px) and (hover: hover) {
     display: block;
   }
 `;

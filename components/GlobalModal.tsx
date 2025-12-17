@@ -169,82 +169,6 @@ const Overlay = styled.div<{ $isOpen: boolean; $type: string }>`
   }
 `;
 
-const ModalContainer = styled.div<{ $type: string; $isOpen: boolean }>`
-  background: white;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  overflow: hidden;
-  white-space: pre-line;
-
-  /* --- [1] 기본 애니메이션 (중앙 팝업) --- */
-  ${({ $isOpen }) => ($isOpen ? slideUp : slideDown)}
-
-  /* --- [2] 타입별 스타일 --- */
-
-  /* A. ALERT & CONFIRM (작고 귀여운 다이얼로그) */
-  ${({ $type }) =>
-    ($type === "ALERT" || $type === "CONFIRM") &&
-    css`
-      width: 320px;
-      border-radius: 20px;
-      text-align: center;
-    `}
-
-  /* B. SIMPLE (일반적인 모달) */
-  ${({ $type }) =>
-    $type === "SIMPLE" &&
-    css`
-      width: 100%;
-      max-width: 480px;
-      max-height: 80vh;
-      border-radius: 24px;
-    `}
-
-  /* C. BOTTOM (바텀 시트 스타일) */
-  ${({ $type, $isOpen }) =>
-    $type === "BOTTOM" &&
-    css`
-      width: 100%;
-      max-width: 600px; /* PC에서는 너무 넓지 않게 */
-      border-radius: 24px 24px 0 0;
-      max-height: 90vh;
-      /* 바텀 시트 전용 애니메이션 덮어쓰기 */
-      transform: translateY(100%);
-      ${$isOpen ? sheetUp : sheetDown}
-
-      @media (min-width: 769px) {
-        /* PC에서는 그냥 중앙 모달처럼 보이게 할 수도 있음 (선택사항) */
-        /* 여기서는 모바일성을 강조하기 위해 아래에 붙임 */
-        border-radius: 24px;
-        margin-bottom: 20px;
-      }
-    `}
-
-  /* D. FULL (전체 화면) */
-  ${({ $type }) =>
-    $type === "FULL" &&
-    css`
-      width: 100vw;
-      height: 100vh;
-      max-width: none;
-      max-height: none;
-      border-radius: 0;
-    `}
-
-  /* 모바일 공통 대응 */
-  @media (max-width: 768px) {
-    ${({ $type }) =>
-      ($type === "SIMPLE" || $type === "BOTTOM") &&
-      css`
-        width: 100%;
-        border-radius: 24px 24px 0 0;
-        margin: 0;
-      `}
-  }
-`;
-
 const ModalHeader = styled.div`
   display: flex;
   justify-content: space-between;
@@ -313,6 +237,95 @@ const ModalBody = styled.div<{ $type: string; $noPadding?: boolean }>`
       padding: 32px 24px 24px 24px;
     `}
 `;
+const ModalContainer = styled.div<{ $type: string; $isOpen: boolean }>`
+  background: white;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  white-space: pre-line;
+
+  /* --- [1] 기본 애니메이션 (중앙 팝업) --- */
+  ${({ $isOpen }) => ($isOpen ? slideUp : slideDown)}
+
+  /* --- [2] 타입별 스타일 --- */
+
+  /* A. ALERT & CONFIRM */
+  ${({ $type }) =>
+    ($type === "ALERT" || $type === "CONFIRM") &&
+    css`
+      width: 320px;
+      border-radius: 20px;
+      text-align: center;
+    `}
+
+  /* B. SIMPLE */
+  ${({ $type }) =>
+    $type === "SIMPLE" &&
+    css`
+      width: 100%;
+      max-width: 480px;
+      max-height: 80vh;
+      border-radius: 24px;
+    `}
+
+  /* C. BOTTOM */
+  ${({ $type, $isOpen }) =>
+    $type === "BOTTOM" &&
+    css`
+      width: 100%;
+      max-width: 600px;
+      border-radius: 24px 24px 0 0;
+      max-height: 90vh;
+      transform: translateY(100%);
+      ${$isOpen ? sheetUp : sheetDown}
+
+      /* ✅ [수정] 모바일에서 하단 딱 붙이기 위해 마진 제거 */
+      margin-bottom: 0;
+
+      @media (min-width: 769px) {
+        border-radius: 24px;
+        margin-bottom: 20px; /* PC에서는 살짝 띄움 */
+      }
+    `}
+
+  /* D. FULL */
+  ${({ $type }) =>
+    $type === "FULL" &&
+    css`
+      width: 100vw;
+      height: 100vh;
+      max-width: none;
+      max-height: none;
+      border-radius: 0;
+      margin: 0; /* ✅ [수정] 마진 제거 */
+    `}
+
+  /* 모바일 공통 대응 */
+  @media (max-width: 768px) {
+    ${({ $type }) =>
+      ($type === "SIMPLE" || $type === "BOTTOM") &&
+      css`
+        width: 100%;
+        border-radius: 24px 24px 0 0;
+        margin: 0; /* ✅ [수정] 확실하게 0으로 설정 */
+        bottom: 0;
+        position: absolute; /* 바텀 시트처럼 동작 */
+      `}
+
+    /* ALERT/CONFIRM은 중앙 정렬 유지 */
+    ${({ $type }) =>
+      ($type === "ALERT" || $type === "CONFIRM") &&
+      css`
+        position: relative;
+        margin: auto;
+      `}
+  }
+`;
+
+// ... (Header, Body 등 동일)
+
 const ModalFooter = styled.div<{ $type: string }>`
   padding: 16px 24px;
   display: flex;
@@ -321,8 +334,8 @@ const ModalFooter = styled.div<{ $type: string }>`
   border-top: 1px solid #f1f5f9;
   flex-shrink: 0;
 
-  /* ✅ [핵심] PWA 하단 안전 영역 확보 */
-  /* 기본 16px 패딩에 safe-area-inset-bottom을 더해줍니다. */
+  /* ✅ [수정] PWA 하단 안전 영역 처리 개선 */
+  /* padding-bottom에 safe-area를 더하되, 배경색이 짤리지 않게 처리 */
   padding-bottom: calc(16px + env(safe-area-inset-bottom));
 
   ${({ $type }) =>
@@ -330,8 +343,7 @@ const ModalFooter = styled.div<{ $type: string }>`
     css`
       border-top: none;
       padding-top: 0;
-      /* ALERT/CONFIRM은 하단 여백을 좀 더 넉넉하게 줌 */
-      padding-bottom: calc(24px + env(safe-area-inset-bottom));
+      padding-bottom: 24px; /* 중앙 팝업은 safe-area 영향 덜 받으므로 고정값 */
     `}
 `;
 const Button = styled.button`

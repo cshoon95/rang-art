@@ -10,7 +10,7 @@ export default async function PlanningPage() {
   // (TypeScript 에러가 난다면 as any로 우회하거나 next-auth.d.ts 설정 필요)
   const user = session?.user as any;
   const academyCode = user?.academyCode;
-  const userId = user?.id;
+  const userId = user?.name;
 
   return <PlanningClient academyCode={academyCode} userId={userId} />;
 }
