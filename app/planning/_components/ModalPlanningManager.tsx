@@ -187,7 +187,7 @@ export default function ModalPlanningManager({
         <Section>
           <Label>제목</Label>
           <Input
-            placeholder="제목을 입력하세요 (예: 5월 가정통신문)"
+            placeholder="제목을 입력하세요 (예: 5월 계획안)"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
@@ -196,7 +196,7 @@ export default function ModalPlanningManager({
         <Section>
           <Label>상세 내용</Label>
           <TextArea
-            placeholder="학부모님께 전달할 내용을 입력하세요."
+            placeholder="상세 내용을 입력하세요."
             rows={8}
             value={content}
             onChange={(e) => setContent(e.target.value)}
