@@ -37,23 +37,21 @@ interface Props {
 }
 
 // ✅ 컨텐츠 파싱 함수
+// ✅ 컨텐츠 파싱 함수
 const parseAttendanceContent = (content: string) => {
   const clean = content.trim();
   const upperClean = clean.toUpperCase();
 
-  // 1. [최우선] '보'로 시작하면 무조건 MAKEUP 타입으로 분류 (보강 탭 노출)
+  // 1. [최우선] '보'로 시작하면 무조건 MAKEUP 타입
   if (clean.startsWith("보")) {
-    // 1-1. '보'이면서 'L'이 포함된 경우 (예: "보L") -> 보강 종료
     if (upperClean.includes("L")) {
       return {
-        type: "MAKEUP", // 👈 핵심: 타입을 MAKEUP으로 지정
+        type: "MAKEUP",
         badge: "보강종료",
         text: "보강 마지막 수업",
         raw: clean,
       };
     }
-
-    // 1-2. 일반 보강 (예: "보1")
     const num = clean.replace("보", "");
     return {
       type: "MAKEUP",
@@ -63,7 +61,37 @@ const parseAttendanceContent = (content: string) => {
     };
   }
 
-  // 2. [차선] 'L'이 포함되면 일반 종료 (LAST)
+  // ✅ [수정됨] 2. 슬래시('/')로 시작하는 경우 -> 결석 디테일 처리
+  // (주의: 일반 'L' 체크보다 먼저 해야 '/L'을 결석으로 잡을 수 있음)
+  if (clean.startsWith("/")) {
+    const val = upperClean.replace("/", ""); // 슬래시 제거
+
+    // 2-1. /L 인 경우
+    if (val === "L") {
+      return {
+        type: "ABSENT",
+        badge: "결석",
+        text: "마지막회차 결석",
+        raw: clean,
+      };
+    }
+
+    // 2-2. /숫자 인 경우 (예: /1, /2)
+    if (!isNaN(Number(val)) && val !== "") {
+      return {
+        type: "ABSENT",
+        badge: "결석",
+        text: `${val}회차 결석`,
+        raw: clean,
+      };
+    }
+
+    // 2-3. 그냥 '/'만 있거나 기타 등등
+    return { type: "ABSENT", badge: "결석", text: "결석", raw: clean };
+  }
+
+  // 3. [차선] 'L'이 포함되면 일반 종료 (LAST)
+  // 위에서 /L은 걸러졌으므로, 여기는 순수 출석 종료(L)만 해당됨
   if (upperClean.includes("L")) {
     return {
       type: "LAST",
@@ -73,12 +101,12 @@ const parseAttendanceContent = (content: string) => {
     };
   }
 
-  // 3. 결석
-  if (clean === "/" || clean.includes("결") || clean.includes("무")) {
+  // 4. 기타 결석 키워드 포함
+  if (clean.includes("결") || clean.includes("무")) {
     return { type: "ABSENT", badge: "결석", text: "결석", raw: clean };
   }
 
-  // 4. 일반 출석 (숫자만 있는 경우)
+  // 5. 일반 출석 (숫자만 있는 경우)
   if (!isNaN(Number(clean))) {
     return {
       type: "ATTENDANCE",
@@ -88,7 +116,7 @@ const parseAttendanceContent = (content: string) => {
     };
   }
 
-  // 5. 기타
+  // 6. 기타
   return { type: "ETC", badge: "기타", text: clean, raw: clean };
 };
 
@@ -112,14 +140,18 @@ export default function AttendanceDetailModal({
   // 1. 데이터 파싱 & 정렬
   const allHistories = useMemo(() => {
     if (!attendanceList) return [];
-    return attendanceList
-      .map((att: any) => ({
-        ...att,
-        parsed: parseAttendanceContent(att.content),
-      }))
-      .sort((a: any, b: any) =>
-        compareDesc(parseISO(a.date), parseISO(b.date))
-      );
+    return (
+      attendanceList
+        // 👇 내용이 비어있거나 공백만 있는 데이터는 여기서 걸러냅니다.
+        .filter((att: any) => att.content && att.content.trim() !== "")
+        .map((att: any) => ({
+          ...att,
+          parsed: parseAttendanceContent(att.content),
+        }))
+        .sort((a: any, b: any) =>
+          compareDesc(parseISO(a.date), parseISO(b.date))
+        )
+    );
   }, [attendanceList]);
 
   // ✅ [수정 1] 학생이 바뀌거나 모달이 닫히면 상태 초기화
@@ -599,7 +631,9 @@ const MiniDate = styled.span`
 const MiniText = styled.span<{ $isAbsent?: boolean }>`
   font-weight: 600;
   color: ${({ $isAbsent }) => ($isAbsent ? "#94a3b8" : "#1e293b")};
-  text-decoration: ${({ $isAbsent }) => ($isAbsent ? "line-through" : "none")};
+  /* ✅ [수정] 취소선 스타일 제거함 */
+  /* text-decoration: ${({ $isAbsent }) =>
+    $isAbsent ? "line-through" : "none"}; */
 `;
 
 const EmptyText = styled.div`
