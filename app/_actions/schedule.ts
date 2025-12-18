@@ -426,16 +426,24 @@ export async function getTodayPickupAction(academyCode: string, day: string) {
     .select("time, content")
     .eq("academy_code", academyCode)
     .eq("day", day)
-    .neq("content", "") // ✅ 빈 문자열 제외
-    .not("content", "is", null) // ✅ NULL 제외
+    .neq("content", "")
+    .not("content", "is", null)
     .order("time", { ascending: true });
 
-  if (error) {
+  if (error || !data) {
     console.error("Pickup Fetch Error:", error);
     return [];
   }
 
-  return data;
+  // ✅ 중복 제거 로직 추가
+  // 배열을 순회하면서 "시간"과 "내용"이 완전히 똑같은 첫 번째 요소만 남깁니다.
+  const uniqueData = data.filter(
+    (item, index, self) =>
+      index ===
+      self.findIndex((t) => t.time === item.time && t.content === item.content)
+  );
+
+  return uniqueData;
 }
 
 // 3. 오늘의 일정 조회 (오늘 날짜가 포함된 일정)
