@@ -55,7 +55,7 @@ export async function upsertAttendanceAction({
 }: any) {
   const supabase = await createClient();
 
-  // 1. 내용이 없으면(빈 문자열 or 공백) -> 데이터 삭제 (DELETE)
+  // 1. 내용이 없으면(빈 문자열 or 공백) -> 데이터 삭제 (DELETE) test
   if (!content || content.trim() === "") {
     const { error } = await supabase.from("attendance").delete().match({
       academy_code: academyCode,
