@@ -378,7 +378,23 @@ const IconButton = styled.button`
 const Footer = styled.div`
   display: flex;
   justify-content: flex-end;
-  margin-top: 10px;
+  gap: 12px; /* 버튼 사이 간격 추가 */
+  margin-top: 16px; /* 본문과의 간격 */
+
+  /* 📱 PWA & 모바일 대응 */
+  @media (max-width: 768px) {
+    /* 하단 홈 바 영역을 고려하여 넉넉한 여백 제공 */
+    /* 기본 여백(16px) + Safe Area + 추가 여백(8px) */
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+
+    /* 모바일에서는 버튼을 꽉 채우거나 중앙 정렬하는 경우가 많음 (선택 사항) */
+    /* justify-content: center; */
+
+    /* 만약 푸터가 화면 하단에 고정된 형태라면 아래 속성 추가 */
+    /* background: white; */
+    /* padding-left: 20px; */
+    /* padding-right: 20px; */
+  }
 `;
 const SaveBtn = styled.button`
   padding: 12px 20px;
