@@ -174,19 +174,25 @@ const CaptureTarget = styled.div`
 `;
 
 const Footer = styled.div`
-  padding: 16px 16px 8px 16px; /* 좌우 패딩 20px로 통일 */
+  padding: 16px 20px; /* 상하 16, 좌우 20으로 통일감 부여 */
   background: white;
   border-top: 1px solid #e5e8eb;
 
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px; /* 버튼 사이 간격을 조금 더 넓게 */
   flex-shrink: 0;
   z-index: 10;
 
-  /* 📱 모바일 설정: 아이폰 하단 바(Home Indicator) 영역 대응 */
+  /* 📱 PWA 및 모바일 대응: 하단 여백 대폭 강화 */
   @media (max-width: 768px) {
-    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    /* 1. 기본 여백(16px) + Safe Area 
+       2. 추가 여백(8px~12px)을 더해 홈 바와 버튼 사이에 시각적 숨통을 틔움 
+    */
+    padding-bottom: calc(28px + env(safe-area-inset-bottom));
+
+    /* 만약 버튼이 가로로 꽉 차는 스타일이라면 중앙 정렬로 변경 고려 */
+    justify-content: center;
   }
 `;
 

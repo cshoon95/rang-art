@@ -274,19 +274,24 @@ const ModalContainer = styled.div<{ $type: string; $isOpen: boolean }>`
   ${({ $type, $isOpen }) =>
     $type === "BOTTOM" &&
     css`
-      width: 100%;
-      max-width: 600px;
-      border-radius: 24px 24px 0 0;
-      max-height: 90vh;
-      transform: translateY(100%);
-      ${$isOpen ? sheetUp : sheetDown}
+      width: calc(100% - 32px); /* 모바일 좌우 여백 */
+      max-width: 500px;
+      border-radius: 24px; /* 사방을 둥글게 */
 
-      /* ✅ [수정] 모바일에서 하단 딱 붙이기 위해 마진 제거 */
-      margin-bottom: 0;
+      /* 바닥에서 살짝 띄우기 (safe-area 포함) */
+      margin-bottom: calc(16px + env(safe-area-inset-bottom));
+
+      /* 아래에서 위로 올라오는 애니메이션 최적화 */
+      transform: translateY(calc(100% + 100px));
+      ${$isOpen
+        ? css`
+            transform: translateY(0);
+          `
+        : ""}
 
       @media (min-width: 769px) {
-        border-radius: 24px;
-        margin-bottom: 20px; /* PC에서는 살짝 띄움 */
+        width: 100%;
+        margin-bottom: 20px;
       }
     `}
 
