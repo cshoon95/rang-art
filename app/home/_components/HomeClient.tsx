@@ -51,7 +51,6 @@ const ScheduleListView = React.memo(
     isLoading: boolean;
     isTempView: boolean;
   }) => {
-    console.log("data", data);
     if (isLoading) return <ScheduleListSkeleton />;
     if (!data || data.length === 0)
       return (

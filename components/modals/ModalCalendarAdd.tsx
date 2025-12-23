@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import styled, { css } from "styled-components";
 import { format } from "date-fns";
 import {
@@ -9,6 +9,7 @@ import {
   Calendar as CalIcon,
   CheckCircle2,
   Circle,
+  AlertCircle,
 } from "lucide-react";
 import {
   useInsertCalendar,
@@ -16,14 +17,15 @@ import {
   useDeleteCalendar,
 } from "@/app/_querys";
 import { MappedEvent } from "@/app/_types/type";
+import { useModalStore } from "@/store/modalStore";
 
 interface ScheduleModalProps {
   isOpen: boolean;
   onClose: () => void;
   academyCode: string;
   userId: string;
-  selectedEvent: MappedEvent | null; // 수정 시 선택된 이벤트
-  initialDate?: Date; // 새 일정 등록 시 기본 날짜
+  selectedEvent: MappedEvent | null;
+  initialDate?: Date;
 }
 
 export default function ModalCalendarAdd({
@@ -35,9 +37,11 @@ export default function ModalCalendarAdd({
   initialDate = new Date(),
 }: ScheduleModalProps) {
   const contentInputRef = useRef<HTMLInputElement>(null);
-  const [contentError, setContentError] = useState(false);
 
-  // 폼 상태
+  const [contentError, setContentError] = useState(false);
+  const [dateError, setDateError] = useState<string>("");
+  const { openModal, closeModal } = useModalStore();
+
   const [formData, setFormData] = useState({
     content: "",
     startDate: format(new Date(), "yyyy-MM-dd"),
@@ -47,17 +51,16 @@ export default function ModalCalendarAdd({
     isHoliday: false,
   });
 
-  // API Hooks
   const insertMutation = useInsertCalendar(academyCode, onClose);
   const updateMutation = useUpdateCalendar(academyCode, onClose);
   const deleteMutation = useDeleteCalendar(academyCode, onClose);
 
-  // 모달이 열릴 때 데이터 초기화 or 바인딩
   useEffect(() => {
     if (isOpen) {
       setContentError(false);
+      setDateError("");
+
       if (selectedEvent && selectedEvent.resource) {
-        // [수정 모드]
         const { resource } = selectedEvent;
         setFormData({
           content: resource.content,
@@ -68,7 +71,6 @@ export default function ModalCalendarAdd({
           isHoliday: resource.isHoliday || resource.type === "school_holiday",
         });
       } else {
-        // [등록 모드] initialDate 기준 설정
         const dateStr = format(initialDate, "yyyy-MM-dd");
         setFormData({
           content: "",
@@ -82,10 +84,54 @@ export default function ModalCalendarAdd({
     }
   }, [isOpen, selectedEvent, initialDate]);
 
+  // ✅ [핵심 추가] 실시간 유효성 검사 (버튼 활성화 여부 결정)
+  const isFormValid = useMemo(() => {
+    // 1. 내용 입력 확인
+    if (!formData.content.trim()) return false;
+
+    // 2. 날짜/시간 순서 확인
+    const start = new Date(`${formData.startDate}T${formData.startTime}`);
+    const end = new Date(`${formData.endDate}T${formData.endTime}`);
+
+    // 종료 시간이 시작 시간보다 같거나 빠르면 무효 (Start < End 여야 함)
+    return start < end;
+  }, [formData]);
+
+  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newStartDate = e.target.value;
+    if (newStartDate > formData.endDate) {
+      setFormData((prev) => ({
+        ...prev,
+        startDate: newStartDate,
+        endDate: newStartDate,
+      }));
+    } else {
+      setFormData((prev) => ({ ...prev, startDate: newStartDate }));
+    }
+    setDateError("");
+  };
+
+  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newEndDate = e.target.value;
+    // 날짜 자체의 역전 방지
+    if (newEndDate < formData.startDate) {
+      setDateError("종료일은 시작일보다 빠를 수 없습니다.");
+      setFormData((prev) => ({ ...prev, endDate: prev.startDate }));
+      return;
+    }
+    setFormData((prev) => ({ ...prev, endDate: newEndDate }));
+    setDateError("");
+  };
+
   const handleSave = () => {
-    if (!formData.content.trim()) {
-      setContentError(true);
-      contentInputRef.current?.focus();
+    if (!isFormValid) {
+      // 강제 호출 시 방어 로직 (버튼 비활성화로 인해 호출될 일은 거의 없음)
+      if (!formData.content.trim()) {
+        setContentError(true);
+        contentInputRef.current?.focus();
+      } else {
+        setDateError("종료 시간은 시작 시간보다 늦어야 합니다.");
+      }
       return;
     }
 
@@ -113,8 +159,19 @@ export default function ModalCalendarAdd({
   };
 
   const handleDelete = () => {
-    if (selectedEvent && confirm("정말 삭제하시겠습니까?")) {
-      deleteMutation.mutate(Number(selectedEvent.id));
+    if (selectedEvent) {
+      openModal({
+        type: "ALERT",
+        title: "지점 삭제",
+        content: "정말 삭제하시겠어요?",
+        onConfirm: () => {
+          deleteMutation.mutate(Number(selectedEvent.id), {
+            onSuccess: () => {
+              closeModal();
+            },
+          });
+        },
+      });
     }
   };
 
@@ -184,9 +241,7 @@ export default function ModalCalendarAdd({
               <Input
                 type="date"
                 value={formData.startDate}
-                onChange={(e) =>
-                  setFormData({ ...formData, startDate: e.target.value })
-                }
+                onChange={handleStartDateChange}
               />
             </InputGroup>
             <InputGroup>
@@ -196,9 +251,10 @@ export default function ModalCalendarAdd({
               <Input
                 type="time"
                 value={formData.startTime}
-                onChange={(e) =>
-                  setFormData({ ...formData, startTime: e.target.value })
-                }
+                onChange={(e) => {
+                  setFormData({ ...formData, startTime: e.target.value });
+                  setDateError("");
+                }}
               />
             </InputGroup>
           </Row>
@@ -210,9 +266,7 @@ export default function ModalCalendarAdd({
               <Input
                 type="date"
                 value={formData.endDate}
-                onChange={(e) =>
-                  setFormData({ ...formData, endDate: e.target.value })
-                }
+                onChange={handleEndDateChange}
               />
             </InputGroup>
             <InputGroup>
@@ -222,12 +276,28 @@ export default function ModalCalendarAdd({
               <Input
                 type="time"
                 value={formData.endTime}
-                onChange={(e) =>
-                  setFormData({ ...formData, endTime: e.target.value })
-                }
+                onChange={(e) => {
+                  setFormData({ ...formData, endTime: e.target.value });
+                  setDateError("");
+                }}
               />
             </InputGroup>
           </Row>
+
+          {/* 에러 메시지는 여전히 보여주되, 버튼이 비활성화됨을 인지시킴 */}
+          {!isFormValid && formData.content && !dateError && (
+            <FormErrorBox>
+              <AlertCircle size={16} />
+              종료 시간은 시작 시간보다 늦어야 합니다.
+            </FormErrorBox>
+          )}
+
+          {dateError && (
+            <FormErrorBox>
+              <AlertCircle size={16} />
+              {dateError}
+            </FormErrorBox>
+          )}
         </ModalBody>
 
         <ModalFooter>
@@ -239,9 +309,14 @@ export default function ModalCalendarAdd({
               {deleteMutation.isPending ? "삭제 중..." : "삭제"}
             </DeleteButton>
           )}
+          {/* ✅ 버튼 비활성화 조건 추가: !isFormValid */}
           <SaveButton
             onClick={handleSave}
-            disabled={insertMutation.isPending || updateMutation.isPending}
+            disabled={
+              insertMutation.isPending ||
+              updateMutation.isPending ||
+              !isFormValid
+            }
           >
             {insertMutation.isPending || updateMutation.isPending
               ? "저장 중"
@@ -254,7 +329,7 @@ export default function ModalCalendarAdd({
 }
 
 // --------------------------------------------------------------------------
-// ✨ Styled Components (모달 전용 스타일만 이동)
+// ✨ Styled Components
 // --------------------------------------------------------------------------
 
 const ModalOverlay = styled.div`
@@ -360,16 +435,11 @@ const Row = styled.div`
 
 const Input = styled.input<{ $error?: boolean }>`
   width: 100%;
-
-  /* ✅ [핵심 1] 모바일 브라우저 기본 스타일 초기화 */
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
-
-  /* ✅ [핵심 2] 높이 강제 고정 (padding 대신 height로 제어) */
-  height: 50px; /* PC 기준 넉넉한 높이 */
-  padding: 0 14px; /* 좌우 패딩만 설정 */
-
+  height: 50px;
+  padding: 0 14px;
   border: 2px solid transparent;
   border-radius: 14px;
   font-size: 16px;
@@ -378,7 +448,7 @@ const Input = styled.input<{ $error?: boolean }>`
   background: #f4f6f8;
   outline: none;
   transition: all 0.2s;
-  box-sizing: border-box; /* 패딩 포함 크기 계산 */
+  box-sizing: border-box;
 
   ${({ $error }) =>
     $error &&
@@ -396,20 +466,17 @@ const Input = styled.input<{ $error?: boolean }>`
         $error ? "rgba(239, 68, 68, 0.1)" : "rgba(49, 130, 246, 0.1)"};
   }
 
-  /* ✅ [핵심 3] 날짜/시간 인풋 전용 스타일 보정 */
   &[type="date"],
   &[type="time"] {
-    display: block; /* flex 레이아웃 깨짐 방지 */
-    line-height: 50px; /* 텍스트 수직 정렬 */
-    /* iOS 기본 폰트 무시하고 상속받기 */
+    display: block;
+    line-height: 50px;
     font-family: inherit;
   }
 
-  /* 📱 모바일 대응 */
   @media (max-width: 600px) {
-    height: 44px; /* 모바일 높이 조정 */
+    height: 44px;
     line-height: 44px;
-    font-size: 16px; /* iOS 자동 확대 방지 (16px 이상 권장) */
+    font-size: 16px;
     border-radius: 12px;
     padding: 0 12px;
 
@@ -461,6 +528,30 @@ const ErrorMessage = styled.span`
   }
 `;
 
+const FormErrorBox = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px;
+  background-color: #fff5f5;
+  border-radius: 10px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 600;
+  animation: fadeIn 0.3s ease;
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+`;
+
 const HolidayButton = styled.button<{ $active: boolean }>`
   display: flex;
   flex-direction: column;
@@ -476,17 +567,14 @@ const HolidayButton = styled.button<{ $active: boolean }>`
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
-
-  /* ✅ [PC & 아이패드] 기본 설정 (조금 더 크게) */
   min-width: 50px;
   width: 52px;
-  height: 52px; /* 버튼 비율 유지를 위해 높이도 맞춤 */
+  height: 52px;
 
   &:hover {
     background-color: ${({ $active }) => ($active ? "#fee2e2" : "#f2f4f6")};
   }
 
-  /* ✅ [모바일] 휴대폰 기기 (작게) */
   @media (max-width: 768px) {
     min-width: 46px;
     width: 46px;
@@ -519,9 +607,12 @@ const SaveButton = styled(Button)`
   &:hover:not(:disabled) {
     background: #1b64da;
   }
+  /* ✅ 비활성화 스타일 강화 */
   &:disabled {
-    opacity: 0.6;
+    background-color: #d1d5db; /* 회색 */
+    color: #9ca3af;
     cursor: not-allowed;
+    opacity: 1; /* 투명도 대신 색상으로 제어 */
   }
 `;
 
@@ -530,5 +621,9 @@ const DeleteButton = styled(Button)`
   color: #e11d48;
   &:hover:not(:disabled) {
     background: #fee2e2;
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 `;

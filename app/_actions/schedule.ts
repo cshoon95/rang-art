@@ -385,7 +385,6 @@ export async function getTodayScheduleAction(academyCode: string, day: string) {
     .eq("day", day)
     .order("id", { ascending: true }); // 옛날 데이터 -> 최신 데이터 순서
 
-  console.log(rawData);
   if (error) {
     console.error("Schedule Fetch Error:", error);
     return { data: [] };
@@ -553,8 +552,6 @@ export const getScheduleTimeListAction = async (academyCode: string) => {
 
     return getWeight(a.time) - getWeight(b.time);
   });
-
-  console.log(sortedRows);
 
   return sortedRows;
 };

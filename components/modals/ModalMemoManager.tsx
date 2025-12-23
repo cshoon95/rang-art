@@ -45,7 +45,7 @@ export default function ModalMemoManager({
     fixedYn: initialFixed,
   });
 
-  const { closeModal } = useModalStore();
+  const { openModal, closeModal } = useModalStore();
   const { mutate: upsertMemo, isPending } = useUpsertMemo();
   const { mutate: deleteMemo } = useDeleteMemo();
 
@@ -95,11 +95,16 @@ export default function ModalMemoManager({
   };
 
   const handleDelete = () => {
-    if (confirm("정말 삭제하시겠습니까?")) {
-      deleteMemo(initialData?.id || initialData?.ID, {
-        onSuccess: () => closeModal(),
-      });
-    }
+    openModal({
+      title: "삭제 알림",
+      content: "정말 삭제하시겠습어요?",
+      type: "CONFIRM",
+      onConfirm: () => {
+        deleteMemo(initialData?.id || initialData?.ID, {
+          onSuccess: () => closeModal(),
+        });
+      },
+    });
   };
 
   const modules = useMemo(() => {
