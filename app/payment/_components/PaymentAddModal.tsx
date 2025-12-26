@@ -232,7 +232,7 @@ export default function PaymentAddModal({
                   value={formData.category}
                   onChange={handleChange}
                   placeholder={
-                    type === "income" ? "예: 카드, 현금" : "예: 식비, 비품"
+                    type === "income" ? "예: 카드, 현금" : "예: 월세, 재료비"
                   }
                 />
               </InputGroup>
