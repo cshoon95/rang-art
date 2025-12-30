@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "랑아트 미술학원 😊",
     description: "랑아트 미술학원만을 위한 올인원 관리 플랫폼",
-    url: "https://cshoon95-rang-art.vercel.app",
+    url: "https://cshoon95-rang-art.vercel.app/icon.webp",
     siteName: "RANG ART",
     // 🗑️ images 속성을 삭제했습니다!
     // images: [...],
