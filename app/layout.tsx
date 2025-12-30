@@ -23,8 +23,8 @@ export const metadata: Metadata = {
   title: "랑아트 미술학원 😊",
   description: "랑아트 미술학원만을 위한 올인원 관리 플랫폼",
   icons: {
-    icon: "https://rangart.co.kr/icon.png",
-    apple: "https://rangart.co.kr/icon.png",
+    icon: "https://rangart.co.kr/icon.webp",
+    apple: "https://rangart.co.kr/icon.webp",
   },
   appleWebApp: {
     capable: true,

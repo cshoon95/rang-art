@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import styled, { keyframes } from "styled-components";
 import Image from "next/image"; // Next.js Image 컴포넌트 사용
-import Icon from "../../public/icon.png";
+import Icon from "../../public/icon.webp";
 
 export const SplashScreen = () => {
   const [isVisible, setIsVisible] = useState(true);

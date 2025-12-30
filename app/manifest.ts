@@ -12,13 +12,13 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait", // 세로 모드 고정 (선택 사항)
     icons: [
       {
-        src: "/icon.png",
+        src: "/icon.webp",
         sizes: "192x192",
         type: "image/png",
         purpose: "any", // ✨ 'maskable' 대신 'any' 사용 (또는 'any maskable'로 둘 다 지원)
       },
       {
-        src: "/icon.png",
+        src: "/icon.webp",
         sizes: "512x512",
         type: "image/png",
         purpose: "any", // ✨ 여기도 변경

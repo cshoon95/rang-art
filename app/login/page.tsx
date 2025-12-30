@@ -3,7 +3,7 @@
 import { signIn } from "next-auth/react";
 import styled, { keyframes } from "styled-components";
 import Image from "next/image"; // ✅ next/image 사용
-import logoImg from "@/assets/icon.png"; // ✅ 이미지 import (경로 확인 필요)
+import logoImg from "@/assets/icon.webp"; // ✅ 이미지 import (경로 확인 필요)
 
 export default function LoginPage() {
   const handleGoogleLogin = () => {
