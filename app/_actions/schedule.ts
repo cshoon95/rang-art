@@ -695,3 +695,79 @@ export const getServerPickupDataList = async (academyCode: string) => {
 
   return data || [];
 };
+
+async function updateTimeCommon(
+  tableName: "schedule" | "temp_schedule" | "pickup",
+  data: {
+    oldTime: string;
+    newTime: string;
+    academyCode: string;
+    registerID: string;
+  }
+): Promise<ActionResponse> {
+  const supabase = await createClient();
+  const { oldTime, newTime, academyCode, registerID } = data;
+
+  // 1. 이미 존재하는 시간인지 확인 (중복 방지)
+  const { data: exists } = await supabase
+    .from(tableName)
+    .select("time")
+    .eq("time", newTime)
+    .eq("academy_code", academyCode)
+    .maybeSingle();
+
+  if (exists) {
+    return { success: false, message: "이미 존재하는 시간입니다." };
+  }
+
+  // 2. 시간 업데이트 (해당 시간을 가진 모든 행 업데이트)
+  const { error } = await supabase
+    .from(tableName)
+    .update({
+      time: newTime,
+      // updater_id: registerID, // 테이블에 updater_id 컬럼이 있다면 주석 해제
+    })
+    .eq("time", oldTime)
+    .eq("academy_code", academyCode);
+
+  if (error) {
+    console.error(`Update ${tableName} Time Error:`, error);
+    return { success: false, message: "시간 수정 중 오류가 발생했습니다." };
+  }
+
+  // 캐시 갱신
+  if (tableName === "schedule") revalidatePath("/schedule");
+  else if (tableName === "temp_schedule") revalidatePath("/temp-schedule");
+  else if (tableName === "pickup") revalidatePath("/pickup");
+
+  return { success: true, message: "시간이 수정되었습니다." };
+}
+
+// --- Export용 액션들 ---
+
+export async function updateScheduleTimeAction(data: {
+  oldTime: string;
+  newTime: string;
+  academyCode: string;
+  registerID: string;
+}) {
+  return updateTimeCommon("schedule", data);
+}
+
+export async function updateTempScheduleTimeAction(data: {
+  oldTime: string;
+  newTime: string;
+  academyCode: string;
+  registerID: string;
+}) {
+  return updateTimeCommon("temp_schedule", data);
+}
+
+export async function updatePickupTimeAction(data: {
+  oldTime: string;
+  newTime: string;
+  academyCode: string;
+  registerID: string;
+}) {
+  return updateTimeCommon("pickup", data);
+}

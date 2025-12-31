@@ -24,6 +24,9 @@ import {
   getTodayTempScheduleAction,
   getTodayPickupAction,
   getTodayEventsAction,
+  updatePickupTimeAction,
+  updateScheduleTimeAction,
+  updateTempScheduleTimeAction,
 } from "../_actions/schedule";
 
 interface IPickupTimeTypes {
@@ -363,5 +366,35 @@ export const useTodayEvents = (academyCode: string) => {
     queryFn: () => getTodayEventsAction(academyCode), // 액션 변경
     refetchInterval: 60000, // 1분마다 갱신 (오늘 일정이므로 자주 확인)
     enabled: !!academyCode,
+  });
+};
+
+// ✅ Schedule 시간 수정
+export const useUpdateScheduleTime = (
+  options?: UseMutationOptions<any, Error, any>
+) => {
+  return useMutation({
+    mutationFn: updateScheduleTimeAction,
+    ...options,
+  });
+};
+
+// ✅ Temp Schedule 시간 수정
+export const useUpdateTempScheduleTime = (
+  options?: UseMutationOptions<any, Error, any>
+) => {
+  return useMutation({
+    mutationFn: updateTempScheduleTimeAction,
+    ...options,
+  });
+};
+
+// ✅ Pickup 시간 수정
+export const useUpdatePickupTime = (
+  options?: UseMutationOptions<any, Error, any>
+) => {
+  return useMutation({
+    mutationFn: updatePickupTimeAction,
+    ...options,
   });
 };

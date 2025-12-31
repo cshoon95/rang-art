@@ -194,7 +194,7 @@ export default function ScheduleClient({
         title: "시간 관리",
         content: (
           <ModalTimeManager
-            mode="delete"
+            mode="edit" // ✅ 기존 'delete'에서 'edit'으로 변경
             initialTime={replaceTimePattern(timeValue)}
             target="schedule"
             academyCode={academyCode}
@@ -204,7 +204,7 @@ export default function ScheduleClient({
         hideFooter: true,
       });
     },
-    [openModal]
+    [openModal, academyCode, userId]
   );
 
   const toggleAllView = useCallback(() => {
