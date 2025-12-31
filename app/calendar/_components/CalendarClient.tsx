@@ -274,29 +274,23 @@ export default function CalendarClient({ academyCode, userId }: Props) {
     },
     [currentDate]
   );
-
   const CustomToolbar = useCallback((toolbar: ToolbarProps) => {
     const goToBack = () => {
+      // ❌ 삭제: setCurrentDate((prev) => ... );
+      // ✅ 유지: 라이브러리가 알아서 onNavigate를 트리거하여 상태를 변경합니다.
       toolbar.onNavigate("PREV");
-      setCurrentDate((prev) => {
-        const d = new Date(prev);
-        d.setMonth(d.getMonth() - 1);
-        return d;
-      });
     };
 
     const goToNext = () => {
+      // ❌ 삭제: setCurrentDate((prev) => ... );
+      // ✅ 유지
       toolbar.onNavigate("NEXT");
-      setCurrentDate((prev) => {
-        const d = new Date(prev);
-        d.setMonth(d.getMonth() + 1);
-        return d;
-      });
     };
 
     const goToCurrent = () => {
+      // ❌ 삭제: setCurrentDate(new Date());
+      // ✅ 유지
       toolbar.onNavigate("TODAY");
-      setCurrentDate(new Date());
     };
 
     const isCurrentMonth = isSameMonth(toolbar.date, new Date());
@@ -307,6 +301,8 @@ export default function CalendarClient({ academyCode, userId }: Props) {
           <NavButton onClick={goToBack}>
             <ChevronLeft size={20} />
           </NavButton>
+          {/* toolbar.label을 사용하면 라이브러리가 계산한 정확한 라벨을 보여줍니다. 
+              혹은 기존처럼 toolbar.date를 formatting 해도 됩니다. */}
           <MonthTitle>{format(toolbar.date, "yyyy년 M월")}</MonthTitle>
           <NavButton onClick={goToNext}>
             <ChevronRight size={20} />
