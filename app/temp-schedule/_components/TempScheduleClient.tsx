@@ -191,7 +191,7 @@ export default function TempScheduleClient({
         title: "시간 관리",
         content: (
           <ModalTimeManager
-            mode="delete"
+            mode="edit"
             initialTime={replaceTimePattern(timeValue)}
             target="temp-schedule"
             academyCode={academyCode}

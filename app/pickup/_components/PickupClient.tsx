@@ -184,7 +184,7 @@ export default function PickupClient({
         title: "시간 관리",
         content: (
           <ModalTimeManager
-            mode="delete"
+            mode="edit"
             initialTime={replaceTimePattern(timeValue)}
             target="pickup"
             academyCode={academyCode}
