@@ -17,7 +17,7 @@ import {
   PlusCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import ModalCalendarAdd from "@/components/modals/ModalCalendarAdd";
+import dynamic from "next/dynamic";
 import {
   ScheduleListSkeleton,
   PickupListSkeleton,
@@ -35,6 +35,14 @@ interface Props {
   academyCode: string;
   userId: string;
 }
+
+const ModalCalendarAdd = dynamic(
+  () => import("@/components/modals/ModalCalendarAdd"),
+  {
+    ssr: false,
+    loading: () => null, // 로딩 중에 보여줄 컴포넌트 (없으면 null)
+  }
+);
 
 // --------------------------------------------------------------------------
 // 🧩 Sub Components (Memoization for Performance)
@@ -147,6 +155,36 @@ NameChipList.displayName = "NameChipList";
 // --------------------------------------------------------------------------
 // 🧩 Main Component
 // --------------------------------------------------------------------------
+
+// 🕒 시계 컴포넌트 분리
+const DigitalClock = React.memo(() => {
+  const [timeStr, setTimeStr] = useState("");
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      const hours = now.getHours();
+      const minutes = now.getMinutes();
+      const ampm = hours >= 12 ? "PM" : "AM";
+      const displayHour = hours % 12 || 12;
+      const displayMinute = String(minutes).padStart(2, "0");
+      setTimeStr(
+        `${ampm === "PM" ? "오후" : "오전"} ${displayHour}시 ${displayMinute}분`
+      );
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 60000); // 1분마다
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <TimeBox>
+      <Clock size={16} color="#3182f6" />
+      <span>{timeStr}</span>
+    </TimeBox>
+  );
+});
+DigitalClock.displayName = "DigitalClock";
 
 export default function DashboardClient({ academyCode, userId }: Props) {
   const router = useRouter();
@@ -332,10 +370,7 @@ export default function DashboardClient({ academyCode, userId }: Props) {
                 <CardTitle>픽업 시간표</CardTitle>
               </TitleWithIcon>
               <HeaderRight>
-                <TimeBox>
-                  <Clock size={16} color="#3182f6" />
-                  <span>{currentTime}</span>
-                </TimeBox>
+                <DigitalClock />
               </HeaderRight>
             </CardHeader>
 

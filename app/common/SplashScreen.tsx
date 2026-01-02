@@ -114,7 +114,7 @@ export const SplashScreen = () => {
       setTimeout(() => {
         setShouldRender(false);
       }, 500);
-    }, 2000); // 2초 동안 보여줌
+    }, 800); // 2초 동안 보여줌
 
     return () => clearTimeout(timer);
   }, []);
