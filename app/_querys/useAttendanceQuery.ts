@@ -6,6 +6,7 @@ import {
   getStudentAttendanceHistoryAction,
   getInActiveStudentsAction,
 } from "../_actions/attendance";
+import { useToastStore } from "@/store/toastStore";
 
 // 학생 목록 (재원)
 export const useGetStudents = (academyCode: string) => {
@@ -38,12 +39,15 @@ export const useGetAttendance = (
 // 출석 입력
 export const useUpsertAttendance = () => {
   const queryClient = useQueryClient();
+  const { addToast } = useToastStore();
   return useMutation({
     mutationFn: upsertAttendanceAction,
     onSuccess: () => {
       // 쿼리 무효화로 데이터 최신화
+      addToast("출석 정보가 저장되었어요");
       queryClient.invalidateQueries({ queryKey: ["attendance"] });
     },
+    onError: () => addToast("출석 정보 입력이 실패하였어요"),
   });
 };
 

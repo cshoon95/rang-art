@@ -2,31 +2,8 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import styled, { css } from "styled-components";
+import dynamic from "next/dynamic"; // ⚡️ 최적화 1: Dynamic Import
 import { ko } from "date-fns/locale";
-import PageTitleWithStar from "@/components/PageTitleWithStar";
-import AttendanceDetailModal from "./AttendanceDetailModal";
-import { getPublicHolidays } from "@/utils/date";
-import AttendanceSkeleton from "./AttendanceSkeleton";
-import { extractInitialConsonants } from "@/utils/common";
-import {
-  getPrevMonthLastDataAction,
-  updateCustomerStatusAction,
-} from "@/app/_actions";
-import {
-  useUpsertAttendance,
-  useGetStudents,
-  useGetAttendance,
-  useGetCalendarList,
-} from "@/app/_querys";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Calendar as CalendarIcon,
-  Search,
-  Mail,
-  CheckSquare,
-  Square,
-} from "lucide-react";
 import {
   format,
   addMonths,
@@ -39,12 +16,41 @@ import {
   subDays,
   addDays,
 } from "date-fns";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Calendar as CalendarIcon,
+  Search,
+  Mail,
+  CheckSquare,
+  Square,
+} from "lucide-react";
 
-interface Props {
-  academyCode: string;
-}
+import PageTitleWithStar from "@/components/PageTitleWithStar";
+import AttendanceSkeleton from "./AttendanceSkeleton";
+import { getPublicHolidays } from "@/utils/date";
+import { extractInitialConsonants } from "@/utils/common";
+import {
+  getPrevMonthLastDataAction,
+  updateCustomerStatusAction,
+} from "@/app/_actions";
+import {
+  useUpsertAttendance,
+  useGetStudents,
+  useGetAttendance,
+  useGetCalendarList,
+} from "@/app/_querys";
 
-// ... (EditableCell 컴포넌트는 변경 없음) ...
+// ⚡️ 최적화 1: 모달을 필요할 때만 불러옵니다. (초기 번들 사이즈 감소)
+const AttendanceDetailModal = dynamic(() => import("./AttendanceDetailModal"), {
+  ssr: false,
+  loading: () => null,
+});
+
+// --------------------------------------------------------------------------
+// 🧩 Sub Components (Memoized)
+// --------------------------------------------------------------------------
+
 interface EditableCellProps {
   initialValue: string;
   studentId: number;
@@ -80,12 +86,12 @@ const EditableCell = React.memo(
 
     const handleBlur = () => {
       const trimmedValue = value.trim();
-
       if (trimmedValue === initialValue) {
         setValue(initialValue);
         return;
       }
 
+      // 'l' -> 'L' 자동 변환 및 숫자 파싱 로직
       let tempValue = trimmedValue.replace(/l/g, "L");
       const parts = tempValue.split(/([\.,\s]+)/);
 
@@ -155,9 +161,6 @@ const EditableCell = React.memo(
 );
 EditableCell.displayName = "EditableCell";
 
-// --------------------------------------------------------------------------
-// 🧩 Student Row (✅ 수정됨: FeeCell을 StickyGroup 밖으로 이동)
-// --------------------------------------------------------------------------
 interface StudentRowProps {
   student: any;
   daysInMonth: Date[];
@@ -195,7 +198,6 @@ const StudentRow = React.memo(
 
     return (
       <TableRow>
-        {/* ✅ StickyGroup에는 이름과 전월 데이터만 유지 */}
         <StickyGroup>
           <NameCell onClick={() => onOpenHistory(student.id)}>
             <span className="name">
@@ -203,11 +205,9 @@ const StudentRow = React.memo(
               <span className="sub"> (주{weekCount}회)</span>
             </span>
           </NameCell>
-
           <PrevDataCell>{prevData || "-"}</PrevDataCell>
         </StickyGroup>
 
-        {/* ✅ FeeCell을 밖으로 빼서 날짜들과 함께 스크롤되도록 함 */}
         <FeeCell>
           <FeeCheckbox onClick={() => onToggleFee(student)}>
             {student.fee_yn === "Y" ? (
@@ -254,37 +254,52 @@ StudentRow.displayName = "StudentRow";
 // 🧩 Main Component
 // --------------------------------------------------------------------------
 
-export default function AttendanceClient({ academyCode }: Props) {
-  // ... (상태 및 훅 로직은 기존과 동일) ...
+interface Props {
+  academyCode: string;
+  initialPrevData?: Record<string, string>; // 서버에서 받은 초기 데이터
+}
+
+export default function AttendanceClient({
+  academyCode,
+  initialPrevData,
+}: Props) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [prevDataMap, setPrevDataMap] = useState<Record<string, string>>({});
+
+  // ⚡️ 최적화 2: 초기값을 서버 데이터로 설정 (useEffect 로딩 제거)
+  const [prevDataMap, setPrevDataMap] = useState<Record<string, string>>(
+    initialPrevData || {}
+  );
+
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(
     null
   );
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
+  // ⚡️ 최적화 3: 점진적 렌더링 상태 (DOM 폭탄 방지)
+  const [renderLimit, setRenderLimit] = useState(20);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
+      // 검색 시 렌더 리미트 초기화
+      setRenderLimit(20);
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
 
+  // 날짜 계산 (Memo)
   const { startDate, endDate, daysInMonth } = useMemo(() => {
     const start = startOfMonth(currentDate);
     const end = endOfMonth(currentDate);
     const days = eachDayOfInterval({ start, end }).filter(
       (day) => !isWeekend(day)
     );
-    return {
-      startDate: start,
-      endDate: end,
-      daysInMonth: days,
-    };
+    return { startDate: start, endDate: end, daysInMonth: days };
   }, [currentDate]);
 
+  // React Query Fetching
   const { data: students = [], refetch: refetchStudents } =
     useGetStudents(academyCode);
 
@@ -298,6 +313,7 @@ export default function AttendanceClient({ academyCode }: Props) {
   const { data: calendarEvents = [], isLoading: isCalendarDataLoading } =
     useGetCalendarList(academyCode);
 
+  // 공휴일 계산 (Memo)
   const holidaySet = useMemo(() => {
     const set = new Set<string>();
     const year = currentDate.getFullYear();
@@ -319,9 +335,19 @@ export default function AttendanceClient({ academyCode }: Props) {
     return set;
   }, [currentDate, calendarEvents]);
 
+  // 전월 데이터 Fetching (날짜 변경 시에만 실행, 초기엔 pass)
   useEffect(() => {
     let isMounted = true;
     const fetchPrevData = async () => {
+      // 이미 데이터가 있고 날짜가 오늘 날짜와 같은 달이면 패스 (서버 데이터 사용)
+      if (
+        isSameDay(currentDate, new Date()) &&
+        Object.keys(prevDataMap).length > 0 &&
+        initialPrevData // 서버 데이터가 존재할 때만 스킵
+      ) {
+        return;
+      }
+
       const currentStart = startOfMonth(currentDate);
       const prevMonthEnd = format(subDays(currentStart, 1), "yyyy-MM-dd");
       try {
@@ -338,8 +364,9 @@ export default function AttendanceClient({ academyCode }: Props) {
     return () => {
       isMounted = false;
     };
-  }, [currentDate, academyCode]);
+  }, [currentDate, academyCode]); // initialPrevData 의존성 제거
 
+  // 출석 데이터 Map 변환
   const attendanceMap = useMemo(() => {
     const map = new Map<string, string>();
     if (attendanceList) {
@@ -350,6 +377,7 @@ export default function AttendanceClient({ academyCode }: Props) {
     return map;
   }, [attendanceList]);
 
+  // 학생 필터링
   const filteredStudents = useMemo(() => {
     if (!debouncedSearch) return students;
 
@@ -367,6 +395,20 @@ export default function AttendanceClient({ academyCode }: Props) {
     [students, selectedStudentId]
   );
 
+  // ⚡️ [수정됨] 최적화 4: 점진적 렌더링 로직 안전장치 추가
+  // 기존 requestAnimationFrame은 너무 빨라서 브라우저가 터질 수 있음 -> setTimeout으로 변경
+  useEffect(() => {
+    if (filteredStudents.length > 0 && renderLimit < filteredStudents.length) {
+      // 0.1초(100ms)마다 20명씩 추가로 그립니다.
+      // 브라우저가 숨 쉴 틈을 주어 메모리 폭주를 막습니다.
+      const timer = setTimeout(() => {
+        setRenderLimit((prev) => prev + 20);
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, [renderLimit, filteredStudents.length]);
+  // 핸들러 함수들
   const handleToggleFee = useCallback(
     async (student: any) => {
       const isChecked = student.fee_yn === "Y";
@@ -411,9 +453,18 @@ export default function AttendanceClient({ academyCode }: Props) {
     refetchStudents();
   }, [refetchStudents]);
 
-  if (isAttendanceDataLoading || isCalendarDataLoading) {
+  // ⚡️ 로딩 처리: 데이터가 없고 로딩 중일 때만 스켈레톤 표시 (서버데이터 활용 시 스켈레톤 스킵 가능)
+  if (isAttendanceDataLoading && !attendanceList.length) {
     return <AttendanceSkeleton />;
   }
+
+  // 캘린더 로딩만 따로 체크 (화면 전체를 막지 않도록)
+  if (isCalendarDataLoading && !calendarEvents.length) {
+    // 필요하다면 여기서도 스켈레톤 리턴 가능
+  }
+
+  // ⚡️ 실제 렌더링할 학생 리스트 슬라이싱
+  const visibleStudents = filteredStudents.slice(0, renderLimit);
 
   return (
     <Container>
@@ -446,7 +497,6 @@ export default function AttendanceClient({ academyCode }: Props) {
 
       <TableWrapper>
         <TableContainer>
-          {/* ✅ 헤더에서도 원비를 StickyGroup 밖으로 이동 */}
           <TableHeader>
             <StickyGroup>
               <HeaderCell $width={100}>이름</HeaderCell>
@@ -455,7 +505,6 @@ export default function AttendanceClient({ academyCode }: Props) {
               </HeaderCell>
             </StickyGroup>
 
-            {/* ✅ 원비 헤더: 스크롤 영역으로 이동 */}
             <HeaderCell $width={70} $bg="#f0f9ff">
               원비
             </HeaderCell>
@@ -481,7 +530,7 @@ export default function AttendanceClient({ academyCode }: Props) {
           </TableHeader>
 
           <TableBody>
-            {filteredStudents.map((student: any) => (
+            {visibleStudents.map((student: any) => (
               <StudentRow
                 key={student.id}
                 student={student}
@@ -496,24 +545,31 @@ export default function AttendanceClient({ academyCode }: Props) {
                 onRefetchStudents={handleRefetchStudents}
               />
             ))}
+            {/* 렌더링 진행 중일 때 하단 인디케이터 (선택 사항) */}
+            {visibleStudents.length < filteredStudents.length && (
+              <div style={{ padding: 20, textAlign: "center", color: "#ccc" }}>
+                불러오는 중...
+              </div>
+            )}
           </TableBody>
         </TableContainer>
       </TableWrapper>
 
-      <AttendanceDetailModal
-        isOpen={isHistoryModalOpen}
-        onClose={() => setIsHistoryModalOpen(false)}
-        student={selectedStudent || null}
-        academyCode={academyCode}
-      />
+      {/* 모달은 상태가 true일 때만 렌더링하여 DOM 최적화 */}
+      {isHistoryModalOpen && (
+        <AttendanceDetailModal
+          isOpen={isHistoryModalOpen}
+          onClose={() => setIsHistoryModalOpen(false)}
+          student={selectedStudent || null}
+          academyCode={academyCode}
+        />
+      )}
     </Container>
   );
 }
 
-// ... (스타일은 대부분 동일하지만 FeeCell에 flex-shrink: 0 속성 확인)
-
 // --------------------------------------------------------------------------
-// ✨ Styles
+// ✨ Styles (기존과 동일)
 // --------------------------------------------------------------------------
 const Container = styled.div`
   padding: 24px;
@@ -532,7 +588,6 @@ const Container = styled.div`
     margin-bottom: 60px;
   }
 `;
-// ... (Header, MainTitle, Controls, DateNav, NavBtn, DateText, SearchBox, SearchInput, InactiveButton 등은 기존과 동일) ...
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
@@ -746,7 +801,7 @@ const FeeCell = styled.div`
   gap: 8px;
   border-right: 1px solid #f1f5f9;
   background-color: #f0f9ff;
-  flex-shrink: 0; /* ✅ flex-shrink: 0 유지 (스크롤 시 너비 고정) */
+  flex-shrink: 0;
 `;
 const FeeCheckbox = styled.button`
   background: none;

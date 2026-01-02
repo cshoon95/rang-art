@@ -1,22 +1,42 @@
 import React, { Suspense } from "react";
-import AttendanceClient from "./_components/AttendanceClient";
-import { getServerSession } from "next-auth"; // ✅ 서버용 함수
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // ✅ 설정 파일 import
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getPrevMonthLastDataAction } from "@/app/_actions";
+import { startOfMonth, subDays, format } from "date-fns";
 import Loading from "../home/_components/Loading";
+import AttendanceClient from "./_components/AttendanceClient";
 
 export default async function AttendancePage() {
-  // 1. 서버 세션 가져오기 (authOptions 필수)
+  // 1. 세션 및 학원 코드 가져오기
   const session = await getServerSession(authOptions);
-
-  // 2. session.user에서 academyCode 추출
-  // (TypeScript 에러가 난다면 as any로 우회하거나 next-auth.d.ts 설정 필요)
   const user = session?.user as any;
   const academyCode = user?.academyCode;
 
+  // 2. [서버 최적화] 전월 데이터 미리 가져오기
+  // 클라이언트 useEffect에서 하던 것을 서버에서 병렬 처리하여 초기 렌더링 시점에 즉시 보여줍니다.
+  let initialPrevData: Record<string, string> = {};
+
+  if (academyCode) {
+    try {
+      const now = new Date();
+      const currentStart = startOfMonth(now);
+      const prevMonthEnd = format(subDays(currentStart, 1), "yyyy-MM-dd");
+
+      // 서버 액션 직접 호출
+      initialPrevData =
+        (await getPrevMonthLastDataAction(academyCode, prevMonthEnd)) || {};
+    } catch (error) {
+      console.error("Initial Prev Data Fetch Error:", error);
+    }
+  }
+
   return (
     <Suspense fallback={<Loading />}>
-      {/* 3. Client Component로 전달 */}
-      <AttendanceClient academyCode={academyCode} />
+      {/* 3. 클라이언트 컴포넌트에 초기 데이터 전달 */}
+      <AttendanceClient
+        academyCode={academyCode}
+        initialPrevData={initialPrevData}
+      />
     </Suspense>
   );
 }
