@@ -19,7 +19,8 @@ export default function ClientLayout({
   return (
     <>
       {!isLoginPage && <Header />}
-      <SplashScreen />
+      {/* 스플래쉬 중지 요청에 따른 주석처리 */}
+      {/* <SplashScreen /> */}
 
       {/* 1. 배경색과 전체 높이를 담당하는 바깥 래퍼 */}
       <ContentWrapper $isLoginPage={isLoginPage}>
