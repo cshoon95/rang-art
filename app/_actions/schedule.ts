@@ -448,7 +448,17 @@ export async function getTodayPickupAction(academyCode: string, day: string) {
 // 3. 오늘의 일정 조회 (오늘 날짜가 포함된 일정)
 export async function getTodayEventsAction(academyCode: string) {
   const supabase = await createClient();
-  const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+
+  // ❌ 수정 전: UTC 기준이라 오전 9시 전에는 '어제' 날짜가 나옴
+  // const today = new Date().toISOString().split("T")[0];
+
+  // ⭕ 수정 후: 한국 시간대(Asia/Seoul)를 기준으로 YYYY-MM-DD 형식 추출
+  // 'en-CA' 로케일을 사용하면 YYYY-MM-DD 형식을 자동으로 맞춰줍니다.
+  const today = new Date().toLocaleDateString("en-CA", {
+    timeZone: "Asia/Seoul",
+  });
+
+  console.log("Server Today (KST):", today); // 디버깅용 로그
 
   const { data, error } = await supabase
     .from("calendar")

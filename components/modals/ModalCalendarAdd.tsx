@@ -38,6 +38,9 @@ export default function ModalCalendarAdd({
 }: ScheduleModalProps) {
   const contentInputRef = useRef<HTMLInputElement>(null);
 
+  // ✅ [수정 1] 중복 제출 방지용 Ref (렌더링 없이 즉시 값 변경)
+  const isSubmittingRef = useRef(false);
+
   const [contentError, setContentError] = useState(false);
   const [dateError, setDateError] = useState<string>("");
   const { openModal, closeModal } = useModalStore();
@@ -57,6 +60,9 @@ export default function ModalCalendarAdd({
 
   useEffect(() => {
     if (isOpen) {
+      // ✅ [수정 2] 모달이 열릴 때 잠금 해제 (초기화)
+      isSubmittingRef.current = false;
+
       setContentError(false);
       setDateError("");
 
@@ -84,16 +90,10 @@ export default function ModalCalendarAdd({
     }
   }, [isOpen, selectedEvent, initialDate]);
 
-  // ✅ [핵심 추가] 실시간 유효성 검사 (버튼 활성화 여부 결정)
   const isFormValid = useMemo(() => {
-    // 1. 내용 입력 확인
     if (!formData.content.trim()) return false;
-
-    // 2. 날짜/시간 순서 확인
     const start = new Date(`${formData.startDate}T${formData.startTime}`);
     const end = new Date(`${formData.endDate}T${formData.endTime}`);
-
-    // 종료 시간이 시작 시간보다 같거나 빠르면 무효 (Start < End 여야 함)
     return start < end;
   }, [formData]);
 
@@ -113,7 +113,6 @@ export default function ModalCalendarAdd({
 
   const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newEndDate = e.target.value;
-    // 날짜 자체의 역전 방지
     if (newEndDate < formData.startDate) {
       setDateError("종료일은 시작일보다 빠를 수 없습니다.");
       setFormData((prev) => ({ ...prev, endDate: prev.startDate }));
@@ -124,8 +123,10 @@ export default function ModalCalendarAdd({
   };
 
   const handleSave = () => {
+    // ✅ [수정 3] 이미 제출 중이면 함수 즉시 종료 (더블 클릭 방지 핵심)
+    if (isSubmittingRef.current) return;
+
     if (!isFormValid) {
-      // 강제 호출 시 방어 로직 (버튼 비활성화로 인해 호출될 일은 거의 없음)
       if (!formData.content.trim()) {
         setContentError(true);
         contentInputRef.current?.focus();
@@ -134,6 +135,9 @@ export default function ModalCalendarAdd({
       }
       return;
     }
+
+    // ✅ [수정 4] 제출 시작: 잠금 설정
+    isSubmittingRef.current = true;
 
     const payload = {
       content: formData.content,
@@ -144,17 +148,34 @@ export default function ModalCalendarAdd({
       type: formData.isHoliday ? "school_holiday" : "event",
     };
 
+    // 실패 시 잠금 해제를 위한 콜백
+    const handleError = () => {
+      isSubmittingRef.current = false;
+      // 필요하다면 토스트 메시지 등을 띄울 수 있음
+      // toast.error("저장에 실패했습니다.");
+    };
+
     if (selectedEvent && selectedEvent.id) {
-      updateMutation.mutate({
-        ...payload,
-        id: Number(selectedEvent.id),
-        updater_id: userId,
-      });
+      updateMutation.mutate(
+        {
+          ...payload,
+          id: Number(selectedEvent.id),
+          updater_id: userId,
+        },
+        {
+          onError: handleError, // 실패 시 다시 클릭 가능하도록 해제
+        }
+      );
     } else {
-      insertMutation.mutate({
-        ...payload,
-        register_id: userId,
-      });
+      insertMutation.mutate(
+        {
+          ...payload,
+          register_id: userId,
+        },
+        {
+          onError: handleError, // 실패 시 다시 클릭 가능하도록 해제
+        }
+      );
     }
   };
 
@@ -284,7 +305,6 @@ export default function ModalCalendarAdd({
             </InputGroup>
           </Row>
 
-          {/* 에러 메시지는 여전히 보여주되, 버튼이 비활성화됨을 인지시킴 */}
           {!isFormValid && formData.content && !dateError && (
             <FormErrorBox>
               <AlertCircle size={16} />
@@ -309,9 +329,9 @@ export default function ModalCalendarAdd({
               {deleteMutation.isPending ? "삭제 중..." : "삭제"}
             </DeleteButton>
           )}
-          {/* ✅ 버튼 비활성화 조건 추가: !isFormValid */}
           <SaveButton
             onClick={handleSave}
+            // 기존 isPending 조건에 더해, 유효성 검사 실패시에도 비활성화
             disabled={
               insertMutation.isPending ||
               updateMutation.isPending ||
@@ -607,12 +627,12 @@ const SaveButton = styled(Button)`
   &:hover:not(:disabled) {
     background: #1b64da;
   }
-  /* ✅ 비활성화 스타일 강화 */
   &:disabled {
-    background-color: #d1d5db; /* 회색 */
+    background-color: #d1d5db;
     color: #9ca3af;
     cursor: not-allowed;
-    opacity: 1; /* 투명도 대신 색상으로 제어 */
+    /* ✅ [수정 5] CSS 레벨에서 클릭 이벤트 완전 차단 */
+    pointer-events: none;
   }
 `;
 
@@ -625,5 +645,6 @@ const DeleteButton = styled(Button)`
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+    pointer-events: none;
   }
 `;
