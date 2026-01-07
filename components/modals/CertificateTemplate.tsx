@@ -23,11 +23,10 @@ const CertificateTemplate = forwardRef<HTMLDivElement, Props>(
     const tel = branchInfo?.tel || "";
     const ownerName = branchInfo?.owner || "";
 
-    // ✅ [수정] 1월~12월 데이터 채우기 로직 복원
+    // ✅ 1월~12월 데이터 채우기 (데이터 없으면 fee: 0)
     const fullYearData = useMemo(() => {
       return Array.from({ length: 12 }, (_, i) => {
         const monthNum = i + 1;
-        // data가 없을 수도 있으므로 옵셔널 체이닝(?.) 사용
         const found = data?.find((item) => Number(item.month) === monthNum);
         return {
           month: monthNum,
@@ -143,23 +142,21 @@ const CertificateTemplate = forwardRef<HTMLDivElement, Props>(
                 <tr key={idx}>
                   {/* 1~6월 */}
                   <LabelTd>{item.month}월</LabelTd>
-                  <Td>
-                    {item.fee > 0 ? `${item.fee.toLocaleString()}원` : ""}
-                  </Td>
+                  {/* ✅ 수정됨: 0보다 클 때 조건 제거 -> 무조건 0원 표시 */}
+                  <Td>{item.fee.toLocaleString()}원</Td>
+
                   {/* 7~12월 */}
                   <LabelTd>{secondItem.month}월</LabelTd>
-                  <Td>
-                    {secondItem.fee > 0
-                      ? `${secondItem.fee.toLocaleString()}원`
-                      : ""}
-                  </Td>
+                  {/* ✅ 수정됨: 0보다 클 때 조건 제거 -> 무조건 0원 표시 */}
+                  <Td>{secondItem.fee.toLocaleString()}원</Td>
                 </tr>
               );
             })}
             <tr>
               <LabelTd>연간합계</LabelTd>
+              {/* ✅ 수정됨: 합계도 0원이면 0원으로 표시 */}
               <Td style={{ fontWeight: "bold" }}>
-                {totalSum > 0 ? `${totalSum.toLocaleString()}원` : ""}
+                {totalSum.toLocaleString()}원
               </Td>
               <LabelTd>용도</LabelTd>
               <Td>소득공제용</Td>
@@ -210,10 +207,10 @@ const CertificateTemplate = forwardRef<HTMLDivElement, Props>(
 CertificateTemplate.displayName = "CertificateTemplate";
 export default CertificateTemplate;
 
-// --- Styles ---
+// --- Styles (기존과 동일) ---
 const Wrapper = styled.div`
-  width: 794px; /* A4 width */
-  height: 1123px; /* A4 height */
+  width: 794px;
+  height: 1123px;
   background: white;
   padding: 40px;
   font-family: "Pretendard", sans-serif;
