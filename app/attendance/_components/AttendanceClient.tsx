@@ -336,36 +336,45 @@ export default function AttendanceClient({
   }, [currentDate, calendarEvents]);
 
   // 전월 데이터 Fetching (날짜 변경 시에만 실행, 초기엔 pass)
+
+  // 전월 데이터 Fetching
   useEffect(() => {
     let isMounted = true;
+
     const fetchPrevData = async () => {
-      // 이미 데이터가 있고 날짜가 오늘 날짜와 같은 달이면 패스 (서버 데이터 사용)
-      if (
-        isSameDay(currentDate, new Date()) &&
-        Object.keys(prevDataMap).length > 0 &&
-        initialPrevData // 서버 데이터가 존재할 때만 스킵
-      ) {
+      // 1️⃣ [현재 달]로 돌아온 경우: 서버에서 받은 초기값으로 즉시 복구
+      if (isSameDay(currentDate, new Date()) && initialPrevData) {
+        setPrevDataMap(initialPrevData);
         return;
       }
 
+      // 2️⃣ [다른 달]로 이동한 경우:
+      // 🔥 핵심 수정: 일단 기존 데이터를 싹 비웁니다(로딩 중 꼬임 방지)
+      setPrevDataMap({});
+
       const currentStart = startOfMonth(currentDate);
       const prevMonthEnd = format(subDays(currentStart, 1), "yyyy-MM-dd");
+
       try {
         const data = await getPrevMonthLastDataAction(
           academyCode,
           prevMonthEnd
         );
-        if (isMounted) setPrevDataMap(data || {});
+        if (isMounted) {
+          setPrevDataMap(data || {});
+        }
       } catch (error) {
         console.error("전월 데이터 조회 실패:", error);
       }
     };
+
     fetchPrevData();
+
     return () => {
       isMounted = false;
     };
-  }, [currentDate, academyCode]); // initialPrevData 의존성 제거
-
+  }, [currentDate, academyCode, initialPrevData]);
+  // ... 기존 코드 ...
   // 출석 데이터 Map 변환
   const attendanceMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -529,7 +538,7 @@ export default function AttendanceClient({
             })}
           </TableHeader>
 
-          <TableBody>
+          <TableBody key={currentDate.toString()}>
             {visibleStudents.map((student: any) => (
               <StudentRow
                 key={student.id}

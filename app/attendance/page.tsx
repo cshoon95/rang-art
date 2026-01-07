@@ -6,6 +6,8 @@ import { startOfMonth, subDays, format } from "date-fns";
 import Loading from "../home/_components/Loading";
 import AttendanceClient from "./_components/AttendanceClient";
 
+export const dynamic = "force-dynamic"; // ⚡️ 핵심: 이 페이지는 빌드 타임이 아니라 요청 때마다 새로 그린다.
+
 export default async function AttendancePage() {
   // 1. 세션 및 학원 코드 가져오기
   const session = await getServerSession(authOptions);

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { format, subMonths } from "date-fns";
+import { unstable_noStore as noStore } from "next/cache"; // 👈 import 추가
 
 // 1. 기간별 출석 데이터 조회
 export async function getAttendanceListAction(
@@ -88,6 +89,7 @@ export async function getPrevMonthLastDataAction(
   academyCode: string,
   prevMonthEnd: string
 ) {
+  noStore(); // ⚡️ 핵심: 이 함수는 절대 캐싱하지 않고 매번 실행됨
   const supabase = await createClient();
 
   // 🚀 최적화 전략: "전월 말일" 기준 데이터이므로, 너무 먼 과거 데이터(1년 전 등)는 필요 없을 확률이 높습니다.
