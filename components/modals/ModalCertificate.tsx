@@ -31,31 +31,37 @@ export default function ModalCertificate({ academyCode, year, name }: Props) {
     setIsDownloading(true);
 
     try {
-      // 1. 폰트 로딩 등 워밍업 (선택 사항이지만 추천)
       await toPng(ref.current, { cacheBust: true });
 
-      // 2. 이미지 생성 설정
       const dataUrl = await toPng(ref.current, {
         cacheBust: true,
-        pixelRatio: 4, // 고해상도 출력을 위해 3~4 권장
+        pixelRatio: 4,
         backgroundColor: "white",
-        // ✨ 핵심: 캡처 시에는 강제로 A4 픽셀 크기로 설정하고 스케일을 1로 원복
         width: 794,
         height: 1123,
         style: {
-          transform: "scale(1)", // 미리보기의 축소(0.6) 무시하고 1:1 크기로 캡처
+          transform: "scale(1)",
           transformOrigin: "top left",
           margin: "0",
         },
       });
 
-      // 3. PDF 생성 (A4: 210mm x 297mm)
       const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = 210;
-      const pdfHeight = 297;
 
-      // 이미지를 PDF 크기에 꽉 차게 삽입
-      pdf.addImage(dataUrl, "PNG", 0, 0, pdfWidth, pdfHeight);
+      // A4 전체 크기
+      const pageWidth = 210;
+      const pageHeight = 297;
+
+      // ✅ 여백 설정 (원하는 만큼 mm 단위로 조절하세요)
+      const margin = 20; // 상하좌우 10mm 여백
+
+      // 여백을 뺀 실제 이미지 크기 계산
+      const imgWidth = pageWidth - margin * 2;
+      const imgHeight = pageHeight - margin * 2;
+
+      // 이미지를 중앙에 배치 (x: margin, y: margin)
+      pdf.addImage(dataUrl, "PNG", margin, margin, imgWidth, imgHeight);
+
       pdf.save(`교육비납입증명서_${name}_${year}.pdf`);
     } catch (err) {
       console.error("Download Failed:", err);
@@ -64,7 +70,6 @@ export default function ModalCertificate({ academyCode, year, name }: Props) {
       setIsDownloading(false);
     }
   };
-
   return (
     <Container>
       <ScrollArea>
