@@ -406,20 +406,38 @@ export async function getStudentPaymentDataAction(
   }
 
   // 2. 1월~12월 데이터 채우기 (빈 달은 0원으로)
+  // 2. 1월~12월 데이터 채우기 (중복 월 합산)
   const result = Array.from({ length: 12 }, (_, i) => {
-    const month = String(i + 1).padStart(2, "0");
-    const payment = data.find(
-      (p) => String(p.month).padStart(2, "0") === month
+    // 비교할 월 문자열 (예: "01", "06", "11")
+    const targetMonth = String(i + 1).padStart(2, "0");
+
+    // 1. 해당 월에 해당하는 모든 결제 내역을 찾습니다 (filter 사용)
+    const monthlyPayments = data.filter(
+      (p) => String(p.month).padStart(2, "0") === targetMonth
     );
 
+    // 2. 찾은 내역들의 금액(fee)을 모두 더합니다 (reduce 사용)
+    const totalFee = monthlyPayments.reduce(
+      (sum, item) => sum + Number(item.fee),
+      0
+    );
+
+    // (선택사항) 비고(note)가 여러 개일 경우 콤마로 합쳐서 보여줍니다.
+    const combinedNote = monthlyPayments
+      .map((p) => p.note)
+      .filter((n) => n && n.trim() !== "") // 빈 값 제거
+      .join(", ");
+
+    // 날짜는 해당 월의 첫 번째 결제일 혹은 마지막 결제일 등을 표시 (여기선 첫 번째)
+    const day = monthlyPayments.length > 0 ? monthlyPayments[0].day : "";
+
     return {
-      month,
-      fee: payment ? Number(payment.fee) : 0,
-      day: payment?.day || "",
-      note: payment?.note || "",
+      month: targetMonth,
+      fee: totalFee, // 합산된 금액
+      day: day,
+      note: combinedNote, // 합쳐진 비고
     };
   });
-
   return result;
 }
 
