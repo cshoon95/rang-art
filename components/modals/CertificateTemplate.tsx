@@ -178,7 +178,7 @@ const CertificateTemplate = forwardRef<HTMLDivElement, Props>(
           <AcademySignRow>
             <span
               style={{
-                marginRight: "12px",
+                marginRight: "28px",
               }}
             >
               신 청 인
