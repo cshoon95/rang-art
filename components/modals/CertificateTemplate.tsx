@@ -175,10 +175,17 @@ const CertificateTemplate = forwardRef<HTMLDivElement, Props>(
             {new Date().getFullYear()}년 {new Date().getMonth() + 1}월{" "}
             {new Date().getDate()}일
           </DateRow>
-          <SignRow>
-            <span>신 청 인</span>
-            <span>(인)</span>
-          </SignRow>
+          <AcademySignRow>
+            <span
+              style={{
+                marginRight: "12px",
+              }}
+            >
+              신 청 인
+            </span>
+
+            <StampArea>(인)</StampArea>
+          </AcademySignRow>
         </ConfirmBox>
 
         {/* 하단 서명 */}
@@ -188,9 +195,16 @@ const CertificateTemplate = forwardRef<HTMLDivElement, Props>(
             {new Date().getFullYear()}년 {new Date().getMonth() + 1}월{" "}
             {new Date().getDate()}일
           </DateRow>
-          <AcademySignRow>
+          <AcademySignRow style={{ gap: "16px" }}>
             <span>학 원 장</span>
-            <span style={{ fontWeight: "bold", fontSize: "16px" }}>
+            <span
+              style={{
+                fontWeight: "bold",
+                fontSize: "16px",
+                marginLeft: "0px",
+                paddingLeft: "16px",
+              }}
+            >
               {ownerName}
             </span>
             <StampArea>
@@ -295,7 +309,7 @@ const StampArea = styled.span`
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: right;
   width: 60px;
   height: 24px;
 `;
@@ -304,7 +318,7 @@ const StampImage = styled(Image)`
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-15%, -50%);
   opacity: 0.8;
   z-index: 1;
 `;
