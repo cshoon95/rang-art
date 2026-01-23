@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from "react";
 import styled from "styled-components";
-import { toPng } from "html-to-image";
+import { toJpeg } from "html-to-image";
 import CertificateTemplate from "@/components/modals/CertificateTemplate";
 import { Download } from "lucide-react";
 import jsPDF from "jspdf";
@@ -31,11 +31,14 @@ export default function ModalCertificate({ academyCode, year, name }: Props) {
     setIsDownloading(true);
 
     try {
-      await toPng(ref.current, { cacheBust: true });
+      // 첫 번째 호출은 폰트 로딩 이슈 방지용 (그대로 유지)
+      await toJpeg(ref.current, { cacheBust: true });
 
-      const dataUrl = await toPng(ref.current, {
+      // 2. toJpeg 사용 및 옵션 최적화
+      const dataUrl = await toJpeg(ref.current, {
         cacheBust: true,
-        pixelRatio: 4,
+        quality: 0.8, // 0 ~ 1 사이 값. 0.8이면 화질 좋으면서 용량 대폭 감소
+        pixelRatio: 2.5, // 4는 너무 큽니다. 2 ~ 2.5면 인쇄용으로 충분합니다.
         backgroundColor: "white",
         width: 794,
         height: 1123,
@@ -46,21 +49,33 @@ export default function ModalCertificate({ academyCode, year, name }: Props) {
         },
       });
 
-      const pdf = new jsPDF("p", "mm", "a4");
+      // 3. jsPDF 압축 옵션 활성화
+      const pdf = new jsPDF({
+        orientation: "p",
+        unit: "mm",
+        format: "a4",
+        compress: true, // PDF 내부 압축 활성화
+      });
 
-      // A4 전체 크기
       const pageWidth = 210;
       const pageHeight = 297;
+      const margin = 20;
 
-      // ✅ 여백 설정 (원하는 만큼 mm 단위로 조절하세요)
-      const margin = 20; // 상하좌우 10mm 여백
-
-      // 여백을 뺀 실제 이미지 크기 계산
       const imgWidth = pageWidth - margin * 2;
       const imgHeight = pageHeight - margin * 2;
 
-      // 이미지를 중앙에 배치 (x: margin, y: margin)
-      pdf.addImage(dataUrl, "PNG", margin, margin, imgWidth, imgHeight);
+      // 4. 이미지 추가 시 압축 알고리즘 'FAST' 또는 'MEDIUM' 사용 (선택 사항)
+      // 마지막 인자인 "FAST"는 압축 속도와 효율을 높여줍니다.
+      pdf.addImage(
+        dataUrl,
+        "JPEG",
+        margin,
+        margin,
+        imgWidth,
+        imgHeight,
+        undefined,
+        "FAST"
+      );
 
       pdf.save(`교육비납입증명서_${name}_${year}.pdf`);
     } catch (err) {

@@ -4,62 +4,72 @@ import { createClient } from "@/utils/supabase/server"; // Supabase 클라이언
 import { PaymentType } from "../_types/type";
 // ... (기존 getMonthlyTotalAction 등은 유지)
 
-// ✅ [New] 월별 입원/퇴원/총원 통계 조회
 export async function getCustomerStatsAction(
   year: string,
   academyCode: string
 ) {
   const supabase = await createClient();
 
-  // ✅ 1. 쿼리 수정
-  // 단순히 입/퇴원 날짜만 보는 게 아니라,
-  // "입원일이 올해 말일 이전" 이면서 "퇴원일이 없거나 올해 1월 1일 이후"인 사람을 모두 가져와야
-  // 이월된 인원까지 계산할 수 있습니다.
-  // (편의상 academy_code로 전체를 가져와서 JS로 필터링하는 것이 데이터 양이 많지 않다면 가장 정확합니다)
-
   const { data, error } = await supabase
     .from("customers")
     .select("name, date, discharge, state")
     .eq("academy_code", academyCode);
-  // .lte("date", `${year}1231`) // (선택) 올해 이후 가입자는 제외하고 싶다면 추가
 
-  if (error) {
+  if (error || !data) {
     console.error("Customer Stats Error:", error);
     return [];
   }
 
-  // ✅ 2. 기초 재원 계산 (Base Total)
-  // 1월 1일 00시 기준으로 이미 다니고 있는 사람 수
-  // 조건: (입원일 < 올해0101) AND (퇴원일이 없거나 OR 퇴원일 >= 올해0101)
-  let currentTotal = data.filter((c: any) => {
-    return c.state === "0";
-  }).length;
-
-  // 3. 월별 통계 초기화
+  // 12개월 통계 생성
   const stats = Array.from({ length: 12 }, (_, i) => {
-    const month = String(i + 1).padStart(2, "0");
-    return { month, join: 0, leave: 0, total: 0, data };
-  });
+    const monthStr = String(i + 1).padStart(2, "0"); // "01", "02"...
+    const currentMonthPrefix = `${year}${monthStr}`; // "202401"
 
-  // 4. 데이터 순회하며 월별 입/퇴원 집계
-  data.forEach((customer: any) => {
-    // 🟢 입원(등록) 집계
-    if (customer.date && customer.date.startsWith(year)) {
-      const m = parseInt(customer.date.substring(4, 6), 10) - 1;
-      if (stats[m]) stats[m].join += 1;
-    }
+    // 해당 월의 말일 계산 (Total 계산용, 예: "20240131")
+    const lastDayOfMonth = new Date(Number(year), i + 1, 0).getDate();
+    const currentMonthEndDate = `${year}${monthStr}${lastDayOfMonth}`;
+    console.log("currentMonthPrefix", currentMonthPrefix);
+    // 🟢 Join (신규) 계산
+    // 조건 1: date(등록일)이 이번 달인 사람
+    // 조건 2: state가 '0'(재원)인 사람 (요청사항 반영)
+    const joinCount = data.filter(
+      (c: any) =>
+        c.date && c.date.startsWith(currentMonthPrefix) && c.state === "0"
+    ).length;
 
-    // 🔴 퇴원 집계
-    if (customer.discharge && customer.discharge.startsWith(year)) {
-      const m = parseInt(customer.discharge.substring(4, 6), 10) - 1;
-      if (stats[m]) stats[m].leave += 1;
-    }
-  });
+    // 🔴 Leave (퇴원) 계산
+    // 조건: discharge(퇴원일)이 이번 달인 사람
+    const leaveCount = data.filter(
+      (c: any) =>
+        c.discharge &&
+        c.discharge.startsWith(currentMonthPrefix) &&
+        c.state === "2"
+    ).length;
 
-  // ✅ 5. 총원(Total) 누적 계산
-  // (전월 총원 + 당월 입원 - 당월 퇴원 = 당월 총원)
-  stats.forEach((stat) => {
-    stat.total = currentTotal;
+    // 🔵 Total (총원) 계산 - 해당 월 말일 시점 기준
+    // 재원생 수 = (가입일이 이 달 말일보다 빠르고) AND (퇴원일이 없거나 이 달 말일보다 늦음)
+    const totalCount = data.filter((c: any) => {
+      // 등록일이 없으면 카운트 불가
+      if (!c.date) return false;
+
+      // 1. 이 달 말일까지 가입한 사람인가?
+      const joined = c.date <= currentMonthEndDate;
+
+      // 2. 이 달 말일 기준으로 아직 안 나갔는가?
+      // discharge가 null, undefined, 빈문자열('')이면 퇴원 안한 것으로 간주
+      // discharge가 있어도 이 달 말일보다 크면(미래면) 아직 재원 중인 것으로 간주
+      const hasDischargeDate = c.discharge && c.discharge.trim() !== "";
+      const notLeftYet = !hasDischargeDate || c.discharge > currentMonthEndDate;
+
+      return joined && notLeftYet;
+    }).length;
+
+    return {
+      month: monthStr,
+      join: joinCount,
+      leave: leaveCount,
+      total: totalCount,
+    };
   });
 
   return stats;
