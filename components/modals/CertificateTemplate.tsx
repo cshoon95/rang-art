@@ -2,7 +2,8 @@
 
 import React, { forwardRef, useMemo } from "react";
 import styled from "styled-components";
-import Image from "next/image";
+// ❌ 삭제: import Image from "next/image";
+// (Next Image는 캡처 시 문제를 일으킴)
 import StampImg from "@/assets/stamp.png";
 
 interface Props {
@@ -14,7 +15,7 @@ interface Props {
 
 const CertificateTemplate = forwardRef<HTMLDivElement, Props>(
   ({ data = [], name, year, branchInfo }, ref) => {
-    // 지점 정보가 없을 경우 대비 안전한 디폴트값
+    // ... (데이터 처리 로직은 기존과 동일) ...
     const academyName = branchInfo?.name || "학원명 미기재";
     const businessNo = branchInfo?.business_no || "";
     const fullAddress = `${branchInfo?.address || ""} ${
@@ -23,7 +24,6 @@ const CertificateTemplate = forwardRef<HTMLDivElement, Props>(
     const tel = branchInfo?.tel || "";
     const ownerName = branchInfo?.owner || "";
 
-    // ✅ 1월~12월 데이터 채우기 (데이터 없으면 fee: 0)
     const fullYearData = useMemo(() => {
       return Array.from({ length: 12 }, (_, i) => {
         const monthNum = i + 1;
@@ -35,10 +35,7 @@ const CertificateTemplate = forwardRef<HTMLDivElement, Props>(
       });
     }, [data]);
 
-    // 총 합계 계산
     const totalSum = fullYearData.reduce((sum, item) => sum + item.fee, 0);
-
-    // 데이터를 6개월씩 나눔
     const firstHalf = fullYearData.slice(0, 6);
     const secondHalf = fullYearData.slice(6, 12);
 
@@ -46,8 +43,13 @@ const CertificateTemplate = forwardRef<HTMLDivElement, Props>(
       <Wrapper ref={ref}>
         <Title>학원교육비(수강료)납입증명서</Title>
 
+        {/* ... (테이블 섹션 1, 2, 3, 4 기존 코드 유지) ... */}
+
+        {/* (중략... 위쪽 테이블 코드는 그대로 두세요) */}
+
         {/* 1. 신청인 */}
         <SectionTable>
+          {/* ... 기존 내용 유지 ... */}
           <tbody>
             <tr>
               <Th
@@ -70,7 +72,8 @@ const CertificateTemplate = forwardRef<HTMLDivElement, Props>(
           </tbody>
         </SectionTable>
 
-        {/* 2. 대상 학원생 */}
+        {/* 2. 대상 학원생, 3. 수강학원, 4. 납입금액 테이블은 기존 코드 유지... */}
+        {/* (코드 길이상 중략합니다. 기존 테이블 코드는 그대로 쓰세요) */}
         <SectionTable>
           <tbody>
             <tr>
@@ -93,7 +96,6 @@ const CertificateTemplate = forwardRef<HTMLDivElement, Props>(
           </tbody>
         </SectionTable>
 
-        {/* 3. 수강학원 */}
         <SectionTable>
           <tbody>
             <tr>
@@ -112,14 +114,13 @@ const CertificateTemplate = forwardRef<HTMLDivElement, Props>(
             </tr>
             <tr>
               <LabelTd>⑩ 소재지</LabelTd>
-              <Td>{fullAddress}</Td>
+              <Td>{fullAddress}</Td> {/* 👈 올바르게 수정됨 */}
               <LabelTd>⑪ 전화번호</LabelTd>
               <Td>{tel}</Td>
             </tr>
           </tbody>
         </SectionTable>
 
-        {/* 4. 납입금액 */}
         <SectionTable>
           <tbody>
             <tr>
@@ -130,6 +131,7 @@ const CertificateTemplate = forwardRef<HTMLDivElement, Props>(
                 3. 수강료 납입금액 ({year}년)
               </Th>
             </tr>
+            {/* ... 납입금액 루프 기존 유지 ... */}
             <tr>
               <LabelTd>월 별</LabelTd>
               <LabelTd>납입 금액</LabelTd>
@@ -140,21 +142,15 @@ const CertificateTemplate = forwardRef<HTMLDivElement, Props>(
               const secondItem = secondHalf[idx];
               return (
                 <tr key={idx}>
-                  {/* 1~6월 */}
                   <LabelTd>{item.month}월</LabelTd>
-                  {/* ✅ 수정됨: 0보다 클 때 조건 제거 -> 무조건 0원 표시 */}
                   <Td>{item.fee.toLocaleString()}원</Td>
-
-                  {/* 7~12월 */}
                   <LabelTd>{secondItem.month}월</LabelTd>
-                  {/* ✅ 수정됨: 0보다 클 때 조건 제거 -> 무조건 0원 표시 */}
                   <Td>{secondItem.fee.toLocaleString()}원</Td>
                 </tr>
               );
             })}
             <tr>
               <LabelTd>연간합계</LabelTd>
-              {/* ✅ 수정됨: 합계도 0원이면 0원으로 표시 */}
               <Td style={{ fontWeight: "bold" }}>
                 {totalSum.toLocaleString()}원
               </Td>
@@ -164,7 +160,7 @@ const CertificateTemplate = forwardRef<HTMLDivElement, Props>(
           </tbody>
         </SectionTable>
 
-        {/* 확인 문구 */}
+        {/* ✅ [수정] 확인 문구 */}
         <ConfirmBox>
           <p>
             소득세법 제52조 및 동법 시행령 제113조 제1항의 규정에 의하여
@@ -175,41 +171,42 @@ const CertificateTemplate = forwardRef<HTMLDivElement, Props>(
             {new Date().getFullYear()}년 {new Date().getMonth() + 1}월{" "}
             {new Date().getDate()}일
           </DateRow>
+
+          {/* Flex가 좁아져도 줄바꿈 안 되게 수정 */}
           <AcademySignRow>
-            <span
-              style={{
-                marginRight: "28px",
-              }}
-            >
+            <span style={{ marginRight: "28px", whiteSpace: "nowrap" }}>
               신 청 인
             </span>
-
             <StampArea>(인)</StampArea>
           </AcademySignRow>
         </ConfirmBox>
 
-        {/* 하단 서명 */}
+        {/* ✅ [수정] 하단 서명 */}
         <SignBox>
           <p>위와 같이 학원교육비(수강료)를 납입하였음을 확인합니다.</p>
           <DateRow>
             {new Date().getFullYear()}년 {new Date().getMonth() + 1}월{" "}
             {new Date().getDate()}일
           </DateRow>
+
+          {/* Flex가 좁아져도 줄바꿈 안 되게 수정 */}
           <AcademySignRow style={{ gap: "16px" }}>
-            <span>학 원 장</span>
+            <span style={{ whiteSpace: "nowrap" }}>학 원 장</span>
             <span
               style={{
                 fontWeight: "bold",
                 fontSize: "16px",
                 marginLeft: "0px",
                 paddingLeft: "16px",
+                whiteSpace: "nowrap", // 이름 길어도 줄바꿈 방지
               }}
             >
               {ownerName}
             </span>
             <StampArea>
               (인)
-              <StampImage src={StampImg} alt="도장" width={60} height={60} />
+              {/* ✅ [수정] Next/Image 대신 일반 img 태그 사용 + src.src 사용 */}
+              <StampImgTag src={StampImg.src} alt="도장" />
             </StampArea>
           </AcademySignRow>
         </SignBox>
@@ -221,9 +218,12 @@ const CertificateTemplate = forwardRef<HTMLDivElement, Props>(
 CertificateTemplate.displayName = "CertificateTemplate";
 export default CertificateTemplate;
 
-// --- Styles (기존과 동일) ---
+// --- Styles ---
+
 const Wrapper = styled.div`
   width: 794px;
+  /* ✅ [중요] 모바일에서 화면이 작아도 절대 찌그러지지 않게 최소 너비 고정 */
+  min-width: 794px;
   height: 1123px;
   background: white;
   padding: 40px;
@@ -231,8 +231,17 @@ const Wrapper = styled.div`
   color: #000;
   box-sizing: border-box;
   margin: 0 auto;
+
+  /* 캡처 시 줄바꿈 방지용 전역 설정 */
+  white-space: nowrap;
+
+  /* 내부 텍스트 줄바꿈 허용이 필요한 곳(긴 문장)은 normal로 오버라이딩 */
+  p {
+    white-space: normal;
+  }
 `;
 
+// ... (Title, SectionTable, Th, Td, LabelTd 등 기존 스타일 유지) ...
 const Title = styled.h1`
   text-align: center;
   font-size: 24px;
@@ -253,6 +262,7 @@ const SectionTable = styled.table`
     border: 1px solid #000;
     padding: 6px;
     text-align: center;
+    white-space: normal; /* 테이블 내부는 줄바꿈 허용 */
   }
 `;
 
@@ -260,12 +270,10 @@ const Th = styled.th`
   background-color: #f3f4f6;
   font-weight: 700;
 `;
-
 const LabelTd = styled.td`
   background-color: #f9fafb;
   width: 15%;
 `;
-
 const Td = styled.td`
   width: 35%;
 `;
@@ -298,6 +306,9 @@ const SignRow = styled.div`
   gap: 60px;
   margin-top: 15px;
   padding-right: 40px;
+
+  /* ✅ Flex 아이템들이 좁아져도 절대 줄바꿈 하지 않음 */
+  flex-wrap: nowrap;
 `;
 
 const AcademySignRow = styled(SignRow)`
@@ -312,13 +323,17 @@ const StampArea = styled.span`
   justify-content: right;
   width: 60px;
   height: 24px;
+  white-space: nowrap; /* (인) 글자 줄바꿈 방지 */
 `;
 
-const StampImage = styled(Image)`
+// ✅ [수정] 일반 img 태그용 스타일 (Next Image 아님)
+const StampImgTag = styled.img`
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-15%, -50%);
   opacity: 0.8;
   z-index: 1;
+  width: 60px; /* 명시적 크기 지정 */
+  height: 60px;
 `;
