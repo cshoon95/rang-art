@@ -16,7 +16,7 @@ export interface StudentSimple {
 // src/api/calendar/type.ts
 
 export interface CalendarRow {
-  id: number;
+  idx: number;
   content: string;
   start_date: string;
   start_time: string;
@@ -42,12 +42,17 @@ export interface CalendarFormData {
   isHoliday?: boolean;
 }
 export interface MappedEvent {
-  id: number | string;
+  // 1. id는 DB(숫자)와 공휴일(문자열) 모두 커버해야 하므로 string | number
+  id: string | number;
+
+  // 2. idx는 공휴일일 경우 없을 수 있으므로 '?' (선택적) 처리
+  idx?: number;
+
   title: string;
   start: Date;
   end: Date;
-  resource: any;
-  type: "event" | "holiday"; // 캘린더 라이브러리용 타입
+  resource?: any; // 필요에 따라 상세 타입 지정
+  type: "event" | "school_holiday" | "holiday"; // holiday 추가됨
   substitute?: boolean;
 }
 

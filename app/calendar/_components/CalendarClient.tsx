@@ -7,7 +7,6 @@ import {
   dateFnsLocalizer,
   Views,
   ToolbarProps,
-  EventPropGetter,
 } from "react-big-calendar";
 import {
   format,
@@ -83,13 +82,19 @@ export default function CalendarClient({ academyCode, userId }: Props) {
 
   // --- 3. Events Calculation (Memoized) ---
   const events: MappedEvent[] = useMemo(() => {
+    // ✅ [수정 포인트] DB에서 가져온 데이터를 매핑할 때 idx를 명시적으로 할당합니다.
     const dbEvents = rawEvents
       ? rawEvents.map((item: CalendarRow) => ({
-          id: item.id,
+          id: item.idx, // 캘린더 라이브러리용 고유 ID (idx 사용)
+          idx: item.idx, // ✅ 모달로 넘겨줄 핵심 Key (idx)
           title: item.content,
           start: new Date(`${item.start_date}T${item.start_time}`),
           end: new Date(`${item.end_date}T${item.end_time}`),
-          resource: { ...item, isHoliday: item.type === "school_holiday" },
+          resource: {
+            ...item,
+            idx: item.idx, // resource 내부에도 idx 포함
+            isHoliday: item.type === "school_holiday",
+          },
           type: "event" as const,
         }))
       : [];
@@ -204,7 +209,8 @@ export default function CalendarClient({ academyCode, userId }: Props) {
         }
 
         return {
-          id: `holiday-${year}-${idx}-${h.date}`,
+          id: `holiday-${year}-${idx}-${h.date}`, // 공휴일은 문자열 ID 유지
+          idx: undefined, // 공휴일은 DB idx 없음
           title: title,
           start: new Date(h.date),
           end: new Date(h.date),
@@ -233,6 +239,7 @@ export default function CalendarClient({ academyCode, userId }: Props) {
   const handleSelectEvent = useCallback((event: MappedEvent) => {
     if (event.type === "holiday") return;
     if (event.resource) {
+      // ✅ 여기서 event 객체에는 이제 `idx`가 포함되어 있습니다.
       setSelectedEvent(event);
       setIsModalOpen(true);
     }
@@ -243,7 +250,7 @@ export default function CalendarClient({ academyCode, userId }: Props) {
     setSelectedEvent(null);
   }, []);
 
-  // ✅ [수정] any 타입으로 받아서 처리 (라이브러리 타입 충돌 방지)
+  // any 타입으로 받아서 처리 (라이브러리 타입 충돌 방지)
   const eventPropGetter = useCallback(
     (event: any) => {
       const isPublicHoliday = event.type === "holiday";
@@ -263,7 +270,6 @@ export default function CalendarClient({ academyCode, userId }: Props) {
           fontSize: "12px",
           fontWeight: "600",
           boxSizing: "border-box" as const,
-          // ✅ [수정] pointerEvents 타입 캐스팅
           pointerEvents: (isPublicHoliday
             ? "none"
             : "auto") as React.CSSProperties["pointerEvents"],
@@ -274,22 +280,17 @@ export default function CalendarClient({ academyCode, userId }: Props) {
     },
     [currentDate]
   );
+
   const CustomToolbar = useCallback((toolbar: ToolbarProps) => {
     const goToBack = () => {
-      // ❌ 삭제: setCurrentDate((prev) => ... );
-      // ✅ 유지: 라이브러리가 알아서 onNavigate를 트리거하여 상태를 변경합니다.
       toolbar.onNavigate("PREV");
     };
 
     const goToNext = () => {
-      // ❌ 삭제: setCurrentDate((prev) => ... );
-      // ✅ 유지
       toolbar.onNavigate("NEXT");
     };
 
     const goToCurrent = () => {
-      // ❌ 삭제: setCurrentDate(new Date());
-      // ✅ 유지
       toolbar.onNavigate("TODAY");
     };
 
@@ -301,8 +302,6 @@ export default function CalendarClient({ academyCode, userId }: Props) {
           <NavButton onClick={goToBack}>
             <ChevronLeft size={20} />
           </NavButton>
-          {/* toolbar.label을 사용하면 라이브러리가 계산한 정확한 라벨을 보여줍니다. 
-              혹은 기존처럼 toolbar.date를 formatting 해도 됩니다. */}
           <MonthTitle>{format(toolbar.date, "yyyy년 M월")}</MonthTitle>
           <NavButton onClick={goToNext}>
             <ChevronRight size={20} />
@@ -349,11 +348,9 @@ export default function CalendarClient({ academyCode, userId }: Props) {
           </Header>
 
           <CalendarWrapper>
-            {/* ✅ [수정] StyledCalendar에서 제네릭 <MappedEvent> 제거 */}
             <StyledCalendar
               localizer={localizer}
               events={events}
-              // ✅ [수정] any로 받아서 Date로 반환하는 함수로 명시
               startAccessor={(event: any) => event.start}
               endAccessor={(event: any) => event.end}
               date={currentDate}
@@ -364,7 +361,6 @@ export default function CalendarClient({ academyCode, userId }: Props) {
               popup
               selectable
               onSelectSlot={handleSelectSlot}
-              // ✅ [수정] any로 받아서 처리
               onSelectEvent={(event: any) => handleSelectEvent(event)}
               onDrillDown={(date) =>
                 handleSelectSlot({ start: date, end: date })
@@ -389,7 +385,7 @@ export default function CalendarClient({ academyCode, userId }: Props) {
 }
 
 // --------------------------------------------------------------------------
-// ✨ Styles (기존과 동일)
+// ✨ Styles
 // --------------------------------------------------------------------------
 
 const Container = styled.div`
@@ -466,7 +462,6 @@ const CalendarWrapper = styled.div`
   }
 `;
 
-// ✅ StyledCalendar (제네릭 없이 정의)
 const StyledCalendar = styled(Calendar)`
   font-family: "Pretendard", sans-serif;
 

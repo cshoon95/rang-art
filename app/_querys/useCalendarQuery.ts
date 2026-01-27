@@ -60,8 +60,10 @@ export const useUpdateCalendar = (
   const { addToast } = useToastStore();
 
   return useMutation({
-    mutationFn: (data: CalendarFormData & { id: number; updater_id: string }) =>
-      updateCalendarAction({ ...data, academy_code: academyCode }),
+    // 👈 [변경] id -> idx 로 변경
+    mutationFn: (
+      data: CalendarFormData & { idx: number; updater_id: string }
+    ) => updateCalendarAction({ ...data, academy_code: academyCode }),
     onSuccess: (response) => {
       if (response.success) {
         queryClient.invalidateQueries({ queryKey: ["calendar", academyCode] });
@@ -91,7 +93,8 @@ export const useDeleteCalendar = (
   const { addToast } = useToastStore();
 
   return useMutation({
-    mutationFn: (id: number) => deleteCalendarAction(id, academyCode),
+    // 👈 [변경] id -> idx 로 변경
+    mutationFn: (idx: number) => deleteCalendarAction(idx, academyCode),
     onSuccess: (response) => {
       if (response.success) {
         queryClient.invalidateQueries({ queryKey: ["calendar", academyCode] });

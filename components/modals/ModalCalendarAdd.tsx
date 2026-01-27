@@ -154,39 +154,41 @@ export default function ModalCalendarAdd({
       // 필요하다면 토스트 메시지 등을 띄울 수 있음
       // toast.error("저장에 실패했습니다.");
     };
-
-    if (selectedEvent && selectedEvent.id) {
+    const targetIdx = selectedEvent?.idx || selectedEvent?.resource?.idx;
+    if (targetIdx != null) {
+      // 1. 수정 (Update) - idx 기준
       updateMutation.mutate(
         {
           ...payload,
-          id: Number(selectedEvent.id),
+          idx: Number(targetIdx), // 👈 id -> idx
           updater_id: userId,
         },
-        {
-          onError: handleError, // 실패 시 다시 클릭 가능하도록 해제
-        }
+        { onError: handleError }
       );
     } else {
+      // 2. 등록 (Insert)
       insertMutation.mutate(
         {
           ...payload,
           register_id: userId,
         },
-        {
-          onError: handleError, // 실패 시 다시 클릭 가능하도록 해제
-        }
+        { onError: handleError }
       );
     }
   };
 
   const handleDelete = () => {
-    if (selectedEvent) {
+    // ✅ [수정 포인트] 삭제도 idx 기준
+    const targetIdx = selectedEvent?.idx || selectedEvent?.resource?.idx;
+
+    if (targetIdx) {
       openModal({
         type: "ALERT",
         title: "지점 삭제",
         content: "정말 삭제하시겠어요?",
         onConfirm: () => {
-          deleteMutation.mutate(Number(selectedEvent.id), {
+          deleteMutation.mutate(Number(targetIdx), {
+            // 👈 id -> idx
             onSuccess: () => {
               closeModal();
             },

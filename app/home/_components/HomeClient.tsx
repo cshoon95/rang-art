@@ -263,12 +263,16 @@ export default function DashboardClient({ academyCode, userId }: Props) {
 
   const handleEditEvent = useCallback((eventItem: any) => {
     const mapped: MappedEvent = {
-      id: eventItem.id,
+      // 🚨 중요: 여기서 DB의 idx 값을 id 또는 idx 프로퍼티에 담습니다.
+      // (MappedEvent 타입에 idx가 없다면 id에 idx를 넣어서라도 넘겨야 합니다)=
+      idx: eventItem.idx, // 👈 안전하게 idx 프로퍼티도 추가 (타입 에러나면 MappedEvent 타입 정의 수정 필요)
+
       title: eventItem.title || eventItem.content,
       start: new Date(`${eventItem.start_date}T${eventItem.start_time}`),
       end: new Date(`${eventItem.end_date}T${eventItem.end_time}`),
       resource: eventItem,
       type: "event",
+      id: "",
     };
     setSelectedEvent(mapped);
     setIsModalOpen(true);

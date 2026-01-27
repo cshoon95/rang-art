@@ -81,12 +81,11 @@ export async function updateCalendarAction(
       start_time: formData.startTime,
       end_date: formData.endDate,
       end_time: formData.endTime,
-      updater_id: formData.updater_id, // 수정자 ID
+      updater_id: formData.updater_id,
       type: formData.type || "event",
-      // update_date: new Date().toISOString(), // 수정일 (필요시)
     })
-    .eq("id", formData.id)
-    .eq("academy_code", formData.academy_code); // 보안상 academy_code도 같이 체크
+    .eq("idx", formData.idx) // 👈 [변경] id -> idx
+    .eq("academy_code", formData.academy_code);
 
   if (error) {
     console.error("Update Calendar Error:", error);
@@ -101,7 +100,7 @@ export async function updateCalendarAction(
  * ✅ 캘린더 일정 삭제
  */
 export async function deleteCalendarAction(
-  id: number,
+  idx: number, // 👈 [변경] id -> idx
   academyCode: string
 ): Promise<ActionResponse> {
   const supabase = await createClient();
@@ -109,7 +108,7 @@ export async function deleteCalendarAction(
   const { error } = await supabase
     .from(TABLE_NAME)
     .delete()
-    .eq("id", id)
+    .eq("idx", idx) // 👈 [변경] id -> idx
     .eq("academy_code", academyCode);
 
   if (error) {
