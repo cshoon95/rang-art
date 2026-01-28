@@ -28,6 +28,7 @@ import ModalCalendarAdd from "@/components/modals/ModalCalendarAdd";
 import CalendarSkeleton from "./CalendarSkeleton";
 import { useGetCalendarList } from "@/app/_querys";
 import { MappedEvent, CalendarRow } from "@/app/_types/type";
+import PageTitleWithStar from "@/components/PageTitleWithStar";
 
 // --- 1. Global Styles ---
 const GlobalStyle = createGlobalStyle`
@@ -337,7 +338,7 @@ export default function CalendarClient({ academyCode, userId }: Props) {
         <Container>
           <GlobalStyle />
           <Header>
-            <Title>일정표</Title>
+            <PageTitleWithStar title={<Title>일정</Title>} />
             <AddButton
               onClick={() =>
                 handleSelectSlot({ start: new Date(), end: new Date() })
@@ -411,11 +412,14 @@ const Header = styled.div`
 `;
 
 const Title = styled.h1`
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 800;
   color: #191f28;
-  letter-spacing: -0.5px;
-  @media (max-width: 600px) {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  @media (max-width: 768px) {
     font-size: 20px;
   }
 `;

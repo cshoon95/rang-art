@@ -240,13 +240,15 @@ const HeaderTop = styled.div`
 `;
 
 const Title = styled.h1`
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 800;
   color: #191f28;
   margin: 0;
-  letter-spacing: -0.5px;
-  @media (max-width: 600px) {
-    font-size: 22px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  @media (max-width: 768px) {
+    font-size: 20px;
   }
 `;
 

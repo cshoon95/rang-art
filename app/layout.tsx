@@ -53,6 +53,16 @@ const sugarGothic = localFont({
   ],
   variable: "--font-custom",
 });
+const safariGothic = localFont({
+  src: [
+    {
+      path: "./fonts/safari.woff",
+      weight: "400",
+      style: "normal",
+    },
+  ],
+  variable: "--font-custom",
+});
 
 export default function RootLayout({
   children,
@@ -60,7 +70,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko" className={sugarGothic.variable}>
+    <html lang="ko" className={safariGothic.variable}>
       <body>
         <AppRouterCacheProvider>
           <Providers>

@@ -286,9 +286,7 @@ export default function PlanningClient({ academyCode, userId }: Props) {
         <PageLayout>
           {/* Header Controls */}
           <HeaderSection>
-            <PageTitleWithStar
-              title={<PageHeading>월간 계획 관리</PageHeading>}
-            />
+            <PageTitleWithStar title={<PageHeading>월간 계획안</PageHeading>} />
 
             <ControlsContainer>
               <MonthNavigator>
