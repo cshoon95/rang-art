@@ -70,7 +70,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko" className={safariGothic.variable}>
+    <html lang="ko" className={sugarGothic.variable}>
       <body>
         <AppRouterCacheProvider>
           <Providers>
