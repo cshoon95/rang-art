@@ -507,7 +507,9 @@ const SearchIconWrapper = styled.div`
 const TableContainer = styled.div`
   overflow-x: auto;
   width: 100%;
-  min-height: 500px;
+  @media (min-width: 768px) {
+    min-height: 500px;
+  }
 `;
 const Table = styled.table`
   width: 100%;

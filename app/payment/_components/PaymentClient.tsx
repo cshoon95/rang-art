@@ -369,7 +369,9 @@ const ContentLayout = styled.div`
   display: flex;
   gap: 24px;
   align-items: flex-start;
-  min-height: 600px;
+  @media (min-width: 768px) {
+    min-height: 600px;
+  }
 
   @media (max-width: 1024px) {
     flex-direction: column;
