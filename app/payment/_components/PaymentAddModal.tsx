@@ -46,6 +46,7 @@ export default function PaymentAddModal({
   const todayDate = new Date(today.getTime() - offset)
     .toISOString()
     .split("T")[0];
+  // app/api/proxy/route.ts (App Router 예시)
 
   const [formData, setFormData] = useState({
     date: todayDate,

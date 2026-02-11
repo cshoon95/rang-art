@@ -36,13 +36,11 @@ interface Props {
   academyCode: string;
 }
 
-// ✅ 컨텐츠 파싱 함수
-// ✅ 컨텐츠 파싱 함수
+// ✅ 컨텐츠 파싱 함수 (변경 없음)
 const parseAttendanceContent = (content: string) => {
   const clean = content.trim();
   const upperClean = clean.toUpperCase();
 
-  // 1. [최우선] '보'로 시작하면 무조건 MAKEUP 타입
   if (clean.startsWith("보")) {
     if (upperClean.includes("L")) {
       return {
@@ -61,12 +59,8 @@ const parseAttendanceContent = (content: string) => {
     };
   }
 
-  // ✅ [수정됨] 2. 슬래시('/')로 시작하는 경우 -> 결석 디테일 처리
-  // (주의: 일반 'L' 체크보다 먼저 해야 '/L'을 결석으로 잡을 수 있음)
   if (clean.startsWith("/")) {
-    const val = upperClean.replace("/", ""); // 슬래시 제거
-
-    // 2-1. /L 인 경우
+    const val = upperClean.replace("/", "");
     if (val === "L") {
       return {
         type: "ABSENT",
@@ -75,8 +69,6 @@ const parseAttendanceContent = (content: string) => {
         raw: clean,
       };
     }
-
-    // 2-2. /숫자 인 경우 (예: /1, /2)
     if (!isNaN(Number(val)) && val !== "") {
       return {
         type: "ABSENT",
@@ -85,13 +77,9 @@ const parseAttendanceContent = (content: string) => {
         raw: clean,
       };
     }
-
-    // 2-3. 그냥 '/'만 있거나 기타 등등
     return { type: "ABSENT", badge: "결석", text: "결석", raw: clean };
   }
 
-  // 3. [차선] 'L'이 포함되면 일반 종료 (LAST)
-  // 위에서 /L은 걸러졌으므로, 여기는 순수 출석 종료(L)만 해당됨
   if (upperClean.includes("L")) {
     return {
       type: "LAST",
@@ -101,12 +89,10 @@ const parseAttendanceContent = (content: string) => {
     };
   }
 
-  // 4. 기타 결석 키워드 포함
   if (clean.includes("결") || clean.includes("무")) {
     return { type: "ABSENT", badge: "결석", text: "결석", raw: clean };
   }
 
-  // 5. 일반 출석 (숫자만 있는 경우)
   if (!isNaN(Number(clean))) {
     return {
       type: "ATTENDANCE",
@@ -116,7 +102,6 @@ const parseAttendanceContent = (content: string) => {
     };
   }
 
-  // 6. 기타
   return { type: "ETC", badge: "기타", text: clean, raw: clean };
 };
 
@@ -133,7 +118,6 @@ export default function AttendanceDetailModal({
   const [endDate, setEndDate] = useState("");
   const [isFiltered, setIsFiltered] = useState(false);
 
-  // 데이터 조회 Hook
   const { data: attendanceList = [], isLoading } =
     useGetStudentAttendanceHistory(academyCode, student?.name!, isOpen);
 
@@ -142,46 +126,42 @@ export default function AttendanceDetailModal({
     if (!attendanceList) return [];
     return (
       attendanceList
-        // 👇 내용이 비어있거나 공백만 있는 데이터는 여기서 걸러냅니다.
         .filter((att: any) => att.content && att.content.trim() !== "")
         .map((att: any) => ({
           ...att,
           parsed: parseAttendanceContent(att.content),
         }))
+        // 날짜 내림차순 정렬 (최신순)
         .sort((a: any, b: any) =>
           compareDesc(parseISO(a.date), parseISO(b.date))
         )
     );
   }, [attendanceList]);
 
-  // ✅ [수정 1] 학생이 바뀌거나 모달이 닫히면 상태 초기화
+  // 상태 초기화
   useEffect(() => {
     if (!isOpen || !student) {
       setIsFiltered(false);
       setStartDate("");
       setEndDate("");
     }
-  }, [isOpen, student?.name]); // student.id가 바뀌면 실행
+  }, [isOpen, student?.name]);
 
-  // ✅ [수정 2] 데이터가 로드되면, 해당 학생의 "최근 1회차"를 찾아 날짜 셋팅
+  // 날짜 자동 세팅
   useEffect(() => {
-    // 모달이 열려있고, 데이터가 있고, 아직 필터가 설정되지 않았다면 실행
     if (isOpen && allHistories.length > 0 && !isFiltered && !isLoading) {
-      // 최신순 데이터에서 가장 먼저 나오는 "1" (즉, 가장 최근의 1회차)
       const lastFirstClass = allHistories.find(
         (item) => item.parsed.type === "ATTENDANCE" && item.parsed.raw === "1"
       );
 
       if (lastFirstClass) {
-        // 찾았다! -> 그 날짜부터 오늘까지 조회
         setStartDate(lastFirstClass.date);
         setEndDate(format(new Date(), "yyyy-MM-dd"));
         setIsFiltered(true);
       } else {
-        // 1회차가 없으면 -> 이번 달 1일 ~ 말일
         setStartDate(format(startOfMonth(new Date()), "yyyy-MM-dd"));
         setEndDate(format(endOfMonth(new Date()), "yyyy-MM-dd"));
-        setIsFiltered(false); // 필터 미적용 상태로 전체 보여주기 (선택)
+        setIsFiltered(false);
       }
     }
   }, [isOpen, allHistories, isFiltered, isLoading, student?.id]);
@@ -199,23 +179,32 @@ export default function AttendanceDetailModal({
     });
   }, [allHistories, isFiltered, startDate, endDate]);
 
-  // ------------------------------------------------------------------------
-  // 2. Early Return
-  // ------------------------------------------------------------------------
   if (!isOpen || !student) return null;
 
-  // 3. 데이터 그룹화
+  // ------------------------------------------------------------------------
+  // ✅ 3. 데이터 그룹화 (수정됨)
+  // ------------------------------------------------------------------------
   const makeupList: any[] = [];
   const absentList: any[] = [];
-  const regularList: any[] = [];
+  const regularList: any[] = []; // 이제 여기에 결석도 포함됩니다.
 
   filteredHistories.forEach((item) => {
-    if (item.parsed.type === "MAKEUP") makeupList.push(item);
-    else if (item.parsed.type === "ABSENT") absentList.push(item);
-    else regularList.push(item);
+    const type = item.parsed.type;
+
+    if (type === "MAKEUP") {
+      // 보강은 따로 뺌
+      makeupList.push(item);
+    } else {
+      // ✅ 보강이 아닌 것(출석, 종료, 결석, 기타)은 모두 정규 수업 리스트에 포함
+      regularList.push(item);
+
+      // 상단 요약 카드를 위해 결석 리스트는 따로 하나 더 모아둠 (중복 저장)
+      if (type === "ABSENT") {
+        absentList.push(item);
+      }
+    }
   });
 
-  // 핸들러
   const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setStartDate(e.target.value);
     setIsFiltered(true);
@@ -224,18 +213,12 @@ export default function AttendanceDetailModal({
     setEndDate(e.target.value);
     setIsFiltered(true);
   };
-  const handleResetFilter = () => {
-    setIsFiltered(false);
-    setStartDate(format(startOfMonth(new Date()), "yyyy-MM-dd"));
-    setEndDate(format(endOfMonth(new Date()), "yyyy-MM-dd"));
-  };
 
   return (
     <Overlay onClick={onClose}>
       <ModalContainer onClick={(e) => e.stopPropagation()}>
         <Header>
           <TitleGroup>
-            {/* 이름 숫자 제거 */}
             <StudentName>{student.name.replace(/[0-9]/g, "")}</StudentName>
             <StudentBadge>주 {student.count}회 반</StudentBadge>
           </TitleGroup>
@@ -272,6 +255,7 @@ export default function AttendanceDetailModal({
             </LoadingState>
           ) : (
             <ContentBody>
+              {/* 하단: 정규 수업 리스트 (출석 + 결석 포함) */}
               <SectionHeader>
                 <CalendarCheck size={16} /> 정규 수업
                 <CountBadge $type="regular">{regularList.length}</CountBadge>
@@ -299,15 +283,13 @@ export default function AttendanceDetailModal({
                 ) : (
                   <EmptyState>
                     {isFiltered
-                      ? "해당 기간에 정규 수업이 없습니다."
-                      : "정규 수업 기록이 없습니다."}
+                      ? "해당 기간에 수업 기록이 없습니다."
+                      : "수업 기록이 없습니다."}
                   </EmptyState>
                 )}
               </HistoryList>
 
-              <SectionDivider />
-
-              {/* 상단: 보강 & 결석 */}
+              {/* 상단: 보강 & 결석 요약 카드 */}
               <SummaryGrid>
                 <SummaryCard $type="makeup">
                   <CardHeader $type="makeup">
@@ -368,7 +350,7 @@ export default function AttendanceDetailModal({
 }
 
 // --------------------------------------------------------------------------
-// ✨ Styles
+// ✨ Styles (수정: ABSENT 스타일 추가)
 // --------------------------------------------------------------------------
 
 const Overlay = styled.div`
@@ -506,25 +488,6 @@ const Separator = styled.span`
   font-weight: 400;
 `;
 
-const ResetBtn = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: #f1f5f9;
-  border: none;
-  padding: 6px 10px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #64748b;
-  cursor: pointer;
-  &:hover {
-    background: #e2e8f0;
-    color: #475569;
-  }
-`;
-
-/* ✅ 스크롤 영역 */
 const ScrollContainer = styled.div`
   flex: 1;
   overflow-y: auto;
@@ -538,14 +501,13 @@ const ContentBody = styled.div`
   gap: 20px;
 `;
 
-/* ✅ 1. 상단 요약 그리드 (보강/결석) */
 const SummaryGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 
   @media (max-width: 500px) {
-    grid-template-columns: 1fr; /* 모바일: 세로 배치 */
+    grid-template-columns: 1fr;
   }
 `;
 
@@ -631,9 +593,6 @@ const MiniDate = styled.span`
 const MiniText = styled.span<{ $isAbsent?: boolean }>`
   font-weight: 600;
   color: ${({ $isAbsent }) => ($isAbsent ? "#94a3b8" : "#1e293b")};
-  /* ✅ [수정] 취소선 스타일 제거함 */
-  /* text-decoration: ${({ $isAbsent }) =>
-    $isAbsent ? "line-through" : "none"}; */
 `;
 
 const EmptyText = styled.div`
@@ -643,7 +602,6 @@ const EmptyText = styled.div`
   margin-top: 20px;
 `;
 
-/* ✅ 2. 하단 정규 수업 리스트 */
 const SectionDivider = styled.div`
   height: 1px;
   background-color: #e2e8f0;
@@ -657,7 +615,7 @@ const SectionHeader = styled.div`
   font-size: 14px;
   font-weight: 700;
   color: #334155;
-  margin-bottom: -10px; /* 리스트와 간격 조정 */
+  margin-bottom: -10px;
 `;
 
 const HistoryList = styled.div`
@@ -682,6 +640,11 @@ const HistoryItem = styled.div<{ $type: string }>`
         return css`
           border-color: #fecdd3;
           background: #fff1f2;
+        `;
+      // ✅ 결석일 경우 배경색을 아주 연한 회색으로 처리
+      case "ABSENT":
+        return css`
+          background: #fafafa;
         `;
       default:
         return css`
@@ -722,6 +685,12 @@ const TypeBadge = styled.span<{ $type: string }>`
           background: #3b82f6;
           color: white;
         `;
+      // ✅ 결석일 경우 뱃지 스타일
+      case "ABSENT":
+        return css`
+          background: #e2e8f0;
+          color: #64748b;
+        `;
       default:
         return css`
           background: #e2e8f0;
@@ -746,6 +715,11 @@ const StatusText = styled.div<{ $type: string }>`
       case "ATTENDANCE":
         return css`
           color: #1d4ed8;
+        `;
+      // ✅ 결석일 경우 텍스트 색상
+      case "ABSENT":
+        return css`
+          color: #64748b;
         `;
       default:
         return css`
