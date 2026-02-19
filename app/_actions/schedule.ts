@@ -269,8 +269,7 @@ export async function upsertPickupAction(param: {
     .select("content") // 존재 여부만 확인하면 되므로 컬럼 하나만 선택
     .eq("day", day)
     .eq("time", time)
-    .eq("academy_code", academyCode)
-    .maybeSingle(); // 0개 또는 1개 조회 (없어도 에러 아님)
+    .eq("academy_code", academyCode);
 
   if (checkError) {
     console.error("Pickup Check Error:", checkError);
@@ -411,7 +410,7 @@ export async function getTodayScheduleAction(academyCode: string, day: string) {
 
   return {
     data: Array.from(scheduleMap.values()).sort(
-      (a, b) => a.time.localeCompare(b.time) // (선택사항) 최종 결과 시간순 정렬
+      (a, b) => a.time.localeCompare(b.time), // (선택사항) 최종 결과 시간순 정렬
     ),
   };
 }
@@ -439,7 +438,7 @@ export async function getTodayPickupAction(academyCode: string, day: string) {
   const uniqueData = data.filter(
     (item, index, self) =>
       index ===
-      self.findIndex((t) => t.time === item.time && t.content === item.content)
+      self.findIndex((t) => t.time === item.time && t.content === item.content),
   );
 
   return uniqueData;
@@ -479,7 +478,7 @@ export async function getTodayEventsAction(academyCode: string) {
 // 1. 오늘의 임시 수업 시간표 (시간별 그룹화: D/M 분리)
 export async function getTodayTempScheduleAction(
   academyCode: string,
-  day: string
+  day: string,
 ) {
   const supabase = await createClient();
 
@@ -715,7 +714,7 @@ async function updateTimeCommon(
     newTime: string;
     academyCode: string;
     registerID: string;
-  }
+  },
 ): Promise<ActionResponse> {
   const supabase = await createClient();
   const { oldTime, newTime, academyCode, registerID } = data;

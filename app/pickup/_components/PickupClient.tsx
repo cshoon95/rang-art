@@ -25,7 +25,7 @@ import { useUpsertPickup } from "@/app/_querys";
 // 모달 동적 로딩
 const ModalTimeManager = dynamic(
   () => import("@/components/modals/ModalTimeManager"),
-  { ssr: false }
+  { ssr: false },
 );
 
 interface Props {
@@ -73,7 +73,7 @@ const PickupCell = React.memo(
       prev.isVisible === next.isVisible &&
       prev.isHighlighted === next.isHighlighted
     );
-  }
+  },
 );
 PickupCell.displayName = "PickupCell";
 
@@ -151,14 +151,14 @@ export default function PickupClient({
         type: "",
       });
     },
-    [mutateUpsertPickup]
+    [mutateUpsertPickup],
   );
 
   const handleSearchChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       setSearchText(event.target.value.toLowerCase());
     },
-    []
+    [],
   );
 
   const handleAddTime = useCallback(() => {
@@ -194,7 +194,7 @@ export default function PickupClient({
         hideFooter: true,
       });
     },
-    [openModal]
+    [openModal],
   );
 
   const toggleAllView = useCallback(() => {
@@ -283,7 +283,7 @@ export default function PickupClient({
                     content &&
                     (content.toLowerCase().includes(debouncedSearch) ||
                       extractInitialConsonants(content).includes(
-                        debouncedSearch
+                        debouncedSearch,
                       ));
 
                   return (
