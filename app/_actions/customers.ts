@@ -38,7 +38,7 @@ interface ActionResponse {
  * ✅ 직원 정보 추가
  */
 export async function createEmployeeAction(
-  formData: any
+  formData: any,
 ): Promise<ActionResponse> {
   const supabase = await createClient();
 
@@ -71,7 +71,7 @@ export async function createEmployeeAction(
  * ✅ 직원 정보 전체 수정
  */
 export async function updateEmployeeAction(
-  formData: any
+  formData: any,
 ): Promise<ActionResponse> {
   const supabase = await createClient();
 
@@ -246,11 +246,11 @@ interface ActionResponse {
  * ✅ 회원 정보 추가
  */
 export async function createCustomerAction(
-  formData: any
+  formData: any,
 ): Promise<ActionResponse> {
   const supabase = await createClient();
 
-  // DB 컬럼에 맞게 매핑 (모두 소문자로 변경)
+  // DB 컬럼에 맞게 매핑 (누락되었던 count, fee, cash_number, note 추가!)
   const { error } = await supabase.from("customers").insert({
     name: formData.name,
     sex: formData.sex === "남자" ? "M" : "F",
@@ -259,10 +259,22 @@ export async function createCustomerAction(
     school: formData.school,
     parentname: formData.parentName,
     parentphone: formData.parentPhone,
-    state: "0", // 기본 재원 상태
+
+    // 👇👇 여기가 새로 추가된 핵심 부분입니다! 👇👇
+    cash_number: formData.cashNumber,
+    count: formData.count,
+    fee: formData.fee,
+    note: formData.note,
+    // 👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆
+
+    state: formData.state || "0", // 폼에서 선택한 상태값 반영
     academy_code: formData.academyCode,
     register_id: formData.registerID,
-    date: new Date().toISOString().split("T")[0].replace(/-/g, ""), // 오늘 날짜 YYYYMMDD
+
+    // 등록일도 폼에서 선택한 날짜가 들어가도록 수정 (기존에는 무조건 오늘 날짜로 고정되어 있었음)
+    date: formData.date
+      ? formData.date
+      : new Date().toISOString().split("T")[0].replace(/-/g, ""),
   });
 
   if (error) {
@@ -338,9 +350,10 @@ export async function updateCustomerAction(param: {
   if (field === "NAME" && prevName && prevName !== value) {
     await supabase
       .from("attendance")
-      .update({ name: value }) // 소문자 name
-      .eq("name", prevName) // 소문자 name
-      .eq("academy_code", academyCode); // 소문자 academy_code
+      .update({ name: value })
+      // ❌ .eq("name", prevName)
+      .eq("student_id", id) // ✅ 반드시 ID(student_id) 기준으로 변경!
+      .eq("academy_code", academyCode);
   }
 
   revalidatePath("/customers");
@@ -374,7 +387,7 @@ export async function deleteCustomerAction({
 }
 
 export async function updateCustomerFullAction(
-  formData: any
+  formData: any,
 ): Promise<ActionResponse> {
   const supabase = await createClient();
 
@@ -415,7 +428,8 @@ export async function updateCustomerFullAction(
     await supabase
       .from("attendance")
       .update({ name: formData.name })
-      .eq("name", formData.prevName)
+      // ❌ .eq("name", formData.prevName)
+      .eq("student_id", formData.id) // ✅ 반드시 ID(student_id) 기준으로 변경!
       .eq("academy_code", formData.academyCode);
   }
 

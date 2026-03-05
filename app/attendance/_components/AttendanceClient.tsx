@@ -157,7 +157,7 @@ const EditableCell = React.memo(
       prev.isFriday === next.isFriday &&
       prev.maxCount === next.maxCount
     );
-  }
+  },
 );
 EditableCell.displayName = "EditableCell";
 
@@ -191,10 +191,11 @@ const StudentRow = React.memo(
     const weekCount = student.count || 1;
 
     const handleLastClass = useCallback(() => {
-      updateCustomerStatusAction(student.name, "msg_yn", "Y").then(() =>
-        onRefetchStudents()
+      // ✅ 수정: student.name -> student.id
+      updateCustomerStatusAction(student.id, "msg_yn", "Y").then(() =>
+        onRefetchStudents(),
       );
-    }, [student.name, onRefetchStudents]);
+    }, [student.id, onRefetchStudents]); // 의존성 배열도 수정
 
     return (
       <TableRow>
@@ -246,7 +247,7 @@ const StudentRow = React.memo(
         })}
       </TableRow>
     );
-  }
+  },
 );
 StudentRow.displayName = "StudentRow";
 
@@ -269,11 +270,11 @@ export default function AttendanceClient({
 
   // ⚡️ 최적화 2: 초기값을 서버 데이터로 설정 (useEffect 로딩 제거)
   const [prevDataMap, setPrevDataMap] = useState<Record<string, string>>(
-    initialPrevData || {}
+    initialPrevData || {},
   );
 
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(
-    null
+    null,
   );
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
@@ -294,7 +295,7 @@ export default function AttendanceClient({
     const start = startOfMonth(currentDate);
     const end = endOfMonth(currentDate);
     const days = eachDayOfInterval({ start, end }).filter(
-      (day) => !isWeekend(day)
+      (day) => !isWeekend(day),
     );
     return { startDate: start, endDate: end, daysInMonth: days };
   }, [currentDate]);
@@ -307,7 +308,7 @@ export default function AttendanceClient({
     useGetAttendance(
       academyCode,
       format(startDate, "yyyy-MM-dd"),
-      format(endDate, "yyyy-MM-dd")
+      format(endDate, "yyyy-MM-dd"),
     );
 
   const { data: calendarEvents = [], isLoading: isCalendarDataLoading } =
@@ -358,7 +359,7 @@ export default function AttendanceClient({
       try {
         const data = await getPrevMonthLastDataAction(
           academyCode,
-          prevMonthEnd
+          prevMonthEnd,
         );
         if (isMounted) {
           setPrevDataMap(data || {});
@@ -401,7 +402,7 @@ export default function AttendanceClient({
 
   const selectedStudent = useMemo(
     () => students.find((s: any) => s.id === selectedStudentId),
-    [students, selectedStudentId]
+    [students, selectedStudentId],
   );
 
   // ⚡️ [수정됨] 최적화 4: 점진적 렌더링 로직 안전장치 추가
@@ -423,16 +424,17 @@ export default function AttendanceClient({
       const isChecked = student.fee_yn === "Y";
       const nextVal = isChecked ? "N" : "Y";
       try {
-        await updateCustomerStatusAction(student.name, "fee_yn", nextVal);
+        // ✅ 수정: student.name -> student.id
+        await updateCustomerStatusAction(student.id, "fee_yn", nextVal);
         if (nextVal === "Y") {
-          await updateCustomerStatusAction(student.name, "msg_yn", "N");
+          await updateCustomerStatusAction(student.id, "msg_yn", "N");
         }
         await refetchStudents();
       } catch (e) {
         console.error("업데이트 실패", e);
       }
     },
-    [refetchStudents]
+    [refetchStudents],
   );
 
   const handleCycleMsg = useCallback(
@@ -444,13 +446,14 @@ export default function AttendanceClient({
       else nextStatus = "Y";
 
       try {
-        await updateCustomerStatusAction(student.name, "msg_yn", nextStatus);
+        // ✅ 수정: student.name -> student.id
+        await updateCustomerStatusAction(student.id, "msg_yn", nextStatus);
         await refetchStudents();
       } catch (e) {
         console.error("메시지 상태 업데이트 실패", e);
       }
     },
-    [refetchStudents]
+    [refetchStudents],
   );
 
   const handleOpenHistory = useCallback((studentId: number) => {
@@ -881,10 +884,10 @@ const CellWrapper = styled.div<{
     $isL
       ? "#dbeafe"
       : $isHoliday
-      ? "#fff1f2"
-      : $isToday
-      ? "#fff7ed"
-      : "transparent"};
+        ? "#fff1f2"
+        : $isToday
+          ? "#fff7ed"
+          : "transparent"};
   color: ${({ $isL, $isHoliday }) =>
     $isL ? "#1e40af" : $isHoliday ? "#ef4444" : "inherit"};
   font-weight: ${({ $isL }) => ($isL ? "700" : "normal")};

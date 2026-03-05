@@ -8,7 +8,7 @@ import { unstable_noStore as noStore } from "next/cache"; // 👈 import 추가
 export async function getAttendanceListAction(
   academyCode: string,
   startDate: string,
-  endDate: string
+  endDate: string,
 ) {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -77,7 +77,7 @@ export async function upsertAttendanceAction({
       content: content,
       name: name, // ✅ DB에 이름도 함께 저장
     },
-    { onConflict: "student_id, date" } // PK 충돌 시 업데이트
+    { onConflict: "student_id, date" }, // PK 충돌 시 업데이트
   );
 
   if (error) throw error;
@@ -87,7 +87,7 @@ export async function upsertAttendanceAction({
 // ✅ [New] 전월 마지막 출석 기록 조회 (일괄 조회 최적화)
 export async function getPrevMonthLastDataAction(
   academyCode: string,
-  prevMonthEnd: string
+  prevMonthEnd: string,
 ) {
   noStore(); // ⚡️ 핵심: 이 함수는 절대 캐싱하지 않고 매번 실행됨
   const supabase = await createClient();
@@ -98,7 +98,7 @@ export async function getPrevMonthLastDataAction(
 
   const searchLimitDate = format(
     subMonths(new Date(prevMonthEnd), 3),
-    "yyyy-MM-dd"
+    "yyyy-MM-dd",
   );
 
   const { data, error } = await supabase
@@ -126,26 +126,31 @@ export async function getPrevMonthLastDataAction(
   return Object.fromEntries(map);
 }
 
-// ✅ [New] 원생 상태 업데이트 (원비, 메시지 상태)
+// ❌ 기존: 이름으로 업데이트 (주석 처리하거나 지워주세요)
+// export async function updateCustomerStatusAction(name: string, field: "fee_yn" | "msg_yn", value: any) { ... .eq("name", name); }
+
+// ✅ 수정: 학생 고유 ID로 업데이트
 export async function updateCustomerStatusAction(
-  name: string,
+  studentId: number, // name -> studentId로 변경
   field: "fee_yn" | "msg_yn",
-  value: any
+  value: any,
 ) {
   const supabase = await createClient();
   await supabase
     .from("customers")
     .update({ [field]: value })
-    .eq("name", name);
+    .eq("id", studentId); // name -> id로 검색 기준 변경
 }
 
+// ❌ 기존: 이름으로 이력 조회
+// export async function getStudentAttendanceHistoryAction(academyCode: string, name: string) { ... .eq("name", name) ... }
+
+// ✅ 수정: 학생 고유 ID로 이력 조회
 export async function getStudentAttendanceHistoryAction(
   academyCode: string,
-  name: string
+  studentId: number, // name -> studentId로 변경
 ) {
   const supabase = await createClient();
-
-  // 최근 6개월 데이터만 조회 (성능 최적화)
   const sixMonthsAgo = format(subMonths(new Date(), 6), "yyyy-MM-dd");
 
   try {
@@ -153,7 +158,7 @@ export async function getStudentAttendanceHistoryAction(
       .from("attendance")
       .select("student_id, content, date")
       .eq("academy_code", academyCode)
-      .eq("name", name)
+      .eq("student_id", studentId) // name -> student_id로 검색 기준 변경
       .gte("date", sixMonthsAgo)
       .order("date", { ascending: false });
 
