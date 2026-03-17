@@ -389,9 +389,18 @@ export default function AttendanceClient({
 
   // 학생 필터링
   const filteredStudents = useMemo(() => {
-    if (!debouncedSearch) return students;
+    // 1. API 응답에 중복된 학생 ID가 있을 경우를 대비해 중복 제거
+    const seen = new Set();
+    const uniqueStudents = students.filter((s: any) => {
+      const duplicate = seen.has(s.id);
+      seen.add(s.id);
+      return !duplicate;
+    });
 
-    return students.filter((s: any) => {
+    if (!debouncedSearch) return uniqueStudents;
+
+    // 2. 이름 또는 초성으로 학생 검색
+    return uniqueStudents.filter((s: any) => {
       const name = s.name || "";
       const nameMatch = name.includes(debouncedSearch);
       const choseongMatch =
