@@ -1,13 +1,9 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import styled, { createGlobalStyle } from "styled-components";
-import {
-  Calendar,
-  dateFnsLocalizer,
-  Views,
-  ToolbarProps,
-} from "react-big-calendar";
+import dynamic from "next/dynamic";
+import { dateFnsLocalizer, Views, ToolbarProps } from "react-big-calendar";
 import {
   format,
   parse,
@@ -20,15 +16,25 @@ import {
   isSameMonth,
 } from "date-fns";
 import { ko } from "date-fns/locale";
-import Holidays from "date-holidays";
 
 import "react-big-calendar/lib/css/react-big-calendar.css";
+import "react-big-calendar/lib/addons/dragAndDrop/styles.css"; // 🌟 드래그 앤 드롭 CSS 추가
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import ModalCalendarAdd from "@/components/modals/ModalCalendarAdd";
 import CalendarSkeleton from "./CalendarSkeleton";
-import { useGetCalendarList } from "@/app/_querys";
+import { useGetCalendarList, useUpdateCalendar } from "@/app/_querys";
 import { MappedEvent, CalendarRow } from "@/app/_types/type";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
+
+// 🌟 [최적화 & 기능 추가] 드래그 앤 드롭 HOC(withDragAndDrop) 적용
+const BigCalendar = dynamic(
+  () =>
+    Promise.all([
+      import("react-big-calendar"),
+      import("react-big-calendar/lib/addons/dragAndDrop"),
+    ]).then(([rbc, dnd]) => dnd.default(rbc.Calendar)),
+  { ssr: false },
+);
 
 // --- 1. Global Styles ---
 const GlobalStyle = createGlobalStyle`
@@ -64,8 +70,6 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
-const hd = new Holidays("KR");
-
 interface Props {
   academyCode: string;
   userId: string;
@@ -77,11 +81,148 @@ export default function CalendarClient({ academyCode, userId }: Props) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<MappedEvent | null>(null);
   const [initialDate, setInitialDate] = useState<Date>(new Date());
+  const [holidayEvents, setHolidayEvents] = useState<MappedEvent[]>([]); // 휴일 상태 추가
 
   // React Query
   const { data: rawEvents, isLoading } = useGetCalendarList(academyCode);
+  const updateMutation = useUpdateCalendar(academyCode); // 🌟 일정 수정 훅 추가
 
-  // --- 3. Events Calculation (Memoized) ---
+  const currentYear = getYear(currentDate);
+
+  // 🌟 [최적화 2] 1MB가 넘는 휴일 데이터 라이브러리를 비동기(Background)로 분리
+  useEffect(() => {
+    let isMounted = true;
+
+    import("date-holidays").then(({ default: Holidays }) => {
+      if (!isMounted) return;
+      const hd = new Holidays("KR");
+      const yearsToGen = [currentYear - 1, currentYear, currentYear + 1];
+      let generatedHolidays: MappedEvent[] = [];
+
+      const toDateString = (dateInput: string | Date) => {
+        if (typeof dateInput === "string") return dateInput.substring(0, 10);
+        return format(dateInput, "yyyy-MM-dd");
+      };
+
+      yearsToGen.forEach((year) => {
+        const rawList = hd.getHolidays(year);
+        const holidayMap = new Map<string, any>();
+
+        rawList.forEach((h) => {
+          if (
+            h.substitute ||
+            h.name.includes("Substitute") ||
+            h.name.includes("대체") ||
+            h.type !== "public"
+          )
+            return;
+
+          if (h.name === "설날" || h.name === "추석") {
+            const mainDate = new Date(h.date);
+            const threeDays = [
+              subDays(mainDate, 1),
+              mainDate,
+              addDays(mainDate, 1),
+            ];
+            threeDays.forEach((d) => {
+              const dKey = toDateString(d);
+              holidayMap.set(dKey, {
+                ...h,
+                date: dKey,
+                start: d,
+                end: d,
+                name: h.name,
+                substitute: false,
+              });
+            });
+          } else {
+            const dKey = toDateString(h.date);
+            if (!holidayMap.has(dKey)) {
+              holidayMap.set(dKey, {
+                ...h,
+                date: dKey,
+                start: new Date(dKey),
+                end: new Date(dKey),
+                substitute: false,
+              });
+            }
+          }
+        });
+
+        const confirmedHolidays = Array.from(holidayMap.values());
+        confirmedHolidays.forEach((h) => {
+          const dateStr = h.date;
+          const holidayDate = new Date(dateStr);
+          const dow = getDay(holidayDate);
+          const isSeollalOrChuseok = h.name === "설날" || h.name === "추석";
+          let needSubstitute = false;
+
+          if (isSeollalOrChuseok) {
+            if (dow === 0) needSubstitute = true;
+          } else {
+            if (isWeekend(holidayDate)) needSubstitute = true;
+          }
+
+          if (needSubstitute) {
+            let nextDay = addDays(holidayDate, 1);
+            while (true) {
+              const nextKey = toDateString(nextDay);
+              if (!isWeekend(nextDay) && !holidayMap.has(nextKey)) {
+                holidayMap.set(nextKey, {
+                  date: nextKey,
+                  start: nextDay,
+                  end: nextDay,
+                  name: `(대체) ${h.name}`,
+                  type: "public",
+                  substitute: true,
+                });
+                break;
+              }
+              nextDay = addDays(nextDay, 1);
+            }
+          }
+        });
+
+        const yearEvents = Array.from(holidayMap.values()).map((h, idx) => {
+          let title = h.name;
+          // ... 한글 이름 매핑 (기존 로직과 동일) ...
+          if (title === "Korean New Year") title = "설날";
+          else if (title === "Chuseok") title = "추석";
+          else if (title === "Independence Movement Day") title = "삼일절";
+          else if (title === "Children's Day") title = "어린이날";
+          else if (title === "Memorial Day") title = "현충일";
+          else if (title === "Liberation Day") title = "광복절";
+          else if (title === "National Foundation Day") title = "개천절";
+          else if (title === "Hangul Day") title = "한글날";
+          else if (title === "Christmas Day") title = "성탄절";
+          else if (title === "New Year's Day") title = "신정";
+          else if (title === "Buddha's Birthday") title = "석가탄신일";
+          if (h.substitute && !title.startsWith("(대체)"))
+            title = `(대체) ${title}`;
+
+          return {
+            id: `holiday-${year}-${idx}-${h.date}`,
+            idx: undefined,
+            title: title,
+            start: new Date(h.date),
+            end: new Date(h.date),
+            resource: null,
+            type: "holiday" as const,
+            substitute: h.substitute || false,
+          };
+        });
+        generatedHolidays = [...generatedHolidays, ...yearEvents];
+      });
+
+      setHolidayEvents(generatedHolidays);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentYear]);
+
+  // --- 3. Events Calculation ---
   const events: MappedEvent[] = useMemo(() => {
     // ✅ [수정 포인트] DB에서 가져온 데이터를 매핑할 때 idx를 명시적으로 할당합니다.
     const dbEvents = rawEvents
@@ -100,131 +241,8 @@ export default function CalendarClient({ academyCode, userId }: Props) {
         }))
       : [];
 
-    const currentYear = getYear(currentDate);
-    const yearsToGen = [currentYear - 1, currentYear, currentYear + 1];
-    let holidayEvents: MappedEvent[] = [];
-
-    const toDateString = (dateInput: string | Date) => {
-      if (typeof dateInput === "string") return dateInput.substring(0, 10);
-      return format(dateInput, "yyyy-MM-dd");
-    };
-
-    yearsToGen.forEach((year) => {
-      const rawList = hd.getHolidays(year);
-      const holidayMap = new Map<string, any>();
-
-      rawList.forEach((h) => {
-        if (
-          h.substitute ||
-          h.name.includes("Substitute") ||
-          h.name.includes("대체") ||
-          h.type !== "public"
-        )
-          return;
-
-        if (h.name === "설날" || h.name === "추석") {
-          const mainDate = new Date(h.date);
-          const threeDays = [
-            subDays(mainDate, 1),
-            mainDate,
-            addDays(mainDate, 1),
-          ];
-          threeDays.forEach((d) => {
-            const dKey = toDateString(d);
-            holidayMap.set(dKey, {
-              ...h,
-              date: dKey,
-              start: d,
-              end: d,
-              name: h.name,
-              substitute: false,
-            });
-          });
-        } else {
-          const dKey = toDateString(h.date);
-          if (!holidayMap.has(dKey)) {
-            holidayMap.set(dKey, {
-              ...h,
-              date: dKey,
-              start: new Date(dKey),
-              end: new Date(dKey),
-              substitute: false,
-            });
-          }
-        }
-      });
-
-      const confirmedHolidays = Array.from(holidayMap.values());
-      confirmedHolidays.forEach((h) => {
-        const dateStr = h.date;
-        const holidayDate = new Date(dateStr);
-        const dow = getDay(holidayDate);
-        const isSeollalOrChuseok = h.name === "설날" || h.name === "추석";
-        let needSubstitute = false;
-
-        if (isSeollalOrChuseok) {
-          if (dow === 0) needSubstitute = true;
-        } else {
-          if (isWeekend(holidayDate)) needSubstitute = true;
-        }
-
-        if (needSubstitute) {
-          let nextDay = addDays(holidayDate, 1);
-          while (true) {
-            const nextKey = toDateString(nextDay);
-            const isWeekendDay = isWeekend(nextDay);
-            const isOccupied = holidayMap.has(nextKey);
-
-            if (!isWeekendDay && !isOccupied) {
-              holidayMap.set(nextKey, {
-                date: nextKey,
-                start: nextDay,
-                end: nextDay,
-                name: `(대체) ${h.name}`,
-                type: "public",
-                substitute: true,
-              });
-              break;
-            }
-            nextDay = addDays(nextDay, 1);
-          }
-        }
-      });
-
-      const yearEvents = Array.from(holidayMap.values()).map((h, idx) => {
-        let title = h.name;
-        if (title === "Korean New Year") title = "설날";
-        else if (title === "Chuseok") title = "추석";
-        else if (title === "Independence Movement Day") title = "삼일절";
-        else if (title === "Children's Day") title = "어린이날";
-        else if (title === "Memorial Day") title = "현충일";
-        else if (title === "Liberation Day") title = "광복절";
-        else if (title === "National Foundation Day") title = "개천절";
-        else if (title === "Hangul Day") title = "한글날";
-        else if (title === "Christmas Day") title = "성탄절";
-        else if (title === "New Year's Day") title = "신정";
-        else if (title === "Buddha's Birthday") title = "석가탄신일";
-
-        if (h.substitute && !title.startsWith("(대체)")) {
-          title = `(대체) ${title}`;
-        }
-
-        return {
-          id: `holiday-${year}-${idx}-${h.date}`, // 공휴일은 문자열 ID 유지
-          idx: undefined, // 공휴일은 DB idx 없음
-          title: title,
-          start: new Date(h.date),
-          end: new Date(h.date),
-          resource: null,
-          type: "holiday" as const,
-          substitute: h.substitute || false,
-        };
-      });
-      holidayEvents = [...holidayEvents, ...yearEvents];
-    });
-
     return [...dbEvents, ...holidayEvents];
-  }, [rawEvents, currentDate]);
+  }, [rawEvents, holidayEvents]);
 
   // --- 4. Handlers (Callback) ---
 
@@ -234,7 +252,7 @@ export default function CalendarClient({ academyCode, userId }: Props) {
       setInitialDate(start);
       setIsModalOpen(true);
     },
-    []
+    [],
   );
 
   const handleSelectEvent = useCallback((event: MappedEvent) => {
@@ -250,6 +268,33 @@ export default function CalendarClient({ academyCode, userId }: Props) {
     setIsModalOpen(false);
     setSelectedEvent(null);
   }, []);
+
+  // 🌟 [기능 추가] 드래그 앤 드롭 이벤트 핸들러
+  const handleEventDrop = useCallback(
+    ({ event, start }: any) => {
+      if (event.type === "holiday" || !event.resource) return;
+
+      const { resource } = event;
+
+      // 기존 시작일과 새로운 시작일의 차이를 계산해서 며칠짜리 일정이든 종료일도 똑같이 이동시켜줍니다.
+      const oldStart = new Date(resource.start_date);
+      const oldEnd = new Date(resource.end_date);
+      const diffTime = start.getTime() - oldStart.getTime();
+      const newEndDate = new Date(oldEnd.getTime() + diffTime);
+
+      updateMutation.mutate({
+        idx: resource.idx,
+        content: resource.content,
+        startDate: format(start, "yyyy-MM-dd"),
+        startTime: resource.start_time.substring(0, 5),
+        endDate: format(newEndDate, "yyyy-MM-dd"),
+        endTime: resource.end_time.substring(0, 5),
+        type: resource.type,
+        updater_id: userId,
+      });
+    },
+    [updateMutation, userId],
+  );
 
   // any 타입으로 받아서 처리 (라이브러리 타입 충돌 방지)
   const eventPropGetter = useCallback(
@@ -279,7 +324,7 @@ export default function CalendarClient({ academyCode, userId }: Props) {
         },
       };
     },
-    [currentDate]
+    [currentDate],
   );
 
   const CustomToolbar = useCallback((toolbar: ToolbarProps) => {
@@ -327,7 +372,7 @@ export default function CalendarClient({ academyCode, userId }: Props) {
         </div>
       ),
     }),
-    [CustomToolbar, handleSelectSlot]
+    [CustomToolbar, handleSelectSlot],
   );
 
   return (
@@ -349,7 +394,7 @@ export default function CalendarClient({ academyCode, userId }: Props) {
           </Header>
 
           <CalendarWrapper>
-            <StyledCalendar
+            <BigCalendar
               localizer={localizer}
               events={events}
               startAccessor={(event: any) => event.start}
@@ -363,6 +408,8 @@ export default function CalendarClient({ academyCode, userId }: Props) {
               selectable
               onSelectSlot={handleSelectSlot}
               onSelectEvent={(event: any) => handleSelectEvent(event)}
+              onEventDrop={handleEventDrop} // 🌟 드래그 앤 드롭 이벤트 연결
+              resizable={false} // 크기 조절은 비활성화 (드래그 이동만 허용)
               onDrillDown={(date) =>
                 handleSelectSlot({ start: date, end: date })
               }
@@ -464,9 +511,8 @@ const CalendarWrapper = styled.div`
     height: 550px;
     border-radius: 16px;
   }
-`;
 
-const StyledCalendar = styled(Calendar)`
+  /* 🌟 [최적화] 기존 StyledCalendar 내부 스타일을 Wrapper로 병합 (DOM 노드 절약) */
   font-family: "Pretendard", sans-serif;
 
   .rbc-month-view,

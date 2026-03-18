@@ -2,10 +2,8 @@
 
 import React, { useRef, useState } from "react";
 import styled from "styled-components";
-import { toJpeg } from "html-to-image";
 import CertificateTemplate from "@/components/modals/CertificateTemplate";
 import { Download } from "lucide-react";
-import jsPDF from "jspdf";
 import { useStudentPaymentData, useBranchDetail } from "@/app/_querys";
 
 interface Props {
@@ -31,6 +29,10 @@ export default function ModalCertificate({ academyCode, year, name }: Props) {
     setIsDownloading(true);
 
     try {
+      // 🌟 [최적화] 다운로드 버튼을 누를 때만 무거운 라이브러리를 동적으로 불러옵니다.
+      const { toJpeg } = await import("html-to-image");
+      const { default: jsPDF } = await import("jspdf");
+
       // 첫 번째 호출은 폰트 로딩 이슈 방지용 (그대로 유지)
       await toJpeg(ref.current, { cacheBust: true });
 
@@ -74,7 +76,7 @@ export default function ModalCertificate({ academyCode, year, name }: Props) {
         imgWidth,
         imgHeight,
         undefined,
-        "FAST"
+        "FAST",
       );
 
       pdf.save(`교육비납입증명서_${name}_${year}.pdf`);

@@ -5,12 +5,12 @@ import styled, { keyframes, css } from "styled-components";
 import { useModalStore } from "@/store/modalStore";
 import { useShallow } from "zustand/react/shallow";
 import {
-  AccessTime,
-  DeleteOutline,
-  Add,
-  Edit,
+  Clock as AccessTime,
+  Trash2 as DeleteOutline,
+  Plus as Add,
+  Edit2 as Edit,
   Check,
-} from "@mui/icons-material";
+} from "lucide-react";
 
 import { removeTimePattern, replaceTimePattern } from "@/utils/format";
 import { useToastStore } from "@/store/toastStore";
@@ -49,7 +49,7 @@ export default function ModalTimeManager({
   const router = useRouter();
   const { addToast } = useToastStore();
   const { closeModal } = useModalStore(
-    useShallow((state) => ({ closeModal: state.closeModal }))
+    useShallow((state) => ({ closeModal: state.closeModal })),
   );
 
   // --- Hooks (Insert) ---
@@ -116,7 +116,7 @@ export default function ModalTimeManager({
     router.refresh();
     addToast(
       `${replaceTimePattern(timeVal)} 시간이 ${action}되었어요.`,
-      "success"
+      "success",
     );
   };
 
@@ -179,11 +179,11 @@ export default function ModalTimeManager({
       <HeaderSection>
         <IconCircle $mode={isDeleteTab ? "delete" : isAddMode ? "add" : "edit"}>
           {isDeleteTab ? (
-            <DeleteOutline className="icon" />
+            <DeleteOutline size={32} />
           ) : isAddMode ? (
-            <AccessTime className="icon" />
+            <AccessTime size={32} />
           ) : (
-            <Edit className="icon" />
+            <Edit size={32} />
           )}
         </IconCircle>
         <TitleArea>
@@ -191,15 +191,15 @@ export default function ModalTimeManager({
             {isDeleteTab
               ? "시간 삭제"
               : isAddMode
-              ? "새로운 시간 등록"
-              : "시간 수정"}
+                ? "새로운 시간 등록"
+                : "시간 수정"}
           </Title>
           <SubTitle>
             {isDeleteTab
               ? "이 시간을 시간표에서 완전히 삭제하시겠어요?"
               : isAddMode
-              ? "시간표에 추가할 시간을 설정해주세요."
-              : "기존 시간을 새로운 시간으로 변경합니다."}
+                ? "시간표에 추가할 시간을 설정해주세요."
+                : "기존 시간을 새로운 시간으로 변경합니다."}
           </SubTitle>
         </TitleArea>
       </HeaderSection>
@@ -228,15 +228,15 @@ export default function ModalTimeManager({
 
         {isDeleteTab ? (
           <DeleteButton onClick={handleDelete} disabled={isPending}>
-            <DeleteOutline style={{ fontSize: "20px", marginRight: "4px" }} />
+            <DeleteOutline size={20} style={{ marginRight: "4px" }} />
             {isPending ? "삭제 중..." : "삭제하기"}
           </DeleteButton>
         ) : (
           <ConfirmButton onClick={handleSave} disabled={isPending}>
             {isAddMode ? (
-              <Add style={{ fontSize: "20px", marginRight: "4px" }} />
+              <Add size={20} style={{ marginRight: "4px" }} />
             ) : (
-              <Check style={{ fontSize: "20px", marginRight: "4px" }} />
+              <Check size={20} style={{ marginRight: "4px" }} />
             )}
             {isPending ? "처리 중..." : isAddMode ? "등록하기" : "수정하기"}
           </ConfirmButton>
@@ -329,11 +329,6 @@ const IconCircle = styled.div<{ $mode: "add" | "delete" | "edit" }>`
         color: #16a34a;
       `; // 초록색 계열
   }}
-
-  .icon {
-    font-size: 32px;
-    color: inherit;
-  }
 `;
 
 // ... 아래 TitleArea, Title, SubTitle, InputSection, Label, TimeInputWrapper, TimeInput, ReadOnlyOverlay, ButtonGroup, Button, CancelButton, ConfirmButton, DeleteButton 등은 기존과 동일하거나 위 코드에 포함됨 ...

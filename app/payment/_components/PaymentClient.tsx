@@ -4,6 +4,7 @@ import React, { useState, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import styled, { css, keyframes } from "styled-components";
 import { MessageCircle, Bell, ChevronLeft, ChevronRight } from "lucide-react";
+import { useSession } from "next-auth/react";
 
 // Components
 import PaymentGrid from "./PaymentGrid";
@@ -13,7 +14,7 @@ import PageTitleWithStar from "@/components/PageTitleWithStar";
 
 const ModalPaymentMessage = dynamic(
   () => import("@/components/modals/ModalPaymentMessage"),
-  { ssr: false }
+  { ssr: false },
 );
 
 // Utils & Hooks
@@ -33,6 +34,20 @@ const MemoizedPaymentGrid = React.memo(PaymentGrid);
 const MemoizedPaymentSummary = React.memo(PaymentSummary);
 
 export default function PaymentClient({ academyCode, userId }: Props) {
+  // 🌟 권한 확인
+  const { data: session } = useSession();
+  const userLevelName = session?.user?.levelName || "";
+  const userLevelCode = String((session?.user as any)?.level || "");
+
+  // 🌟 [수정] 텍스트나 코드로 '기타', '원장', '스탭'을 모두 잡아내도록 강력하게 처리
+  const canViewPaymentMsg =
+    userLevelName.includes("원장") ||
+    userLevelName.includes("기타") ||
+    userLevelName.includes("스탭") ||
+    userLevelCode === "1" || // 원장 코드
+    userLevelCode === "4" || // 스탭 코드
+    userLevelCode === "5"; // 기타 코드
+
   // 상태 관리
   const [tabValue, setTabValue] = useState<PaymentType>("income");
   const [year, setYear] = useState(getTodayYear());
@@ -54,7 +69,7 @@ export default function PaymentClient({ academyCode, userId }: Props) {
         const y = String(Number(getTodayYear()) + 1 - i);
         return { label: `${y}년`, value: y };
       }),
-    []
+    [],
   );
   const monthOptions = useMemo(
     () =>
@@ -62,14 +77,14 @@ export default function PaymentClient({ academyCode, userId }: Props) {
         const m = String(i + 1).padStart(2, "0");
         return { label: `${m}월`, value: m };
       }),
-    []
+    [],
   );
 
   // 3. 핸들러 메모이제이션
   const handleTabIncome = useCallback(() => setTabValue("income"), []);
   const handleTabExpenditure = useCallback(
     () => setTabValue("expenditure"),
-    []
+    [],
   );
 
   const handleYearChange = useCallback((_: any, v?: string) => {
@@ -110,7 +125,7 @@ export default function PaymentClient({ academyCode, userId }: Props) {
       setYear(String(newY));
       setMonth(String(newM).padStart(2, "0"));
     },
-    [year, month] // year와 month가 바뀔 때마다 함수 재생성 -> 최신 상태값 참조 보장
+    [year, month], // year와 month가 바뀔 때마다 함수 재생성 -> 최신 상태값 참조 보장
   );
 
   return (
@@ -119,13 +134,15 @@ export default function PaymentClient({ academyCode, userId }: Props) {
         <HeaderTop>
           <PageTitleWithStar title={<Title>출납 관리</Title>} />
 
-          {msgCount > 0 && (
-            <MsgButton onClick={handleOpenMsgModal} $hasCount={true}>
-              <Bell size={16} fill="#e11d48" />
-              결제 알림
-              <CountBadge>{msgCount}명</CountBadge>
-            </MsgButton>
-          )}
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            {canViewPaymentMsg && msgCount > 0 && (
+              <MsgButton onClick={handleOpenMsgModal} $hasCount={true}>
+                <Bell size={16} fill="#e11d48" />
+                결제 알림
+                <CountBadge>{msgCount}명</CountBadge>
+              </MsgButton>
+            )}
+          </div>
         </HeaderTop>
 
         <HeaderControls>

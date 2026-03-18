@@ -54,7 +54,7 @@ export async function createEmployeeAction(
     account: formData.account,
     state: formData.state, // 재직 상태 (Y/N)
     academy_code: formData.academyCode,
-    register_id: "admin", // 등록자 (세션에서 가져오기 권장)
+    register_id: formData.registerID || "admin", // 프론트에서 넘긴 세션 값 적용
     register_date: new Date().toISOString(),
   });
 
@@ -85,7 +85,7 @@ export async function updateEmployeeAction(
     date: formData.date,
     account: formData.account,
     state: formData.state,
-    updater_id: "admin", // 수정자
+    updater_id: formData.updaterID || "admin", // 프론트에서 넘긴 세션 값 적용
   };
 
   // IDX(PK)를 기준으로 업데이트
@@ -250,9 +250,36 @@ export async function createCustomerAction(
 ): Promise<ActionResponse> {
   const supabase = await createClient();
 
+  let finalName = formData.name;
+  const incomingState = formData.state || "0";
+
+  // '재원'(0) 상태인 회원을 등록할 때 동명이인(재원생 기준)이 있는지 확인하여 A, B, C 부여
+  if (incomingState === "0") {
+    const { data: existingUsers } = await supabase
+      .from("customers")
+      .select("name")
+      .eq("academy_code", formData.academyCode)
+      .eq("state", "0")
+      .like("name", `${formData.name}%`);
+
+    if (existingUsers && existingUsers.length > 0) {
+      const names = existingUsers.map((u) => u.name);
+      if (names.includes(formData.name)) {
+        const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        for (let i = 0; i < alphabet.length; i++) {
+          const candidateName = `${formData.name}${alphabet[i]}`;
+          if (!names.includes(candidateName)) {
+            finalName = candidateName;
+            break;
+          }
+        }
+      }
+    }
+  }
+
   // DB 컬럼에 맞게 매핑 (누락되었던 count, fee, cash_number, note 추가!)
   const { error } = await supabase.from("customers").insert({
-    name: formData.name,
+    name: finalName,
     sex: formData.sex === "남자" ? "M" : "F",
     birth: formData.birth,
     tel: formData.tel,
@@ -283,7 +310,7 @@ export async function createCustomerAction(
   }
 
   revalidatePath("/customers");
-  return { success: true, message: "학생이 등록되었습니다." };
+  return { success: true, message: `${finalName}(으)로 등록되었습니다.` };
 }
 
 /**
@@ -468,7 +495,7 @@ export async function getEmployees(academyCode: string) {
     SALARY: item.salary || "",
     LEVEL_CD: item.level, // 원본 코드 (필터링용)
     LEVEL: getEmployeeLevel(item.level), // 한글 변환 (표시용)
-    STATE: item.state === "Y" ? "O" : "X", // 재직: O, 퇴사: X
+    STATE: item.state === "Y" ? "O" : item.state === "H" ? "H" : "X", // 재직: O, 휴직: H, 퇴사: X
     NOTE: item.note || "",
   }));
 }

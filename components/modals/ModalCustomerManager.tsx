@@ -9,6 +9,7 @@ import {
   useDeleteCustomer,
 } from "@/app/_querys";
 import Select from "../Select";
+import { useSession } from "next-auth/react";
 
 // --- 옵션 데이터 정의 ---
 const SEX_OPTIONS = [
@@ -43,6 +44,7 @@ export default function ModalCustomerManager({
   academyCode,
   initialData,
 }: Props) {
+  const { data: session } = useSession();
   const { data: branchData } = useBranchCount(academyCode);
 
   const formatDateToInput = (str: string) => {
@@ -61,7 +63,7 @@ export default function ModalCustomerManager({
     parentName: initialData?.parentname || "",
     parentPhone: initialData?.parentphone || "",
     cashNumber: initialData?.cash_number || "",
-    count: initialData?.count || "1",
+    count: initialData?.count ? String(initialData.count) : "1",
     fee: initialData?.fee ? String(initialData.fee) : "",
     state: initialData?.state || "0",
     date: initialData?.date
@@ -105,7 +107,7 @@ export default function ModalCustomerManager({
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
+    >,
   ) => {
     const { name, value } = e.target;
 
@@ -163,13 +165,16 @@ export default function ModalCustomerManager({
       id: initialData?.id,
       prevName: initialData?.name,
       academyCode,
-      registerID: "admin",
-      birth: formData.birth.replace(/-/g, ""),
-      date: formData.date.replace(/-/g, ""),
-      discharge: formData.discharge.replace(/-/g, ""),
-      fee: formData.fee.replace(/[^0-9]/g, ""),
-      tel: formData.tel.replace(/-/g, ""),
-      parentPhone: formData.parentPhone.replace(/-/g, ""),
+      registerID: session?.user?.email || "admin",
+      count: Number(formData.count || 1), // 명시적으로 숫자로 변환
+      birth: formData.birth ? formData.birth.replace(/-/g, "") : "",
+      date: formData.date ? formData.date.replace(/-/g, "") : "",
+      discharge: formData.discharge ? formData.discharge.replace(/-/g, "") : "",
+      fee: formData.fee ? String(formData.fee).replace(/[^0-9]/g, "") : "0",
+      tel: formData.tel ? formData.tel.replace(/-/g, "") : "",
+      parentPhone: formData.parentPhone
+        ? formData.parentPhone.replace(/-/g, "")
+        : "",
     };
 
     mutateUpsertCustomer(submitData, {

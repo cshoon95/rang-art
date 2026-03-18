@@ -13,6 +13,8 @@ export const useGetStudents = (academyCode: string) => {
   return useQuery({
     queryKey: ["attendance-students", academyCode],
     queryFn: () => getActiveStudentsAction(academyCode),
+    // 🌟 [최적화 1] 탭을 전환해도 5분 동안은 다시 로딩하지 않고 즉시 보여줌
+    staleTime: 1000 * 60 * 5,
   });
 };
 
@@ -21,6 +23,7 @@ export const useGetInActiveStudents = (academyCode: string) => {
   return useQuery({
     queryKey: ["in-active-attendance-students", academyCode],
     queryFn: () => getInActiveStudentsAction(academyCode),
+    staleTime: 1000 * 60 * 5,
   });
 };
 
@@ -28,11 +31,13 @@ export const useGetInActiveStudents = (academyCode: string) => {
 export const useGetAttendance = (
   academyCode: string,
   startDate: string,
-  endDate: string
+  endDate: string,
 ) => {
   return useQuery({
     queryKey: ["attendance", academyCode, startDate, endDate],
     queryFn: () => getAttendanceListAction(academyCode, startDate, endDate),
+    // 🌟 [최적화 2] 출석 데이터 역시 5분간 캐싱하여 체감 속도 극대화
+    staleTime: 1000 * 60 * 5,
   });
 };
 
@@ -53,24 +58,27 @@ export const useUpsertAttendance = () => {
 
 export const useGetStudentAttendanceHistory = (
   academyCode: string,
-  name: string,
-  isOpen: boolean // 모달이 열려있을 때만 실행하기 위한 조건
+  studentId: string | number,
+  isOpen: boolean, // 모달이 열려있을 때만 실행하기 위한 조건
 ) => {
   return useQuery({
     // 캐싱 키: 학생 ID나 학원 코드가 바뀌면 데이터를 다시 가져옵니다.
-    queryKey: ["student-attendance-history", name, academyCode],
+    queryKey: ["student-attendance-history", studentId, academyCode],
 
     queryFn: async () => {
       // 방어 코드: 필수 값이 없으면 서버 요청을 보내지 않고 빈 배열 반환
-      if (!name) {
+      if (!studentId) {
         return [];
       }
 
       // 서버 액션 호출
-      return await getStudentAttendanceHistoryAction(academyCode, name);
+      return await getStudentAttendanceHistoryAction(
+        academyCode,
+        Number(studentId),
+      );
     },
 
     // 🌟 실행 조건: 모달 Open + 학생정보 존재 + 학원코드 유효
-    enabled: isOpen && !!name,
+    enabled: isOpen && !!studentId,
   });
 };

@@ -5,8 +5,13 @@ import styled from "styled-components";
 import { useModalStore } from "@/store/modalStore";
 import { RefreshCw, Search, X } from "lucide-react"; // X 아이콘 추가
 import { useToastStore } from "@/store/toastStore";
-import DaumPostcodeEmbed from "react-daum-postcode"; // ✅ Embed 컴포넌트 사용
 import { useUpsertBranch } from "@/app/_querys";
+import dynamic from "next/dynamic";
+
+// 🌟 [최적화] 주소 검색창은 사용자가 클릭했을 때만 렌더링되므로 지연 로딩
+const DaumPostcodeEmbed = dynamic(() => import("react-daum-postcode"), {
+  ssr: false,
+});
 
 interface Props {
   mode: "add" | "edit";

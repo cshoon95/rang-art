@@ -16,7 +16,7 @@ export async function getPaymentMessageListAction(academyCode: string) {
   // ⚠️ 여기서 동명이인이 있을 수 있음 -> 나중에 이름으로 매핑할 때 주의
   const { data: customers, error: custError } = await supabase
     .from("customers")
-    .select("id, name, fee, count, note, fee_yn")
+    .select("id, name, fee, count, note, fee_yn, parentphone, tel")
     .eq("academy_code", academyCode)
     .eq("msg_yn", "Y");
 
@@ -24,52 +24,39 @@ export async function getPaymentMessageListAction(academyCode: string) {
     return [];
   }
 
-  // 2. 'L'(Last day) 표시가 있는 출석 기록 가져오기
-  // 🌟 날짜 내림차순(DESC) 정렬이 핵심! (가장 최신 날짜가 먼저 옴)
+  // 2. 이 고객들의 가장 최근 'L' 출석 기록 가져오기 (알림창에 '기준일' 날짜 표시용)
+  const customerIds = customers.map((c) => c.id);
+
   const { data: attendanceData, error: attError } = await supabase
     .from("attendance")
-    .select("name, date")
+    .select("student_id, date")
     .eq("academy_code", academyCode)
+    .in("student_id", customerIds)
     .like("content", "%L%") // 'L' 포함
     .order("date", { ascending: false });
 
-  if (attError || !attendanceData) {
-    return [];
-  }
+  // 3. 고객 명단을 기준으로 데이터 병합 (L 기록이 없어도 무조건 목록에 포함!)
+  const result = customers.map((customer) => {
+    // 가장 최근의 L 날짜 찾기 (이미 내림차순 정렬되어 있으므로 첫 번째 매칭)
+    const latestAtt = attendanceData?.find(
+      (att) => att.student_id === customer.id,
+    );
 
-  // 3. 데이터 병합 (중복 제거 로직)
-  const resultMap = new Map();
-
-  // 출석 데이터는 이미 '최신순'으로 정렬되어 있습니다.
-  attendanceData.forEach((att) => {
-    const name = att.name;
-
-    // 🌟 [핵심] 이미 맵에 이름이 등록되어 있다면?
-    // -> 이미 더 최신 날짜('L')가 등록된 것이므로, 과거 데이터(현재 loop)는 무시합니다.
-    if (resultMap.has(name)) return;
-
-    // 고객 명단에서 해당 이름 찾기
-    // (만약 customers에 동명이인이 있다면, 첫 번째 사람 정보를 가져옵니다.)
-    // * 정확성을 높이려면 출석부에도 customer_id가 있어야 하지만, 현재 구조상 이름 매칭합니다.
-    const matchedCustomer = customers.find((c) => c.name === name);
-    if (matchedCustomer) {
-      resultMap.set(name, {
-        id: matchedCustomer.id,
-        name: name,
-        date: att.date, // 가장 최신의 'L' 날짜
-        fee: matchedCustomer.fee,
-        count: matchedCustomer.count,
-        fee_yn: matchedCustomer.fee_yn,
-        note: matchedCustomer.note,
-        msg_yn: true,
-      });
-    }
+    return {
+      id: customer.id,
+      name: customer.name,
+      date: latestAtt ? latestAtt.date : "", // L이 없으면 빈 값으로 처리
+      fee: customer.fee,
+      count: customer.count,
+      fee_yn: customer.fee_yn,
+      note: customer.note,
+      msg_yn: true,
+      phone: customer.parentphone || customer.tel || "01000000000",
+    };
   });
 
-  // 4. 이름순 정렬하여 반환
-  const result = Array.from(resultMap.values()).sort((a: any, b: any) =>
-    a.name.localeCompare(b.name)
-  );
+  // 4. 이름순 정렬
+  result.sort((a: any, b: any) => a.name.localeCompare(b.name));
 
   return result;
 }
@@ -78,7 +65,7 @@ export async function getPaymentMessageListAction(academyCode: string) {
 export async function deletePaymentAction(
   id: number,
   type: PaymentType,
-  academyCode: string
+  academyCode: string,
 ) {
   const supabase = await createClient();
   const tableName = TABLE_MAP[type];
@@ -108,7 +95,7 @@ export async function updatePaymentStatusBatchAction(
   key: string,
   value: string,
   updaterId: string,
-  academyCode: string
+  academyCode: string,
 ) {
   const supabase = await createClient();
 
@@ -145,7 +132,7 @@ export async function updatePaymentStatusBatchAction(
 export async function getCashReceiptListAction(
   academyCode: string,
   year: string,
-  month: string
+  month: string,
 ) {
   const supabase = await createClient();
 
@@ -276,7 +263,7 @@ export async function updateCashReceiptBatchAction(
   targetIds: number[],
   value: string, // 'Y' or 'N'
   updaterId: string,
-  academyCode: string
+  academyCode: string,
 ) {
   const supabase = await createClient();
 
@@ -302,7 +289,7 @@ export async function updateCashReceiptBatchAction(
 // 월별 데이터 조회 및 가공
 export async function getRegisterReportAction(
   academyCode: string,
-  year: string
+  year: string,
 ) {
   const supabase = await createClient();
 
@@ -354,7 +341,8 @@ export async function getRegisterReportAction(
     const currentMonthData = studentData.months[monthKey];
 
     // 금액 합산
-    const fee = Number(item.fee || 0);
+    // 🌟 [수정] 콤마(,) 등 문자가 섞여있을 경우 NaN 에러 방지
+    const fee = Number(String(item.fee || "0").replace(/[^0-9.-]+/g, ""));
     currentMonthData.fee += fee;
 
     // 날짜 표시 (여러 건이면 콤마로 구분하거나 가장 최근 것 사용)
@@ -387,7 +375,7 @@ export async function getRegisterReportAction(
 export async function getStudentPaymentDataAction(
   academyCode: string,
   year: string,
-  name: string
+  name: string,
 ) {
   const supabase = await createClient();
 
@@ -413,13 +401,14 @@ export async function getStudentPaymentDataAction(
 
     // 1. 해당 월에 해당하는 모든 결제 내역을 찾습니다 (filter 사용)
     const monthlyPayments = data.filter(
-      (p) => String(p.month).padStart(2, "0") === targetMonth
+      (p) => String(p.month).padStart(2, "0") === targetMonth,
     );
 
     // 2. 찾은 내역들의 금액(fee)을 모두 더합니다 (reduce 사용)
     const totalFee = monthlyPayments.reduce(
-      (sum, item) => sum + Number(item.fee),
-      0
+      (sum, item) =>
+        sum + (Number(String(item.fee).replace(/[^0-9.-]+/g, "")) || 0),
+      0,
     );
 
     // (선택사항) 비고(note)가 여러 개일 경우 콤마로 합쳐서 보여줍니다.
@@ -446,7 +435,7 @@ export async function getPaymentListAction(
   year: string,
   month: string,
   type: PaymentType,
-  academyCode: string
+  academyCode: string,
 ) {
   const supabase = await createClient();
   const tableName = TABLE_MAP[type];
@@ -532,7 +521,7 @@ export async function upsertPaymentAction(formData: any, type: PaymentType) {
 export async function getMonthlyTotalAction(
   year: string,
   type: PaymentType,
-  academyCode: string
+  academyCode: string,
 ) {
   const supabase = await createClient();
   const tableName = TABLE_MAP[type];

@@ -269,7 +269,8 @@ export async function upsertPickupAction(param: {
     .select("content") // 존재 여부만 확인하면 되므로 컬럼 하나만 선택
     .eq("day", day)
     .eq("time", time)
-    .eq("academy_code", academyCode);
+    .eq("academy_code", academyCode)
+    .maybeSingle(); // 🌟 핵심: 단일 객체나 null로 반환하도록 추가!
 
   if (checkError) {
     console.error("Pickup Check Error:", checkError);
@@ -545,11 +546,12 @@ export const getScheduleTimeListAction = async (academyCode: string) => {
     const getWeight = (timeStr: string) => {
       if (!timeStr) return 0;
 
-      // 🚨 [수정] 데이터가 "0230" (4자리) 형식이므로 인덱스 조정
-      // 시: 0~2 (앞 2글자)
-      // 분: 2~4 (뒤 2글자)
-      let hour = parseInt(timeStr.substring(0, 2), 10);
-      const minute = parseInt(timeStr.substring(2, 4), 10); // 여기가 핵심!
+      // 🌟 [수정] ":" 같은 기호가 섞여 들어와도 안전하게 계산하도록 숫자만 추출
+      const cleanTime = timeStr.replace(/[^0-9]/g, ""); // 예: "14:30" -> "1430"
+      const paddedTime = cleanTime.padEnd(4, "0"); // "14"만 들어와도 "1400"으로 방어
+
+      let hour = parseInt(paddedTime.substring(0, 2), 10);
+      const minute = parseInt(paddedTime.substring(2, 4), 10);
 
       // 08시 이전(01~07)은 오후/밤으로 간주 (+12시간)
       if (hour < 8) {
@@ -612,11 +614,12 @@ export const getTempScheduleTimeListAction = async (academyCode: string) => {
     const getWeight = (timeStr: string) => {
       if (!timeStr) return 0;
 
-      // 🚨 [수정] 데이터가 "0230" (4자리) 형식이므로 인덱스 조정
-      // 시: 0~2 (앞 2글자)
-      // 분: 2~4 (뒤 2글자)
-      let hour = parseInt(timeStr.substring(0, 2), 10);
-      const minute = parseInt(timeStr.substring(2, 4), 10); // 여기가 핵심!
+      // 🌟 [수정] 콜론(:) 방어 로직 적용
+      const cleanTime = timeStr.replace(/[^0-9]/g, "");
+      const paddedTime = cleanTime.padEnd(4, "0");
+
+      let hour = parseInt(paddedTime.substring(0, 2), 10);
+      const minute = parseInt(paddedTime.substring(2, 4), 10);
 
       // 08시 이전(01~07)은 오후/밤으로 간주 (+12시간)
       if (hour < 8) {

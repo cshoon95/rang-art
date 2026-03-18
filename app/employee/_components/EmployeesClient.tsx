@@ -9,11 +9,12 @@ import React, {
 } from "react";
 import styled from "styled-components";
 import {
+  ChevronLeft,
+  ChevronRight,
   Search as SearchIcon,
-  PhoneIphone as PhoneIcon,
-  MoreVert as MoreVertIcon,
-} from "@mui/icons-material";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+  Smartphone as PhoneIcon,
+  MoreVertical as MoreVertIcon,
+} from "lucide-react";
 
 import { useModalStore } from "@/store/modalStore";
 import { extractInitialConsonants } from "@/utils/common";
@@ -33,6 +34,7 @@ const LEVEL_FILTER_OPTIONS = [
   { value: "2", label: "부원장님" },
   { value: "3", label: "선생님" },
   { value: "4", label: "스탭" },
+  { value: "5", label: "기타" }, // ✅ 추가
 ];
 
 const STATE_FILTER_OPTIONS = [
@@ -46,6 +48,7 @@ const LEVEL_ORDER: { [key: string]: number } = {
   부원장님: 2,
   선생님: 3,
   스탭: 4,
+  기타: 5, // ✅ 추가
 };
 
 // --- Sub Components ---
@@ -201,7 +204,7 @@ const EmployeesTable = React.memo(
         </tbody>
       </TableView>
     );
-  }
+  },
 );
 EmployeesTable.displayName = "EmployeesTable";
 
@@ -237,7 +240,7 @@ const EmployeesCardList = React.memo(({ data, onDetail, onDelete }: any) => {
           </CardHeader>
           <CardBody>
             <InfoRow>
-              <PhoneIcon fontSize="small" />
+              <PhoneIcon size={16} />
               <span>{item.TEL || "연락처 없음"}</span>
             </InfoRow>
             {item.NOTE && <NoteRow>📢 {item.NOTE}</NoteRow>}
@@ -358,7 +361,7 @@ export default function EmployeesClient({ initialData, academyCode }: Props) {
         hideFooter: true,
       });
     },
-    [openModal, academyCode]
+    [openModal, academyCode],
   );
 
   const handleDeleteCheck = useCallback(
@@ -377,7 +380,7 @@ export default function EmployeesClient({ initialData, academyCode }: Props) {
         hideFooter: true,
       });
     },
-    [openModal, closeModal, academyCode]
+    [openModal, closeModal, academyCode],
   );
 
   return (
@@ -480,6 +483,7 @@ const LevelBadge = styled.span<{ $level: string }>`
     if ($level === "부원장님") return "background: #dbeafe; color: #1d4ed8;";
     if ($level === "선생님") return "background: #e8f3ff; color: #3182f6;";
     if ($level === "스탭") return "background: #ffedd5; color: #c2410c;";
+    if ($level === "기타") return "background: #f1f5f9; color: #475569;"; // ✅ 추가
     return "background: #f2f4f6; color: #4e5968;";
   }}
 `;
@@ -793,7 +797,6 @@ const InfoRow = styled.div`
   font-weight: 500;
   svg {
     color: #b0b8c1;
-    font-size: 18px;
   }
 `;
 const NoteRow = styled.div`

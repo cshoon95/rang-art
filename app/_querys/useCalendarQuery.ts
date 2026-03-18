@@ -17,13 +17,15 @@ export const useGetCalendarList = (academyCode: string) => {
     queryKey: ["calendar", academyCode],
     queryFn: () => getCalendarListAction(academyCode),
     enabled: !!academyCode, // academyCode가 있을 때만 실행
+    // 🌟 [최적화 3] 한 번 불러온 캘린더 데이터는 5분간 캐싱하여 탭 전환 시 즉시 렌더링
+    staleTime: 1000 * 60 * 5,
   });
 };
 
 // 2. 일정 추가
 export const useInsertCalendar = (
   academyCode: string,
-  onSuccessCallback?: () => void
+  onSuccessCallback?: () => void,
 ) => {
   const queryClient = useQueryClient();
   const { addToast } = useToastStore();
@@ -54,7 +56,7 @@ export const useInsertCalendar = (
 // 3. 일정 수정
 export const useUpdateCalendar = (
   academyCode: string,
-  onSuccessCallback?: () => void
+  onSuccessCallback?: () => void,
 ) => {
   const queryClient = useQueryClient();
   const { addToast } = useToastStore();
@@ -62,7 +64,7 @@ export const useUpdateCalendar = (
   return useMutation({
     // 👈 [변경] id -> idx 로 변경
     mutationFn: (
-      data: CalendarFormData & { idx: number; updater_id: string }
+      data: CalendarFormData & { idx: number; updater_id: string },
     ) => updateCalendarAction({ ...data, academy_code: academyCode }),
     onSuccess: (response) => {
       if (response.success) {
@@ -72,7 +74,7 @@ export const useUpdateCalendar = (
         });
 
         if (onSuccessCallback) onSuccessCallback();
-        addToast("일정 수정이 완료되었어요.");
+        addToast("일정이 변경되었습니다.");
       } else {
         alert(response.message);
       }
@@ -87,7 +89,7 @@ export const useUpdateCalendar = (
 // 4. 일정 삭제
 export const useDeleteCalendar = (
   academyCode: string,
-  onSuccessCallback?: () => void
+  onSuccessCallback?: () => void,
 ) => {
   const queryClient = useQueryClient();
   const { addToast } = useToastStore();

@@ -40,7 +40,7 @@ export async function getCalendarListAction(academyCode: string) {
  * ✅ 캘린더 일정 추가
  */
 export async function createCalendarAction(
-  formData: any
+  formData: any,
 ): Promise<ActionResponse> {
   const supabase = await createClient();
 
@@ -50,10 +50,9 @@ export async function createCalendarAction(
     start_time: formData.startTime,
     end_date: formData.endDate,
     end_time: formData.endTime,
-    academy_code: formData.academy_code, // 클라이언트에서 academy_code로 넘기거나 여기서 매핑
-    register_id: formData.register_id, // 등록자 ID
+    academy_code: formData.academyCode || formData.academy_code, // 🌟 카멜/스네이크 케이스 모두 대응
+    register_id: formData.registerID || formData.register_id || "admin",
     type: formData.type || "event",
-    // register_date: new Date().toISOString(), // DB에 default value가 있다면 생략 가능
   });
 
   if (error) {
@@ -69,7 +68,7 @@ export async function createCalendarAction(
  * ✅ 캘린더 일정 수정
  */
 export async function updateCalendarAction(
-  formData: any
+  formData: any,
 ): Promise<ActionResponse> {
   const supabase = await createClient();
 
@@ -81,11 +80,11 @@ export async function updateCalendarAction(
       start_time: formData.startTime,
       end_date: formData.endDate,
       end_time: formData.endTime,
-      updater_id: formData.updater_id,
+      updater_id: formData.updaterID || formData.updater_id || "admin",
       type: formData.type || "event",
     })
     .eq("idx", formData.idx) // 👈 [변경] id -> idx
-    .eq("academy_code", formData.academy_code);
+    .eq("academy_code", formData.academyCode || formData.academy_code);
 
   if (error) {
     console.error("Update Calendar Error:", error);
@@ -101,7 +100,7 @@ export async function updateCalendarAction(
  */
 export async function deleteCalendarAction(
   idx: number, // 👈 [변경] id -> idx
-  academyCode: string
+  academyCode: string,
 ): Promise<ActionResponse> {
   const supabase = await createClient();
 

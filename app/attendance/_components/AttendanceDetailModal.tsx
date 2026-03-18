@@ -119,7 +119,7 @@ export default function AttendanceDetailModal({
   const [isFiltered, setIsFiltered] = useState(false);
 
   const { data: attendanceList = [], isLoading } =
-    useGetStudentAttendanceHistory(academyCode, student?.name!, isOpen);
+    useGetStudentAttendanceHistory(academyCode, String(student?.id), isOpen);
 
   // 1. 데이터 파싱 & 정렬
   const allHistories = useMemo(() => {
@@ -133,7 +133,7 @@ export default function AttendanceDetailModal({
         }))
         // 날짜 내림차순 정렬 (최신순)
         .sort((a: any, b: any) =>
-          compareDesc(parseISO(a.date), parseISO(b.date))
+          compareDesc(parseISO(a.date), parseISO(b.date)),
         )
     );
   }, [attendanceList]);
@@ -151,7 +151,7 @@ export default function AttendanceDetailModal({
   useEffect(() => {
     if (isOpen && allHistories.length > 0 && !isFiltered && !isLoading) {
       const lastFirstClass = allHistories.find(
-        (item) => item.parsed.type === "ATTENDANCE" && item.parsed.raw === "1"
+        (item) => item.parsed.type === "ATTENDANCE" && item.parsed.raw === "1",
       );
 
       if (lastFirstClass) {

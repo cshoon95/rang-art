@@ -6,6 +6,7 @@ import { useModalStore } from "@/store/modalStore";
 import { useUpsertEmployee } from "@/app/_querys";
 // ✅ 공통 Select 컴포넌트 Import
 import Select from "../Select";
+import { useSession } from "next-auth/react";
 
 // --- 옵션 데이터 ---
 const LEVEL_OPTIONS = [
@@ -13,6 +14,7 @@ const LEVEL_OPTIONS = [
   { value: "2", label: "부원장" },
   { value: "3", label: "선생님" },
   { value: "4", label: "스탭" },
+  { value: "5", label: "기타" }, // ✅ 추가
 ];
 
 // ✅ 재직 상태 옵션 (드롭다운용)
@@ -33,6 +35,8 @@ export default function ModalEmployeeManager({
   academyCode,
   initialData,
 }: Props) {
+  const { data: session } = useSession();
+
   // 날짜 포맷팅 함수
   const formatDateToInput = (str: string) => {
     if (!str || str.length < 8) return "";
@@ -52,7 +56,13 @@ export default function ModalEmployeeManager({
     account: initialData?.ACCOUNT || "",
     // ✅ DB 데이터(O/X 등)를 드롭다운 값(Y/N/H)으로 매핑
     state:
-      initialData?.STATE === "O" ? "Y" : initialData?.STATE === "X" ? "N" : "Y",
+      initialData?.STATE === "O"
+        ? "Y"
+        : initialData?.STATE === "X"
+          ? "N"
+          : initialData?.STATE === "H"
+            ? "H"
+            : "Y",
     date: initialData?.DATE
       ? formatDateToInput(initialData.DATE)
       : new Date().toISOString().slice(0, 10),
@@ -84,7 +94,7 @@ export default function ModalEmployeeManager({
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
+    >,
   ) => {
     const { name, value } = e.target;
 
@@ -123,7 +133,8 @@ export default function ModalEmployeeManager({
       birth: formData.birth.replace(/-/g, ""),
       date: formData.date.replace(/-/g, ""),
       tel: formData.tel.replace(/-/g, ""),
-      updaterID: "admin",
+      updaterID: session?.user?.email || "admin",
+      registerID: session?.user?.email || "admin",
     };
 
     mutateUpsertEmployee(submitData, {

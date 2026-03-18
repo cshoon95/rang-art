@@ -58,9 +58,10 @@ export default function ModalMemoManager({
   const handleContentChange = (content: string) => {
     setFormData((prev) => ({ ...prev, content }));
 
-    // 내용이 입력되면 에러 해제 (HTML 태그 제거 후 확인)
+    // 🌟 내용이 입력되면 에러 해제 (이미지가 포함된 경우도 내용이 있는 것으로 간주)
     const cleanText = content.replace(/<[^>]+>/g, "").trim();
-    if (cleanText.length > 0) setShowError(false);
+    const hasImage = content.includes("<img");
+    if (cleanText.length > 0 || hasImage) setShowError(false);
   };
 
   const toggleFixed = () => {
@@ -71,9 +72,10 @@ export default function ModalMemoManager({
     // 🌟 [핵심] 제목이나 내용 중 하나라도 있는지 체크
     const hasTitle = !!formData.title.trim();
 
-    // 에디터 특성상 태그(<p> 등)를 제외한 순수 텍스트만 추출해서 검사
+    // 🌟 에디터 특성상 태그(<p> 등)를 제외한 순수 텍스트 추출 + 이미지 태그 여부 검사
     const cleanContent = formData.content.replace(/<[^>]+>/g, "").trim();
-    const hasContent = cleanContent.length > 0;
+    const hasImage = formData.content.includes("<img");
+    const hasContent = cleanContent.length > 0 || hasImage;
 
     if (!hasTitle && !hasContent) {
       setShowError(true); // 에러 표시
@@ -90,14 +92,14 @@ export default function ModalMemoManager({
       },
       {
         onSuccess: () => closeModal(),
-      }
+      },
     );
   };
 
   const handleDelete = () => {
     openModal({
       title: "삭제 알림",
-      content: "정말 삭제하시겠습어요?",
+      content: "정말 삭제하시겠어요?",
       type: "CONFIRM",
       onConfirm: () => {
         deleteMemo(initialData?.id || initialData?.ID, {

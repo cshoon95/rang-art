@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import styled from "styled-components";
 import {
   Search,
@@ -13,16 +14,31 @@ import {
 import { useModalStore } from "@/store/modalStore";
 import { extractInitialConsonants, getStateLabel } from "@/utils/common";
 import { replaceHyphenFormat } from "@/utils/format";
-import ModalCustomerManager from "@/components/modals/ModalCustomerManager";
 import {
   STATE_FILTER_OPTIONS,
   COUNT_FILTER_OPTIONS,
   STATE_ORDER,
 } from "@/utils/list";
 import { getDDay } from "@/utils/date";
-import { ModalCustomerDelete } from "@/components/modals/ModalCustomerDelete";
 import PageTitleWithStar from "@/components/PageTitleWithStar";
 import Select from "@/components/Select";
+
+// 🌟 [최적화] 모달 컴포넌트들은 초기 로딩에 포함하지 않고 필요할 때만 불러옵니다.
+const ModalCustomerManager = dynamic(
+  () => import("@/components/modals/ModalCustomerManager"),
+  {
+    ssr: false,
+  },
+);
+const ModalCustomerDelete = dynamic(
+  () =>
+    import("@/components/modals/ModalCustomerDelete").then(
+      (mod) => mod.ModalCustomerDelete,
+    ),
+  {
+    ssr: false,
+  },
+);
 
 interface Props {
   initialData: any[];
@@ -149,7 +165,7 @@ const CustomersTable = React.memo(
         </tbody>
       </TableView>
     );
-  }
+  },
 );
 CustomersTable.displayName = "CustomersTable";
 
@@ -222,7 +238,15 @@ export default function CustomersClient({ initialData, academyCode }: Props) {
 
   // 2. 필터링 로직 (useMemo 최적화)
   const processedData = useMemo(() => {
-    const filtered = initialData.filter((item) => {
+    // 1. API 응답에 중복된 학생 ID가 있을 경우를 대비해 중복 제거
+    const seen = new Set();
+    const uniqueData = initialData.filter((item: any) => {
+      const duplicate = seen.has(item.id);
+      seen.add(item.id);
+      return !duplicate;
+    });
+
+    const filtered = uniqueData.filter((item) => {
       const name = item.name || "";
       const matchesSearch =
         !debouncedSearch ||
@@ -277,7 +301,7 @@ export default function CustomersClient({ initialData, academyCode }: Props) {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
     },
-    [totalPages]
+    [totalPages],
   );
 
   const handleAdd = useCallback(() => {
@@ -304,7 +328,7 @@ export default function CustomersClient({ initialData, academyCode }: Props) {
         type: "BOTTOM",
       });
     },
-    [openModal, academyCode]
+    [openModal, academyCode],
   );
 
   const handleDeleteCheck = useCallback(
@@ -324,7 +348,7 @@ export default function CustomersClient({ initialData, academyCode }: Props) {
         type: "SIMPLE",
       });
     },
-    [openModal, closeModal, academyCode]
+    [openModal, closeModal, academyCode],
   );
 
   const handleStateChange = useCallback((_: any, value?: string) => {
@@ -404,16 +428,27 @@ export default function CustomersClient({ initialData, academyCode }: Props) {
             <ChevronLeft size={20} />
           </PageButton>
 
-          {/* 페이지 번호 최적화 가능 (현재는 전체 표시) */}
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <PageButton
-              key={page}
-              $active={currentPage === page}
-              onClick={() => handlePageChange(page)}
-            >
-              {page}
-            </PageButton>
-          ))}
+          {/* 페이지 번호 최적화 (많아질 경우 말줄임표 처리) */}
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter(
+              (page) =>
+                page === 1 ||
+                page === totalPages ||
+                (page >= currentPage - 2 && page <= currentPage + 2),
+            )
+            .map((page, index, array) => (
+              <React.Fragment key={page}>
+                {index > 0 && page - array[index - 1] > 1 && (
+                  <span style={{ color: "#b0b8c1", margin: "0 4px" }}>...</span>
+                )}
+                <PageButton
+                  $active={currentPage === page}
+                  onClick={() => handlePageChange(page)}
+                >
+                  {page}
+                </PageButton>
+              </React.Fragment>
+            ))}
 
           <PageButton
             onClick={() => handlePageChange(currentPage + 1)}

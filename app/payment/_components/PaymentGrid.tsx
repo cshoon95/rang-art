@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import dynamic from "next/dynamic";
 import styled, { css } from "styled-components";
 import {
   Search,
@@ -15,11 +16,17 @@ import {
   replaceFirstPadZero,
   replaceOnlyNum,
 } from "@/utils/format";
-import PaymentDeleteModal from "./PaymentDeleteModal";
-import PaymentAddModal from "./PaymentAddModal";
 import { usePaymentList, useUpsertPayment } from "@/app/_querys";
 import { PaymentType } from "@/app/_types/type";
 import PaymentGridSkeleton from "./PaymentGridSkeleton";
+
+// 🌟 [최적화] 모달 컴포넌트 지연 로딩
+const PaymentDeleteModal = dynamic(() => import("./PaymentDeleteModal"), {
+  ssr: false,
+});
+const PaymentAddModal = dynamic(() => import("./PaymentAddModal"), {
+  ssr: false,
+});
 
 // --- Logic ---
 interface Props {
@@ -47,7 +54,7 @@ export default function PaymentGrid({
     year,
     month,
     type,
-    academyCode
+    academyCode,
   );
   const { mutate: upsertPayment } = useUpsertPayment(type);
 
@@ -63,6 +70,11 @@ export default function PaymentGrid({
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // 🌟 탭(수입/지출)이 변경될 때 검색어 초기화 (UX 개선)
+  useEffect(() => {
+    setSearchText("");
+  }, [type]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -91,7 +103,7 @@ export default function PaymentGrid({
     id: number,
     field: string,
     value: string,
-    originalValue: any
+    originalValue: any,
   ) => {
     let rawValue = value;
     let rawOriginal = String(originalValue);
@@ -106,13 +118,13 @@ export default function PaymentGrid({
 
     if (rawValue === rawOriginal) return;
 
+    // 🌟 전체 row 데이터를 유지하여 다른 필드들이 null로 덮어씌워지는 것을 방지
+    const row = rows.find((r: any) => r.id === id);
+
     const payload: any = {
-      id,
-      year,
-      month,
-      day: field === "day" ? rawValue : undefined,
-      academy_code: academyCode,
-      updater_id: userId,
+      ...row,
+      academyCode, // 🌟 서버 액션에서 기대하는 camelCase 파라미터명으로 수정
+      updaterID: userId, // 🌟 서버 액션에서 기대하는 camelCase 파라미터명으로 수정
       [field]: rawValue,
     };
 
@@ -125,12 +137,9 @@ export default function PaymentGrid({
 
     const newVal = row.register === "Y" ? "N" : "Y";
     upsertPayment({
-      id: row.id,
-      year,
-      month,
-      day: row.day,
-      academy_code: academyCode,
-      updater_id: userId,
+      ...row, // 🌟 기존 데이터 유지
+      academyCode, // 🌟 camelCase 매핑
+      updaterID: userId, // 🌟 camelCase 매핑
       register: newVal,
     });
   };
@@ -235,7 +244,7 @@ export default function PaymentGrid({
                           const val = e.target.value;
                           handleBlur(row.id, "day", val, row.day);
                           e.target.value = formatDateDisplay(
-                            replaceFirstPadZero(replaceOnlyNum(val))
+                            replaceFirstPadZero(replaceOnlyNum(val)),
                           );
                         }}
                       />
@@ -252,7 +261,7 @@ export default function PaymentGrid({
                                 row.id,
                                 "name",
                                 e.target.value,
-                                row.name
+                                row.name,
                               )
                             }
                             style={{ fontWeight: 600, textAlign: "center" }}
@@ -270,7 +279,7 @@ export default function PaymentGrid({
                               const val = e.target.value;
                               handleBlur(row.id, "fee", val, row.fee);
                               e.target.value = formatCurrency(
-                                Number(replaceOnlyNum(val))
+                                Number(replaceOnlyNum(val)),
                               );
                             }}
                             style={{ color: "#3182f6", fontWeight: 700 }}
@@ -301,7 +310,7 @@ export default function PaymentGrid({
                                 row.id,
                                 "card",
                                 e.target.value,
-                                row.card
+                                row.card,
                               )
                             }
                           />
@@ -318,7 +327,7 @@ export default function PaymentGrid({
                                 row.id,
                                 "item",
                                 e.target.value,
-                                row.item
+                                row.item,
                               )
                             }
                             style={{ fontWeight: 600 }}
@@ -338,7 +347,7 @@ export default function PaymentGrid({
                               const val = e.target.value;
                               handleBlur(row.id, "amount", val, row.amount);
                               e.target.value = formatCurrency(
-                                Number(replaceOnlyNum(val))
+                                Number(replaceOnlyNum(val)),
                               );
                             }}
                             style={{ color: "#e11d48", fontWeight: 700 }}
@@ -354,7 +363,7 @@ export default function PaymentGrid({
                                 row.id,
                                 "kind",
                                 e.target.value,
-                                row.kind
+                                row.kind,
                               )
                             }
                           />

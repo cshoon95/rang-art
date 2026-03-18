@@ -11,6 +11,7 @@ import {
 import { convertDateFormat } from "@/utils/date";
 import { useModalStore } from "@/store/modalStore";
 import { useUpdatePaymentStatusBatch } from "@/app/_querys";
+import { updateCustomerAction } from "@/app/_actions/customers"; // 🌟 서버 액션 직접 Import
 
 // --- Styled Components ---
 const Overlay = styled.div`
@@ -283,6 +284,21 @@ const EmptyState = styled.div`
   padding: 60px 0;
 `;
 
+const FilterToggle = styled.button<{ $active: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid ${({ $active }) => ($active ? "#3182f6" : "#e5e8eb")};
+  background-color: ${({ $active }) => ($active ? "#e8f3ff" : "#fff")};
+  color: ${({ $active }) => ($active ? "#3182f6" : "#4e5968")};
+  cursor: pointer;
+  transition: all 0.2s;
+`;
+
 // --- Interface ---
 interface Props {
   messageList: any[];
@@ -301,10 +317,14 @@ export default function ModalPaymentMessage({
 }: Props) {
   const [rows, setRows] = useState<any[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [filterUnpaid, setFilterUnpaid] = useState(false); // 🌟 필터 상태 추가
   const { openModal } = useModalStore();
 
   // 일괄 업데이트 훅
   const { mutateAsync: updateBatch } = useUpdatePaymentStatusBatch();
+
+  // 단건 업데이트 훅 (import 경로에 맞게 사용 중인 훅으로 변경 필요할 수 있음)
+  // const { mutateAsync: updateSingle } = useUpdateCustomerStatus();
 
   // 1. 데이터 가공
   useEffect(() => {
@@ -314,7 +334,7 @@ export default function ModalPaymentMessage({
         displayDate: item.date
           ? convertDateFormat(
               replaceHyphenFormat(item.date, "date"),
-              "YY.MM.DD"
+              "YY.MM.DD",
             )
           : "-",
         displayFee: item.fee
@@ -334,17 +354,40 @@ export default function ModalPaymentMessage({
     setSelectedIds(newSet);
   };
 
+  // 🌟 필터링 적용 (미납/미발신인 경우 feeYn === false)
+  const displayedRows = filterUnpaid ? rows.filter((r) => !r.feeYn) : rows;
+
   const toggleSelectAll = () => {
-    if (selectedIds.size === rows.length) setSelectedIds(new Set());
-    else setSelectedIds(new Set(rows.map((r) => r.id)));
+    if (selectedIds.size === displayedRows.length && displayedRows.length > 0)
+      setSelectedIds(new Set());
+    else setSelectedIds(new Set(displayedRows.map((r) => r.id)));
   };
 
   // 3. 개별 상태 변경 (Optimistic UI - 실제 반영은 Send 버튼에서 일괄처리하거나 여기서 API 호출 가능)
-  // 현재는 UI만 바꿉니다.
-  const handleFeeYnChange = (id: number, currentVal: boolean) => {
+  const handleFeeYnChange = async (id: number, currentVal: boolean) => {
+    const nextVal = !currentVal;
+
+    // 1. UI 먼저 즉시 업데이트 (Optimistic Update)
     setRows((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, feeYn: !currentVal } : r))
+      prev.map((r) => (r.id === id ? { ...r, feeYn: nextVal } : r)),
     );
+
+    // 2. DB에 실제 반영 요청 (서버 액션 직접 호출)
+    try {
+      await updateCustomerAction({
+        id: id,
+        field: "fee_yn",
+        value: nextVal ? "Y" : "N",
+        updaterID: userId,
+        academyCode: academyCode,
+      });
+    } catch (e) {
+      console.error("상태 변경 실패:", e);
+      // 실패 시 UI 롤백
+      setRows((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, feeYn: currentVal } : r)),
+      );
+    }
   };
 
   // 4. 문자 전송 및 일괄 업데이트
@@ -395,20 +438,35 @@ export default function ModalPaymentMessage({
           <TitleGroup>
             <Title>결제 알림 전송</Title>
             <SubTitle>
-              총 <strong style={{ color: "#3182f6" }}>{rows.length}명</strong>의
-              미발신 내역이 조회되었습니다.
+              총{" "}
+              <strong style={{ color: "#3182f6" }}>
+                {displayedRows.length}명
+              </strong>
+              의 미발신 내역이 조회되었습니다.
             </SubTitle>
           </TitleGroup>
-          <CloseButton onClick={onClose}>
-            <X size={20} />
-          </CloseButton>
+          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            {/* 🌟 미납/미발신 전용 필터 버튼 */}
+            <FilterToggle
+              $active={filterUnpaid}
+              onClick={() => {
+                setFilterUnpaid(!filterUnpaid);
+                setSelectedIds(new Set()); // 필터 변경 시 전체선택 해제
+              }}
+            >
+              <AlertCircle size={16} /> 미발신(미납)만 보기
+            </FilterToggle>
+            <CloseButton onClick={onClose}>
+              <X size={20} />
+            </CloseButton>
+          </div>
         </ModalHeader>
 
         {/* 바디 (테이블) */}
         <TableWrapper>
           {isLoading ? (
             <EmptyState>데이터를 불러오는 중입니다...</EmptyState>
-          ) : rows.length === 0 ? (
+          ) : displayedRows.length === 0 ? (
             <EmptyState>
               <AlertCircle size={48} strokeWidth={1.5} />
               <span>전송할 대상이 없습니다.</span>
@@ -421,12 +479,14 @@ export default function ModalPaymentMessage({
                     <CheckBoxButton
                       onClick={toggleSelectAll}
                       className={
-                        selectedIds.size === rows.length && rows.length > 0
+                        selectedIds.size === displayedRows.length &&
+                        displayedRows.length > 0
                           ? "checked"
                           : ""
                       }
                     >
-                      {selectedIds.size === rows.length && rows.length > 0 ? (
+                      {selectedIds.size === displayedRows.length &&
+                      displayedRows.length > 0 ? (
                         <CheckSquare size={22} fill="#e8f3ff" />
                       ) : (
                         <Square size={22} />
@@ -442,7 +502,7 @@ export default function ModalPaymentMessage({
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
+                {displayedRows.map((row) => (
                   <Tr key={row.id} $isSelected={selectedIds.has(row.id)}>
                     <Td>
                       <CheckBoxButton
