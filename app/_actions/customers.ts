@@ -5,7 +5,6 @@ import { replaceHyphenFormat } from "@/utils/format";
 import { getEmployeeLevel } from "@/utils/list";
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
-import { unstable_noStore as noStore } from "next/cache";
 
 const TABLE_NAME = "customers";
 
@@ -13,12 +12,13 @@ const TABLE_NAME = "customers";
  * 회원 리스트 조회 (Server Component 용)
  */
 export const getServerCustomerList = async (academyCode: string) => {
-  noStore();
   const supabase = await createClient();
 
   const { data, error } = await supabase
     .from(TABLE_NAME)
-    .select("*")
+    .select(
+      "id, name, sex, birth, count, fee, tel, school, note, parentname, parentphone, cash_number, date, state, discharge, fee_yn, msg_yn, academy_code",
+    )
     .eq("academy_code", academyCode)
     .order("state", { ascending: true }) // 재원 > 휴원 > 퇴원 순
     .order("name", { ascending: true }); // 이름순

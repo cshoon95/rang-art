@@ -25,6 +25,7 @@ export const usePaymentList = (
   return useQuery({
     queryKey: ["payment", type, "list", year, month],
     queryFn: () => getPaymentListAction(year, month, type, academyCode),
+    staleTime: 1000 * 60 * 3, // 3분 캐시
   });
 };
 
@@ -36,6 +37,7 @@ export const usePaymentTotal = (
   return useQuery({
     queryKey: ["payment", type, "total", year],
     queryFn: () => getMonthlyTotalAction(year, type, academyCode),
+    staleTime: 1000 * 60 * 3, // 3분 캐시
   });
 };
 
@@ -55,6 +57,7 @@ export const usePaymentMessageList = (academyCode: string) => {
   return useQuery({
     queryKey: ["payment", "message", academyCode],
     queryFn: () => getPaymentMessageListAction(academyCode),
+    staleTime: 1000 * 60 * 5, // 5분 캐시
   });
 };
 
@@ -185,6 +188,7 @@ export const useGetCashReceiptList = (
     queryKey: ["cash-receipt", academyCode, year, month],
     queryFn: () => getCashReceiptListAction(academyCode, year, month),
     enabled: !!academyCode,
+    staleTime: 1000 * 60 * 3, // 3분 캐시
   });
 };
 
@@ -238,6 +242,7 @@ export const useRegisterReport = (academyCode: string, year: string) => {
     queryKey: ["registerReport", academyCode, year],
     queryFn: () => getRegisterReportAction(academyCode, year),
     enabled: !!academyCode && !!year,
+    staleTime: 1000 * 60 * 5, // 5분 캐시
   });
 };
 
@@ -250,5 +255,6 @@ export const useStudentPaymentData = (
     queryKey: ["studentPayment", academyCode, year, name],
     queryFn: () => getStudentPaymentDataAction(academyCode, year, name!),
     enabled: !!academyCode && !!year && !!name, // 조건 충족 시 실행
+    staleTime: 1000 * 60 * 3, // 3분 캐시
   });
 };

@@ -19,7 +19,7 @@ export const useGetCustomers = (academyCode: string, initialData?: any[]) => {
     queryKey: ["customers", academyCode],
     queryFn: () => getServerCustomerList(academyCode),
     initialData: initialData,
-    staleTime: 0,
+    staleTime: 1000 * 60, // 1분 캐시 (추가/삭제 시 invalidateQueries로 즉시 갱신)
     enabled: !!academyCode,
   });
 };
