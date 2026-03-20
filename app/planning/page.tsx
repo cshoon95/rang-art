@@ -1,6 +1,6 @@
 import PlanningClient from "./_components/PlanningClient";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 
 export default async function PlanningPage() {
   // 1. 서버 세션 가져오기 (authOptions 필수)

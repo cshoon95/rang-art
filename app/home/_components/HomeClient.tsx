@@ -833,7 +833,7 @@ const NameChip = styled.span<{ $theme: "blue" | "orange" }>`
       ? css`
           background-color: #f0f9ff;
           color: #0369a1;
-          border: 1px solid #e0f2fe;ㅎ
+          border: 1px solid #e0f2fe;
         `
       : css`
           background-color: #fff7ed;

@@ -5,6 +5,7 @@ import { replaceHyphenFormat } from "@/utils/format";
 import { getEmployeeLevel } from "@/utils/list";
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
+import { unstable_noStore as noStore } from "next/cache";
 
 const TABLE_NAME = "customers";
 
@@ -12,6 +13,7 @@ const TABLE_NAME = "customers";
  * 회원 리스트 조회 (Server Component 용)
  */
 export const getServerCustomerList = async (academyCode: string) => {
+  noStore();
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -399,11 +401,18 @@ export async function deleteCustomerAction({
 }): Promise<ActionResponse> {
   const supabase = await createClient();
 
+  // 출석 기록 먼저 삭제 (남아있으면 동명이인 재등록 시 충돌 발생)
+  await supabase
+    .from("attendance")
+    .delete()
+    .eq("student_id", id)
+    .eq("academy_code", academyCode);
+
   const { error } = await supabase
     .from("customers")
     .delete()
-    .eq("id", id) // 소문자 id
-    .eq("academy_code", academyCode); // 소문자 academy_code
+    .eq("id", id)
+    .eq("academy_code", academyCode);
 
   if (error) {
     return { success: false, message: "삭제 실패" };

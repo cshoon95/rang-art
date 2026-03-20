@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth"; // Auth 설정에 맞게 변경
 import CalendarClient from "./_components/CalendarClient";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 
 // React Query Hydration을 위해 필요하다면 여기서 Prefetching 가능
 // 하지만 지금은 Client Component에서 데이터를 fetching하도록 구성했습니다.

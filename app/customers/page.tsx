@@ -4,7 +4,7 @@ import { Spinner } from "@/components/Spinner";
 import CustomersClient from "./_components/CustomerClient";
 import { getServerCustomerList } from "../_actions";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 
 export default async function CustomersPage() {
   const session = await getServerSession(authOptions);

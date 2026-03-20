@@ -3,7 +3,7 @@ import EmployeesClient from "./_components/EmployeesClient";
 import { cookies } from "next/headers";
 import { getEmployees } from "../_actions";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 
 export default async function EmployeesPage() {
   // 1. 서버 세션 가져오기 (authOptions 필수)

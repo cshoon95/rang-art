@@ -1,9 +1,7 @@
-// app/api/auth/[...nextauth]/route.ts
-
-import NextAuth, { NextAuthOptions } from "next-auth";
+import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import { createClient } from "@/utils/supabase/server"; // Supabase 사용 시
-// 또는 mysql pool을 import 하세요.
+import { createClient } from "@/utils/supabase/server";
+import { LEVEL_OPTIONS } from "@/utils/list";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -13,52 +11,52 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    // 1️⃣ JWT 콜백: 로그인 성공 직후 실행됨. 여기서 DB를 조회합니다.
-    async jwt({ token, user }) {
-      // user 객체가 있다는 것은 방금 막 로그인했다는 뜻입니다.
-      if (user && user.email) {
-        try {
-          // [DB 조회 로직] 구글 이메일로 우리 DB 유저 조회
-          // Supabase 예시 (MySQL이면 db.query 사용)
-          const supabase = await createClient();
-          const { data: dbUser } = await supabase
-            .from("users") // 테이블명 (기존 USER)
-            .select("state, academy_code, name, level")
-            .eq("id", user.email) // ID 컬럼이 이메일이라고 가정
-            .single();
+    async jwt({ token, user, trigger, session }) {
+      // 1. 초기 로그인 시점
+      if (user?.email) {
+        token.id = user.email;
+      }
 
-          if (dbUser) {
-            // DB에 유저가 존재하면 토큰에 정보 저장
-            token.state = dbUser.state;
-            token.academyCode = dbUser.academy_code;
-            token.level = dbUser.level;
-          } else {
-            // DB에 유저가 없으면 (신규 가입 대상)
-            token.state = "N"; // 미승인 상태로 간주
-            token.academyCode = null;
-          }
-        } catch (error) {
-          console.error("DB User Fetch Error", error);
+      // 2. DB 최신 동기화
+      if (token.id) {
+        const supabase = await createClient();
+        const { data: dbUser } = await supabase
+          .from("users")
+          .select("state, academy_code, level, academy_name")
+          .eq("id", token.id)
+          .single();
+
+        if (dbUser) {
+          token.state = dbUser.state ?? token.state;
+          token.academyCode = dbUser.academy_code ?? token.academyCode;
+          token.academyName = dbUser.academy_name ?? token.academyName;
+          token.level = dbUser.level ?? token.level;
         }
       }
+
       return token;
     },
 
-    // 2️⃣ Session 콜백: 클라이언트(AuthCheck)에서 useSession()으로 접근할 때 실행됨
     async session({ session, token }) {
-      // JWT 토큰에 저장해둔 DB 정보를 세션으로 옮김
+      const levelName =
+        LEVEL_OPTIONS.find((v) => v.value == token.level)?.label || "선생님";
+
       if (session.user) {
         (session.user as any).state = token.state;
         (session.user as any).academyCode = token.academyCode;
+        (session.user as any).academyName = token.academyName;
         (session.user as any).level = token.level;
+        (session.user as any).levelName = levelName;
       }
       return session;
     },
   },
   pages: {
-    signIn: "/login", // 커스텀 로그인 페이지 경로
+    signIn: "/login",
+  },
+  session: {
+    strategy: "jwt",
+    maxAge: 365 * 24 * 60 * 60,
+    updateAge: 24 * 60 * 60,
   },
 };
-
-const handler = NextAuth(authOptions);
-export { handler as GET, handler as POST };

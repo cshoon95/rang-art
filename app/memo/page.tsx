@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import MemoClient from "./_components/MemoClient";
 import MemoSkeleton from "./_components/MemoSkeleton";
 import { getMemosAction } from "../_actions";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
 
 export default async function MemoPage() {

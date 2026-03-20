@@ -13,8 +13,7 @@ export const useGetStudents = (academyCode: string) => {
   return useQuery({
     queryKey: ["attendance-students", academyCode],
     queryFn: () => getActiveStudentsAction(academyCode),
-    // 🌟 [최적화 1] 탭을 전환해도 5분 동안은 다시 로딩하지 않고 즉시 보여줌
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60, // 1분 캐시 (회원 추가/삭제 시 invalidateQueries로 즉시 갱신)
   });
 };
 
@@ -46,13 +45,67 @@ export const useUpsertAttendance = () => {
   const queryClient = useQueryClient();
   const { addToast } = useToastStore();
   return useMutation({
+    mutationKey: ["upsertAttendance"],
     mutationFn: upsertAttendanceAction,
-    onSuccess: () => {
-      // 쿼리 무효화로 데이터 최신화
-      addToast("출석 정보가 저장되었어요");
-      queryClient.invalidateQueries({ queryKey: ["attendance"] });
+    onMutate: async (newRecord) => {
+      // 1. 진행 중인 백그라운드 새로고침 잠시 중단
+      await queryClient.cancelQueries({ queryKey: ["attendance"] });
+
+      // 2. 만약을 대비해 기존 데이터 캡처 (에러 시 복구용)
+      const previousData = queryClient.getQueriesData({
+        queryKey: ["attendance"],
+      });
+
+      // 3. 서버 응답 기다리지 않고 🌟화면부터 즉시 수정 (낙관적 업데이트)🌟
+      queryClient.setQueriesData({ queryKey: ["attendance"] }, (old: any) => {
+        if (!Array.isArray(old)) return old;
+        let updated = false;
+        const next = old.map((item: any) => {
+          if (
+            item.student_id === newRecord.studentId &&
+            item.date === newRecord.date
+          ) {
+            updated = true;
+            return { ...item, content: newRecord.content };
+          }
+          return item;
+        });
+        if (!updated) {
+          next.push({
+            student_id: newRecord.studentId,
+            date: newRecord.date,
+            content: newRecord.content,
+            name: newRecord.name,
+          });
+        }
+        return next;
+      });
+
+      return { previousData };
     },
-    onError: () => addToast("출석 정보 입력이 실패하였어요"),
+    onSuccess: () => {
+      // 마지막 mutation 완료 시에만 토스트 (연속 입력 시 중복 방지)
+      if (queryClient.isMutating({ mutationKey: ["upsertAttendance"] }) === 1) {
+        addToast("출석이 저장되었어요", "success");
+      }
+    },
+    onError: (err, newRecord, context) => {
+      addToast("출석 정보 입력이 실패하였어요", "error");
+      console.error(err);
+      // 4. 진짜 통신 실패 시 즉시 이전 상태로 화면 롤백
+      if (context?.previousData) {
+        context.previousData.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
+    onSettled: () => {
+      // 🌟 핵심 최적화: 사용자가 다다닥 연속으로 입력할 때 무한 새로고침 방지
+      // 큐에 대기 중인 [마지막] 입력이 끝났을 때만 DB를 전체 새로고침 합니다.
+      if (queryClient.isMutating({ mutationKey: ["upsertAttendance"] }) === 1) {
+        queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      }
+    },
   });
 };
 

@@ -12,6 +12,7 @@ import {
   endOfMonth,
   eachDayOfInterval,
   isSameDay,
+  isSameMonth,
   isWeekend,
   subDays,
   addDays,
@@ -344,7 +345,7 @@ export default function AttendanceClient({
 
     const fetchPrevData = async () => {
       // 1️⃣ [현재 달]로 돌아온 경우: 서버에서 받은 초기값으로 즉시 복구
-      if (isSameDay(currentDate, new Date()) && initialPrevData) {
+      if (isSameMonth(currentDate, new Date()) && initialPrevData) {
         setPrevDataMap(initialPrevData);
         return;
       }

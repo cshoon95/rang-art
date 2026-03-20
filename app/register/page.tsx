@@ -1,6 +1,6 @@
 import React from "react";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // ⚠️ authOptions가 정의된 경로로 수정해주세요
+import { authOptions } from "@/lib/auth"; // ⚠️ authOptions가 정의된 경로로 수정해주세요
 import RegisterClient from "./_components/RegisterClient";
 
 export default async function RegisterPage() {

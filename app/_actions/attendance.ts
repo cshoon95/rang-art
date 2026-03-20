@@ -77,7 +77,7 @@ export async function upsertAttendanceAction({
       content: content,
       name: name, // ✅ DB에 이름도 함께 저장
     },
-    { onConflict: "student_id, date" }, // PK 충돌 시 업데이트
+    { onConflict: "academy_code, date, name" },
   );
 
   if (error) throw error;

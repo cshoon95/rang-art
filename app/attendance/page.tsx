@@ -1,6 +1,6 @@
 import React, { Suspense } from "react";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { getPrevMonthLastDataAction } from "@/app/_actions";
 import { startOfMonth, subDays, format } from "date-fns";
 import Loading from "../home/_components/Loading";

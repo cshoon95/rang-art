@@ -1,6 +1,6 @@
 import React, { Suspense } from "react";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import HomeClient from "./_components/HomeClient";
 import Loading from "./_components/Loading";
 

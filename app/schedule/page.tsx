@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import ScheduleClient from "./_components/ScheduleClient";
 import { cookies } from "next/headers";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import ScheduleSkeleton from "./_components/ScheuldeSkeleton";
 import {
   getScheduleDataListAction,

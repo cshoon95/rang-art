@@ -1,8 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
-// 토스트 스토어 경로에 맞게 수정해주세요
 import { useToastStore } from "@/store/toastStore";
 import {
+  getServerCustomerList,
   createCustomerAction,
   updateCustomerFullAction,
   deleteCustomerAction,
@@ -14,14 +13,24 @@ import {
   getBranchDetailAction,
 } from "../_actions/customers";
 
+// === 고객 목록 조회 ===
+export const useGetCustomers = (academyCode: string, initialData?: any[]) => {
+  return useQuery({
+    queryKey: ["customers", academyCode],
+    queryFn: () => getServerCustomerList(academyCode),
+    initialData: initialData,
+    staleTime: 0,
+    enabled: !!academyCode,
+  });
+};
+
 // === 1. 등록/수정 (Upsert) 훅 ===
 export const useUpsertCustomer = (mode: "add" | "edit") => {
-  const router = useRouter();
-  const { addToast } = useToastStore(); // 토스트 메시지
+  const queryClient = useQueryClient();
+  const { addToast } = useToastStore();
 
   return useMutation({
     mutationFn: async (data: any) => {
-      // mode에 따라 다른 액션 호출
       const action =
         mode === "add" ? createCustomerAction : updateCustomerFullAction;
       const result = await action(data);
@@ -30,7 +39,8 @@ export const useUpsertCustomer = (mode: "add" | "edit") => {
       return result;
     },
     onSuccess: (data) => {
-      router.refresh(); // 서버 컴포넌트 데이터 갱신
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-students"] });
       addToast(data.message, "success");
     },
     onError: (error: Error) => {
@@ -41,23 +51,33 @@ export const useUpsertCustomer = (mode: "add" | "edit") => {
 
 // === 2. 삭제 훅 ===
 export const useDeleteCustomer = () => {
+  const queryClient = useQueryClient();
+  const { addToast } = useToastStore();
+
   return useMutation({
     mutationFn: async (param) => {
       const result = await deleteCustomerAction(param as any);
       if (!result.success) throw new Error(result.message);
       return result;
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-students"] });
+      addToast("삭제되었습니다.", "success");
+    },
+    onError: (error: Error) => {
+      addToast(error.message || "삭제에 실패했습니다.", "error");
+    },
   });
 };
 
 // === 1. 직원 등록/수정 (Upsert) 훅 ===
 export const useUpsertEmployee = (mode: "add" | "edit") => {
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const { addToast } = useToastStore();
 
   return useMutation({
     mutationFn: async (data: any) => {
-      // mode에 따라 등록(create) 또는 수정(update) 액션 호출
       const action =
         mode === "add" ? createEmployeeAction : updateEmployeeAction;
       const result = await action(data);
@@ -66,11 +86,11 @@ export const useUpsertEmployee = (mode: "add" | "edit") => {
       return result;
     },
     onSuccess: (data) => {
-      router.refresh(); // 서버 컴포넌트 데이터 갱신 (리스트 새로고침)
-      addToast(data.message, "success"); // 성공 토스트
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      addToast(data.message, "success");
     },
     onError: (error: Error) => {
-      addToast(error.message || "저장에 실패했습니다.", "error"); // 에러 토스트
+      addToast(error.message || "저장에 실패했습니다.", "error");
     },
   });
 };
@@ -80,7 +100,6 @@ export const useDeleteEmployee = () => {
   return useMutation({
     mutationFn: async (param: { id: string; academyCode: string }) => {
       const result = await deleteEmployeeAction(param);
-
       if (!result.success) throw new Error(result.message);
       return result;
     },
@@ -89,7 +108,7 @@ export const useDeleteEmployee = () => {
 
 // 등록/수정
 export const useUpsertBranch = () => {
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const { addToast } = useToastStore();
 
   return useMutation({
@@ -99,7 +118,7 @@ export const useUpsertBranch = () => {
       return result;
     },
     onSuccess: (data) => {
-      router.refresh();
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
       addToast(data.message, "success");
     },
     onError: (error: Error) => {
@@ -110,7 +129,7 @@ export const useUpsertBranch = () => {
 
 // 삭제
 export const useDeleteBranch = () => {
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const { addToast } = useToastStore();
 
   return useMutation({
@@ -120,7 +139,7 @@ export const useDeleteBranch = () => {
       return result;
     },
     onSuccess: (data) => {
-      router.refresh();
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
       addToast(data.message, "success");
     },
     onError: (error: Error) => {
@@ -134,6 +153,6 @@ export const useBranchDetail = (code: string) => {
   return useQuery({
     queryKey: ["branchDetail", code],
     queryFn: () => getBranchDetailAction(code),
-    enabled: !!code, // 코드가 있을 때만 실행
+    enabled: !!code,
   });
 };

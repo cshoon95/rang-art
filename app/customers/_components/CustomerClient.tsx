@@ -12,6 +12,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useModalStore } from "@/store/modalStore";
+import { useGetCustomers } from "@/app/_querys";
 import { extractInitialConsonants, getStateLabel } from "@/utils/common";
 import { replaceHyphenFormat } from "@/utils/format";
 import {
@@ -220,6 +221,8 @@ CustomersCardList.displayName = "CustomersCardList";
 // --- Main Component ---
 
 export default function CustomersClient({ initialData, academyCode }: Props) {
+  const { data: customerData = [] } = useGetCustomers(academyCode, initialData);
+
   // State
   const [searchText, setSearchText] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -240,7 +243,7 @@ export default function CustomersClient({ initialData, academyCode }: Props) {
   const processedData = useMemo(() => {
     // 1. API 응답에 중복된 학생 ID가 있을 경우를 대비해 중복 제거
     const seen = new Set();
-    const uniqueData = initialData.filter((item: any) => {
+    const uniqueData = customerData.filter((item: any) => {
       const duplicate = seen.has(item.id);
       seen.add(item.id);
       return !duplicate;
@@ -266,7 +269,7 @@ export default function CustomersClient({ initialData, academyCode }: Props) {
       if (orderA !== orderB) return orderA - orderB;
       return (a.name || "").localeCompare(b.name || "");
     });
-  }, [initialData, debouncedSearch, filterState, filterCount]);
+  }, [customerData, debouncedSearch, filterState, filterCount]);
 
   // 3. 페이지네이션 데이터 계산
   const currentItems = useMemo(() => {

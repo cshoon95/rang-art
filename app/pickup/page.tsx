@@ -8,7 +8,7 @@ import {
   getServerPickupDataList,
 } from "../_actions/schedule";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 
 export default async function PickupPage() {
   // 1. 서버 세션 가져오기 (authOptions 필수)
