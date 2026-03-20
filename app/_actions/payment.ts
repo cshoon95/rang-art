@@ -18,7 +18,8 @@ export async function getPaymentMessageListAction(academyCode: string) {
     .from("customers")
     .select("id, name, fee, count, note, fee_yn, parentphone, tel")
     .eq("academy_code", academyCode)
-    .eq("msg_yn", "Y");
+    .eq("msg_yn", "Y")
+    .eq("state", "0"); // 재원생만
 
   if (custError || !customers || customers.length === 0) {
     return [];
