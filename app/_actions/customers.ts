@@ -508,3 +508,35 @@ export async function getEmployees(academyCode: string) {
     NOTE: item.note || "",
   }));
 }
+
+/**
+ * 원비 일괄 변경 (기존 금액과 정확히 일치하는 재원생만 업데이트)
+ */
+export async function updateBulkFeeAction(
+  academyCode: string,
+  feeMap: { oldFee: number; newFee: number }[],
+) {
+  const supabase = await createClient();
+  let totalUpdated = 0;
+
+  for (const { oldFee, newFee } of feeMap) {
+    // fee 컬럼이 text/numeric 어느 타입이든 매칭되도록 숫자, 문자열 모두 시도
+    const { data, error } = await supabase
+      .from(TABLE_NAME)
+      .update({ fee: String(newFee) })
+      .eq("academy_code", academyCode)
+      .eq("state", "0") // 재원생만
+      .eq("fee", String(oldFee))
+      .select("id");
+
+    if (error) {
+      console.error(`원비 변경 실패 (${oldFee} → ${newFee}):`, error);
+      throw new Error(`원비 변경 실패: ${oldFee} → ${newFee}`);
+    }
+
+    totalUpdated += data?.length || 0;
+  }
+
+  revalidatePath("/customers");
+  return { success: true, totalUpdated };
+}

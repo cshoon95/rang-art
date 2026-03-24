@@ -6,6 +6,7 @@ import { useModalStore } from "@/store/modalStore";
 import { RefreshCw, Search, X } from "lucide-react"; // X 아이콘 추가
 import { useToastStore } from "@/store/toastStore";
 import { useUpsertBranch } from "@/app/_querys";
+import { updateBulkFeeAction } from "@/app/_actions/customers";
 import dynamic from "next/dynamic";
 
 // 🌟 [최적화] 주소 검색창은 사용자가 클릭했을 때만 렌더링되므로 지연 로딩
@@ -44,7 +45,7 @@ export default function ModalBranchManager({ mode, initialData }: Props) {
   });
 
   const { addToast } = useToastStore();
-  const { closeModal } = useModalStore();
+  const { closeModal, openModal } = useModalStore();
   const { mutate: upsertBranch, isPending } = useUpsertBranch();
 
   useEffect(() => {
@@ -114,8 +115,133 @@ export default function ModalBranchManager({ mode, initialData }: Props) {
     });
   };
 
+  // 원비 일괄 변경 화면 열기
+  const [isBulkFeeOpen, setIsBulkFeeOpen] = useState(false);
+  const [bulkFeeData, setBulkFeeData] = useState(
+    FEE_COUNTS.map((num) => ({
+      count: num,
+      oldFee: "",
+      newFee: "",
+    })),
+  );
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+
+  const handleBulkFeeChange = (
+    index: number,
+    field: "oldFee" | "newFee",
+    value: string,
+  ) => {
+    const raw = value.replace(/[^0-9]/g, "");
+    setBulkFeeData((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, [field]: raw } : item)),
+    );
+  };
+
+  const handleBulkFeeSubmit = async () => {
+    const targets = bulkFeeData.filter(
+      (item) =>
+        Number(item.oldFee) > 0 &&
+        Number(item.newFee) > 0 &&
+        Number(item.oldFee) !== Number(item.newFee),
+    );
+
+    if (targets.length === 0) {
+      addToast("변경할 항목이 없습니다.", "error");
+      return;
+    }
+
+    const message = targets
+      .map(
+        (f) =>
+          `주 ${f.count}회: ${Number(f.oldFee).toLocaleString()}원 → ${Number(f.newFee).toLocaleString()}원`,
+      )
+      .join("\n");
+
+    openModal({
+      title: "원비 일괄 변경 확인",
+      content: `아래 항목을 일괄 변경합니다.\n\n${message}\n\n※ 기존 금액과 정확히 일치하는 재원생만 변경됩니다.\n(할인 적용 원생은 변경되지 않습니다)`,
+      type: "CONFIRM",
+      hideFooter: false,
+      onConfirm: async () => {
+        setIsBulkUpdating(true);
+        try {
+          const feeMap = targets.map((f) => ({
+            oldFee: Number(f.oldFee),
+            newFee: Number(f.newFee),
+          }));
+          const result = await updateBulkFeeAction(formData.code, feeMap);
+          addToast(
+            `${result.totalUpdated}명의 원비가 변경되었습니다.`,
+            "success",
+          );
+          setIsBulkFeeOpen(false);
+        } catch (e: any) {
+          addToast(e.message || "원비 변경 중 오류가 발생했습니다.", "error");
+        } finally {
+          setIsBulkUpdating(false);
+        }
+      },
+    });
+  };
+
   // --------------------------------------------------------
-  // ✅ 1. 주소 검색 화면 (PostcodeEmbed View)
+  // ✅ 1-1. 원비 일괄 변경 화면
+  // --------------------------------------------------------
+  if (isBulkFeeOpen) {
+    return (
+      <FormContainer>
+        <PostcodeHeader>
+          <SectionTitle>원비 일괄 변경</SectionTitle>
+          <CloseIconButton onClick={() => setIsBulkFeeOpen(false)}>
+            <X size={24} />
+          </CloseIconButton>
+        </PostcodeHeader>
+        <BulkFeeDesc>
+          현재 회비 설정과 동일한 금액의 재원생만 새 금액으로 변경됩니다.
+          <br />
+          할인 등으로 금액이 다른 원생은 변경되지 않습니다.
+        </BulkFeeDesc>
+        {bulkFeeData.map((item, idx) => (
+          <BulkFeeRow key={item.count}>
+            <BulkFeeLabel>주 {item.count}회</BulkFeeLabel>
+            <BulkFeeInputGroup>
+              <InputWrapper>
+                <Input
+                  value={item.oldFee ? formatCurrency(item.oldFee) : ""}
+                  onChange={(e) =>
+                    handleBulkFeeChange(idx, "oldFee", e.target.value)
+                  }
+                  placeholder="기존 금액"
+                  style={{ textAlign: "right", paddingRight: "30px" }}
+                />
+                <Unit>원</Unit>
+              </InputWrapper>
+              <BulkFeeArrow>→</BulkFeeArrow>
+              <InputWrapper>
+                <Input
+                  value={item.newFee ? formatCurrency(item.newFee) : ""}
+                  onChange={(e) =>
+                    handleBulkFeeChange(idx, "newFee", e.target.value)
+                  }
+                  placeholder="새 금액"
+                  style={{ textAlign: "right", paddingRight: "30px" }}
+                />
+                <Unit>원</Unit>
+              </InputWrapper>
+            </BulkFeeInputGroup>
+          </BulkFeeRow>
+        ))}
+        <Footer>
+          <SaveBtn onClick={handleBulkFeeSubmit} disabled={isBulkUpdating}>
+            {isBulkUpdating ? "변경 중..." : "일괄 변경"}
+          </SaveBtn>
+        </Footer>
+      </FormContainer>
+    );
+  }
+
+  // --------------------------------------------------------
+  // ✅ 1-2. 주소 검색 화면 (PostcodeEmbed View)
   // --------------------------------------------------------
   if (isPostcodeOpen) {
     return (
@@ -256,6 +382,12 @@ export default function ModalBranchManager({ mode, initialData }: Props) {
           </InputGroup>
         ))}
       </FeeGrid>
+
+      {mode === "edit" && (
+        <BulkFeeButton type="button" onClick={() => setIsBulkFeeOpen(true)}>
+          원비 일괄 변경
+        </BulkFeeButton>
+      )}
 
       <Footer>
         <SaveBtn onClick={handleSubmit} disabled={isPending}>
@@ -434,4 +566,49 @@ const Unit = styled.span`
   font-size: 14px;
   color: #8b95a1;
   pointer-events: none;
+`;
+const BulkFeeButton = styled.button`
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px dashed #d1d6db;
+  background: #f9fafb;
+  color: #4e5968;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  &:hover {
+    border-color: #3182f6;
+    color: #3182f6;
+    background: #f0f7ff;
+  }
+`;
+const BulkFeeDesc = styled.p`
+  font-size: 13px;
+  color: #8b95a1;
+  line-height: 1.5;
+  margin: 0 0 8px;
+`;
+const BulkFeeRow = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f2f4f6;
+`;
+const BulkFeeLabel = styled.span`
+  font-size: 13px;
+  font-weight: 700;
+  color: #333d4b;
+`;
+const BulkFeeInputGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+const BulkFeeArrow = styled.span`
+  font-size: 18px;
+  color: #8b95a1;
+  flex-shrink: 0;
 `;

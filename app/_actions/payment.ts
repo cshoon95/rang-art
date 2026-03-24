@@ -33,14 +33,19 @@ export async function getPaymentMessageListAction(academyCode: string) {
     .select("student_id, date")
     .eq("academy_code", academyCode)
     .in("student_id", customerIds)
-    .like("content", "%L%") // 'L' 포함
-    .order("date", { ascending: false });
+    .ilike("content", "%L%") // 'L' 포함 (대소문자 무시)
+    .order("date", { ascending: false })
+    .limit(5000); // 기본 1000건 제한 방지
+
+  if (attError) {
+    console.error("출석 데이터 조회 실패:", attError);
+  }
 
   // 3. 고객 명단을 기준으로 데이터 병합 (L 기록이 없어도 무조건 목록에 포함!)
   const result = customers.map((customer) => {
     // 가장 최근의 L 날짜 찾기 (이미 내림차순 정렬되어 있으므로 첫 번째 매칭)
     const latestAtt = attendanceData?.find(
-      (att) => att.student_id === customer.id,
+      (att) => Number(att.student_id) === Number(customer.id),
     );
 
     return {
